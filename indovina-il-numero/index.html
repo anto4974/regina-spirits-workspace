@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Indovina il Numero (col Narratore Sarcastico)</title>
+<style>
+  :root {
+    --bg1: #1a1a2e;
+    --bg2: #16213e;
+    --accent: #e94560;
+    --accent2: #0f3460;
+    --text: #f1f1f1;
+    --success: #4ade80;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: linear-gradient(135deg, var(--bg1), var(--bg2));
+    color: var(--text);
+    padding: 20px;
+  }
+  .card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    padding: 36px;
+    max-width: 480px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    text-align: center;
+    transition: transform 0.15s ease;
+  }
+  .card.shake { animation: shake 0.4s; }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-10px) rotate(-1deg); }
+    40% { transform: translateX(10px) rotate(1deg); }
+    60% { transform: translateX(-6px); }
+    80% { transform: translateX(6px); }
+  }
+  h1 {
+    font-size: 1.5rem;
+    margin-bottom: 4px;
+  }
+  .subtitle {
+    color: #aaa;
+    font-size: 0.9rem;
+    margin-bottom: 24px;
+  }
+  .narrator {
+    background: var(--accent2);
+    border-radius: 14px;
+    padding: 18px;
+    min-height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.05rem;
+    line-height: 1.4;
+    margin-bottom: 20px;
+    transition: background 0.3s;
+  }
+  .narrator.win { background: var(--success); color: #05280f; font-weight: bold; }
+  .input-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  input[type=number] {
+    flex: 1;
+    padding: 14px;
+    font-size: 1.2rem;
+    border-radius: 10px;
+    border: none;
+    text-align: center;
+    background: #fff;
+    color: #111;
+  }
+  button {
+    padding: 14px 22px;
+    font-size: 1rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 10px;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    transition: transform 0.1s, background 0.2s;
+  }
+  button:hover { background: #c72c46; }
+  button:active { transform: scale(0.96); }
+  .stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    color: #bbb;
+    margin-bottom: 14px;
+  }
+  .history {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    margin-bottom: 16px;
+    min-height: 28px;
+  }
+  .chip {
+    background: rgba(255,255,255,0.1);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+  }
+  .reset-btn {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.3);
+    color: var(--text);
+    display: none;
+  }
+  .reset-btn.show { display: inline-block; }
+  #confetti-canvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 10;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="confetti-canvas"></canvas>
+
+<div class="card" id="card">
+  <h1>🎯 Indovina il Numero</h1>
+  <div class="subtitle">Numero segreto tra 1 e 100 — occhio, il narratore non ha pietà</div>
+
+  <div class="narrator" id="narrator">
+    Ho scelto un numero. Dai, prova a beccarlo. Tanto sbagli.
+  </div>
+
+  <div class="stats">
+    <span id="attemptsLabel">Tentativi: 0</span>
+    <span id="rangeLabel">Range: 1–100</span>
+  </div>
+
+  <div class="input-row">
+    <input type="number" id="guessInput" min="1" max="100" placeholder="Il tuo numero...">
+    <button id="guessBtn">Tira!</button>
+  </div>
+
+  <div class="history" id="history"></div>
+
+  <button class="reset-btn" id="resetBtn">🔄 Rigioca</button>
+</div>
+
+<script>
+(function() {
+  let secret, attempts, guesses, minSeen, maxSeen, over;
+
+  const narratorEl = document.getElementById('narrator');
+  const attemptsLabel = document.getElementById('attemptsLabel');
+  const rangeLabel = document.getElementById('rangeLabel');
+  const input = document.getElementById('guessInput');
+  const btn = document.getElementById('guessBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const historyEl = document.getElementById('history');
+  const card = document.getElementById('card');
+
+  const coldFar = [
+    "Ghiacciaio. Sei nell'emisfero sbagliato del pianeta.",
+    "Wow, complimenti, hai trovato il numero più lontano possibile. Talento raro.",
+    "Freddo. Anzi no, congelato. Anzi no, sei nello spazio.",
+    "Ma tu il numero l'hai proprio scelto a caso, vero? Si vede.",
+  ];
+  const cold = [
+    "Freddino. Tipo gelato lasciato fuori dal frigo per errore.",
+    "Ci sei lontano. Non malissimo, ma nemmeno bene.",
+    "Sento ancora freddo da qui.",
+    "Mmm no, ma almeno hai provato.",
+  ];
+  const warm = [
+    "Ok, ti stai scaldando. Piano piano.",
+    "Tiepido. Come un caffè dimenticato sulla scrivania.",
+    "Ci siamo quasi... non proprio, ma quasi.",
+    "Sento del calore! Poco, ma c'è.",
+  ];
+  const hot = [
+    "CALDISSIMO! Un altro po' e ti bruci.",
+    "Sei vicinissimo, non farmi arrabbiare con un altro errore.",
+    "Praticamente ce l'hai in mano, forza!",
+    "Un pelo di distanza. UN PELO.",
+  ];
+  const win = [
+    "Ma dai, ce l'hai fatta! Miracolo statistico.",
+    "ESATTO! Anche un orologio rotto ha ragione due volte al giorno.",
+    "Bravo/a! Ora vai a festeggiare, te lo sei guadagnato.",
+    "Vittoria! Il numero segreto si arrende a te.",
+  ];
+
+  function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+  function newGame() {
+    secret = Math.floor(Math.random() * 100) + 1;
+    attempts = 0;
+    guesses = [];
+    minSeen = 1;
+    maxSeen = 100;
+    over = false;
+    narratorEl.className = 'narrator';
+    narratorEl.textContent = "Nuovo numero scelto. Preparati a fallire con stile.";
+    attemptsLabel.textContent = 'Tentativi: 0';
+    rangeLabel.textContent = 'Range: 1–100';
+    historyEl.innerHTML = '';
+    input.value = '';
+    input.disabled = false;
+    btn.disabled = false;
+    resetBtn.classList.remove('show');
+    input.focus();
+  }
+
+  function shakeCard() {
+    card.classList.remove('shake');
+    void card.offsetWidth;
+    card.classList.add('shake');
+  }
+
+  function addChip(n, hint) {
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    chip.textContent = `${n} ${hint}`;
+    historyEl.appendChild(chip);
+  }
+
+  function launchConfetti() {
+    const canvas = document.getElementById('confetti-canvas');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const ctx = canvas.getContext('2d');
+    const colors = ['#e94560', '#4ade80', '#facc15', '#38bdf8', '#f472b6'];
+    const pieces = Array.from({length: 120}, () => ({
+      x: Math.random() * canvas.width,
+      y: -20 - Math.random() * canvas.height * 0.5,
+      size: 5 + Math.random() * 6,
+      speedY: 2 + Math.random() * 4,
+      speedX: (Math.random() - 0.5) * 3,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      rotation: Math.random() * 360,
+      rotSpeed: (Math.random() - 0.5) * 10,
+    }));
+    let frame = 0;
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      frame++;
+      let stillFalling = false;
+      pieces.forEach(p => {
+        p.x += p.speedX;
+        p.y += p.speedY;
+        p.rotation += p.rotSpeed;
+        if (p.y < canvas.height + 20) stillFalling = true;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rotation * Math.PI / 180);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size * 0.6);
+        ctx.restore();
+      });
+      if (stillFalling && frame < 200) {
+        requestAnimationFrame(animate);
+      } else {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+    animate();
+  }
+
+  function submitGuess() {
+    if (over) return;
+    const val = parseInt(input.value, 10);
+    if (isNaN(val) || val < 1 || val > 100) {
+      narratorEl.textContent = "Numero non valido. Sai leggere '1 e 100', vero?";
+      shakeCard();
+      return;
+    }
+    attempts++;
+    attemptsLabel.textContent = `Tentativi: ${attempts}`;
+
+    if (val === secret) {
+      narratorEl.className = 'narrator win';
+      narratorEl.textContent = `${pick(win)} Il numero era ${secret}, in ${attempts} tentativi.`;
+      addChip(val, '🎯');
+      over = true;
+      input.disabled = true;
+      btn.disabled = true;
+      resetBtn.classList.add('show');
+      launchConfetti();
+      return;
+    }
+
+    const distance = Math.abs(val - secret);
+    let hintIcon;
+
+    if (val < secret) {
+      minSeen = Math.max(minSeen, val + 1);
+      hintIcon = '↑';
+    } else {
+      maxSeen = Math.min(maxSeen, val - 1);
+      hintIcon = '↓';
+    }
+    rangeLabel.textContent = `Range: ${minSeen}–${maxSeen}`;
+
+    let pool;
+    if (distance > 40) pool = coldFar;
+    else if (distance > 20) pool = cold;
+    else if (distance > 8) pool = warm;
+    else pool = hot;
+
+    narratorEl.textContent = `${pick(pool)} (${hintIcon})`;
+    addChip(val, hintIcon);
+    shakeCard();
+    input.value = '';
+    input.focus();
+  }
+
+  btn.addEventListener('click', submitGuess);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') submitGuess(); });
+  resetBtn.addEventListener('click', newGame);
+
+  newGame();
+})();
+</script>
+
+</body>
+</html>
