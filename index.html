@@ -595,7 +595,7 @@
 
     <main id="list" class="list-wrap"></main>
 
-    <p class="footnote">Tocca − o + per muovere la quantità impostata accanto (di default 1).<br>I dati si sincronizzano su tutti i telefoni collegati a questo link (aggiornamento ogni pochi secondi).</p>
+    <p class="footnote">Tocca − o + per muovere la quantità impostata accanto (di default 1).<br>I dati si sincronizzano in tempo reale su tutti i telefoni collegati a questo link.</p>
   </div>
 
   <div id="riepilogoView" hidden></div>
@@ -608,7 +608,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
   import {
-    initializeFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs
+    initializeFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, onSnapshot
   } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
   var firebaseConfig = {
@@ -650,6 +650,21 @@
         qs.forEach(function(d){ out.push({ id: d.id, data: d.data() }); });
         return out;
       });
+    },
+    // Live subscriptions: cb fires immediately with the current data, then
+    // again only when something actually changes — no polling needed.
+    onDocSnapshot: function(path, cb){
+      return onSnapshot(pathToRef(path), function(snap){
+        cb(snap.exists() ? snap.data() : null);
+      }, function(err){ console.error(err); cb(null, err); });
+    },
+    onCollectionSnapshot: function(path, cb){
+      var ref = collection.apply(null, [fs].concat(path.split('/')));
+      return onSnapshot(ref, function(qs){
+        var out = [];
+        qs.forEach(function(d){ out.push({ id: d.id, data: d.data() }); });
+        cb(out);
+      }, function(err){ console.error(err); cb(null, err); });
     }
   };
   window.dispatchEvent(new Event('fb-ready'));
@@ -671,8 +686,6 @@
 
   var NEW_CAT_VALUE = '__new__';
   var PERSIST_DEBOUNCE_MS = 450;
-  var FAST_REFRESH_MS = 25000;   // stock quantities + movements: changes often, keep snappy
-  var SLOW_REFRESH_MS = 120000;  // reference catalog (products, categories): changes rarely, costs one read per product
   var PHOTO_MAX_DIM = 480;
   var PHOTO_QUALITY = 0.72;
 
@@ -694,8 +707,6 @@
   var pending = {}; // 'loc:prodId' -> { loc, prodId, netDelta, newQty, timer }
   var pendingPhoto = null; // { file, previewUrl, dataUrl, processing, error } — photo picked in the open add-form
   var rowPhotoTargetId = null; // product id awaiting a photo from the shared row file input
-  var refreshTimer = null;
-  var catalogRefreshTimer = null;
 
   function iconShop(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10l1-5h14l1 5"/><path d="M4 10a2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0"/><path d="M5 10v9h14v-9"/><path d="M10 19v-5h4v5"/></svg>'; }
   function iconWarehouse(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V10l9-6 9 6v11"/><path d="M3 21h18"/><path d="M8 21v-6h8v6"/></svg>'; }
@@ -1592,19 +1603,19 @@
     });
   }
 
-  // ---------- sync: periodic refresh instead of live listeners ----------
-  // Split into two speeds to stay well within Firestore's free daily read
-  // quota: stock quantities change constantly (every +/- tap) so they're
-  // refreshed often and cheaply (5 small docs); the reference catalog
-  // (products, categories) changes rarely — only on add/edit/delete — but
-  // costs one read per product every time it's fetched, so it's refreshed
-  // much less often.
+  // ---------- sync: live subscriptions ----------
+  // Each of these fires immediately with the current data, then again only
+  // when that document/collection actually changes — no blind re-fetching
+  // on a timer, so idle periods cost nothing and changes show up right away.
 
   function rerenderCurrentView(){
     var isStock = state.view === 'stock';
     var isRiepilogo = state.view === 'riepilogo';
     if (isStock){
       renderTabs();
+      // Never rebuild the add/edit form from a live update: it has no live
+      // binding to state, so a rebuild here would silently discard whatever
+      // the user is mid-typing (name, new category, weight) before Salva.
       if (!state.addOpen) renderAddForm();
       renderList();
     } else if (isRiepilogo){
@@ -1614,68 +1625,43 @@
     }
   }
 
-  function refreshStock(){
-    if (!window.__fb) return Promise.resolve();
-    return Promise.all([
-      window.__fb.getDoc('log/movements'),
-      window.__fb.getDoc('stock/negozio'),
-      window.__fb.getDoc('stock/magazzino'),
-      window.__fb.getDoc('stock/furgone'),
-      window.__fb.getDoc('stock/garage')
-    ]).then(function(results){
-      var moves = results[0];
-      state.movements = (moves && moves.entries) ? moves.entries : [];
-      LOCATIONS.forEach(function(loc, i){
-        state.cache[loc.id] = results[1 + i] || {};
-      });
-      setSyncStatus('synced');
-      rerenderCurrentView();
-    }).catch(function(err){
-      console.error(err);
-      setSyncStatus('error');
-    });
+  function whenFirebaseReady(cb){
+    if (window.__fb){ cb(); return; }
+    window.addEventListener('fb-ready', cb, { once: true });
   }
 
-  function refreshCatalog(){
-    if (!window.__fb) return Promise.resolve();
-    return Promise.all([
-      window.__fb.getDoc('meta/categories'),
-      window.__fb.getCollection('products')
-    ]).then(function(results){
-      var cats = results[0];
-      var prodDocs = results[1];
-      state.categories = (cats && cats.items) ? cats.items : [];
-      state.products = prodDocs.map(function(d){
+  function startSync(){
+    window.__fb.onDocSnapshot('meta/categories', function(data, err){
+      if (err){ setSyncStatus('error'); return; }
+      state.categories = (data && data.items) ? data.items : [];
+      setSyncStatus('synced');
+      rerenderCurrentView();
+    });
+
+    window.__fb.onCollectionSnapshot('products', function(docs, err){
+      if (err){ setSyncStatus('error'); return; }
+      state.products = docs.map(function(d){
         var p = { id: d.id };
         Object.keys(d.data).forEach(function(k){ p[k] = d.data[k]; });
         return p;
       });
       setSyncStatus('synced');
       rerenderCurrentView();
-    }).catch(function(err){
-      console.error(err);
-      setSyncStatus('error');
     });
-  }
 
-  function refreshAll(){
-    return Promise.all([refreshStock(), refreshCatalog()]);
-  }
-
-  function whenFirebaseReady(cb){
-    if (window.__fb){ cb(); return; }
-    window.addEventListener('fb-ready', cb, { once: true });
-  }
-
-  function startPolling(){
-    clearInterval(refreshTimer);
-    clearInterval(catalogRefreshTimer);
-    refreshTimer = setInterval(refreshStock, FAST_REFRESH_MS);
-    catalogRefreshTimer = setInterval(refreshCatalog, SLOW_REFRESH_MS);
-    document.addEventListener('visibilitychange', function(){
-      if (document.visibilityState === 'visible') refreshAll();
+    window.__fb.onDocSnapshot('log/movements', function(data, err){
+      if (err) return;
+      state.movements = (data && data.entries) ? data.entries : [];
+      if (state.view === 'riepilogo') renderRiepilogo();
     });
-    window.addEventListener('focus', function(){ refreshAll(); });
+
+    LOCATIONS.forEach(function(loc){
+      window.__fb.onDocSnapshot('stock/' + loc.id, function(data, err){
+        if (err) return;
+        state.cache[loc.id] = data || {};
+        rerenderCurrentView();
+      });
+    });
   }
 
   document.getElementById('search').addEventListener('input', function(e){
@@ -1691,10 +1677,7 @@
 
   bindListDelegation();
   render();
-  whenFirebaseReady(function(){
-    refreshAll();
-    startPolling();
-  });
+  whenFirebaseReady(startSync);
 })();
 </script>
 </body>
