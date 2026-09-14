@@ -671,7 +671,8 @@
 
   var NEW_CAT_VALUE = '__new__';
   var PERSIST_DEBOUNCE_MS = 450;
-  var REFRESH_INTERVAL_MS = 25000;
+  var FAST_REFRESH_MS = 25000;   // stock quantities + movements: changes often, keep snappy
+  var SLOW_REFRESH_MS = 120000;  // reference catalog (products, categories): changes rarely, costs one read per product
   var PHOTO_MAX_DIM = 480;
   var PHOTO_QUALITY = 0.72;
 
@@ -694,6 +695,7 @@
   var pendingPhoto = null; // { file, previewUrl, dataUrl, processing, error } — photo picked in the open add-form
   var rowPhotoTargetId = null; // product id awaiting a photo from the shared row file input
   var refreshTimer = null;
+  var catalogRefreshTimer = null;
 
   function iconShop(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10l1-5h14l1 5"/><path d="M4 10a2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0"/><path d="M5 10v9h14v-9"/><path d="M10 19v-5h4v5"/></svg>'; }
   function iconWarehouse(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21V10l9-6 9 6v11"/><path d="M3 21h18"/><path d="M8 21v-6h8v6"/></svg>'; }
@@ -1591,49 +1593,73 @@
   }
 
   // ---------- sync: periodic refresh instead of live listeners ----------
+  // Split into two speeds to stay well within Firestore's free daily read
+  // quota: stock quantities change constantly (every +/- tap) so they're
+  // refreshed often and cheaply (5 small docs); the reference catalog
+  // (products, categories) changes rarely — only on add/edit/delete — but
+  // costs one read per product every time it's fetched, so it's refreshed
+  // much less often.
 
-  function refreshAll(){
+  function rerenderCurrentView(){
+    var isStock = state.view === 'stock';
+    var isRiepilogo = state.view === 'riepilogo';
+    if (isStock){
+      renderTabs();
+      if (!state.addOpen) renderAddForm();
+      renderList();
+    } else if (isRiepilogo){
+      renderRiepilogo();
+    } else {
+      renderCategorie();
+    }
+  }
+
+  function refreshStock(){
     if (!window.__fb) return Promise.resolve();
     return Promise.all([
-      window.__fb.getDoc('meta/categories'),
-      window.__fb.getCollection('products'),
       window.__fb.getDoc('log/movements'),
       window.__fb.getDoc('stock/negozio'),
       window.__fb.getDoc('stock/magazzino'),
       window.__fb.getDoc('stock/furgone'),
       window.__fb.getDoc('stock/garage')
     ]).then(function(results){
+      var moves = results[0];
+      state.movements = (moves && moves.entries) ? moves.entries : [];
+      LOCATIONS.forEach(function(loc, i){
+        state.cache[loc.id] = results[1 + i] || {};
+      });
+      setSyncStatus('synced');
+      rerenderCurrentView();
+    }).catch(function(err){
+      console.error(err);
+      setSyncStatus('error');
+    });
+  }
+
+  function refreshCatalog(){
+    if (!window.__fb) return Promise.resolve();
+    return Promise.all([
+      window.__fb.getDoc('meta/categories'),
+      window.__fb.getCollection('products')
+    ]).then(function(results){
       var cats = results[0];
       var prodDocs = results[1];
-      var moves = results[2];
-
       state.categories = (cats && cats.items) ? cats.items : [];
       state.products = prodDocs.map(function(d){
         var p = { id: d.id };
         Object.keys(d.data).forEach(function(k){ p[k] = d.data[k]; });
         return p;
       });
-      state.movements = (moves && moves.entries) ? moves.entries : [];
-      LOCATIONS.forEach(function(loc, i){
-        state.cache[loc.id] = results[3 + i] || {};
-      });
-
       setSyncStatus('synced');
-      var isStock = state.view === 'stock';
-      var isRiepilogo = state.view === 'riepilogo';
-      if (isStock){
-        renderTabs();
-        if (!state.addOpen) renderAddForm();
-        renderList();
-      } else if (isRiepilogo){
-        renderRiepilogo();
-      } else {
-        renderCategorie();
-      }
+      rerenderCurrentView();
     }).catch(function(err){
       console.error(err);
       setSyncStatus('error');
     });
+  }
+
+  function refreshAll(){
+    return Promise.all([refreshStock(), refreshCatalog()]);
   }
 
   function whenFirebaseReady(cb){
@@ -1643,7 +1669,9 @@
 
   function startPolling(){
     clearInterval(refreshTimer);
-    refreshTimer = setInterval(refreshAll, REFRESH_INTERVAL_MS);
+    clearInterval(catalogRefreshTimer);
+    refreshTimer = setInterval(refreshStock, FAST_REFRESH_MS);
+    catalogRefreshTimer = setInterval(refreshCatalog, SLOW_REFRESH_MS);
     document.addEventListener('visibilitychange', function(){
       if (document.visibilityState === 'visible') refreshAll();
     });
