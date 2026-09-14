@@ -2,9 +2,13 @@
 <html lang="it">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>Giacenze Caramelle</title>
 <link rel="icon" href="data:,">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Giacenze">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap">
 <style>
@@ -63,7 +67,7 @@
     --shadow: 0 1px 3px rgba(0,0,0,0.4);
   }
 
-  *{ box-sizing:border-box; }
+  *{ box-sizing:border-box; touch-action:manipulation; }
   html, body{ background:var(--bg); }
   body{
     margin:0;
@@ -71,6 +75,13 @@
     color:var(--ink);
     font-family:'Work Sans', system-ui, sans-serif;
     -webkit-tap-highlight-color: transparent;
+    -webkit-user-select:none;
+    user-select:none;
+    overscroll-behavior-y:contain;
+  }
+  input, textarea{
+    -webkit-user-select:text;
+    user-select:text;
   }
   .app{
     max-width:520px;
