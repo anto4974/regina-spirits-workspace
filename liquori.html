@@ -190,6 +190,29 @@
   .search-wrap input::placeholder{ color:var(--muted); }
   .search-wrap input:focus{ outline:2px solid var(--raspberry); outline-offset:1px; }
 
+  .sort-row{ display:flex; align-items:center; gap:.4rem; padding:.5rem .75rem .1rem; flex-wrap:wrap; }
+  .sort-label{
+    font-family:'Oswald', sans-serif;
+    font-size:.66rem;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    color:var(--muted);
+    margin-right:.05rem;
+  }
+  .sort-btn{
+    padding:.35rem .65rem;
+    border-radius:.5rem;
+    border:1px solid var(--line);
+    background:var(--surface);
+    color:var(--muted);
+    font-family:'Oswald', sans-serif;
+    font-size:.66rem;
+    text-transform:uppercase;
+    letter-spacing:.03em;
+    cursor:pointer;
+  }
+  .sort-btn.active{ background:var(--raspberry); border-color:var(--raspberry); color:var(--raspberry-ink); }
+
   .category{
     margin:1.1rem .75rem .4rem;
     font-family:'Oswald', sans-serif;
@@ -602,6 +625,12 @@
       <input type="text" id="search" placeholder="Cerca una referenza…" autocomplete="off">
     </div>
 
+    <div class="sort-row">
+      <span class="sort-label">Ordina</span>
+      <button type="button" class="sort-btn" id="sortByName">Nome A-Z</button>
+      <button type="button" class="sort-btn" id="sortByQty">Più quantità</button>
+    </div>
+
     <div class="add-wrap" id="addWrap"></div>
 
     <main id="list" class="list-wrap"></main>
@@ -700,6 +729,9 @@
   var PHOTO_MAX_DIM = 480;
   var PHOTO_QUALITY = 0.72;
 
+  var savedSortMode = 'name';
+  try { savedSortMode = localStorage.getItem('regina-sort-mode-liquori') || 'name'; } catch(e){}
+
   var state = {
     view: 'stock', // stock | riepilogo | categorie
     active: 'negozio',
@@ -711,9 +743,39 @@
     movements: [],
     addOpen: false,
     sumMode: 'negozio_magazzino',
+    sortMode: savedSortMode, // 'name' | 'qty'
     confirmDeleteId: null,
     editingId: null
   };
+
+  function sortItems(items, qtyFn){
+    var sorted = items.slice();
+    if (state.sortMode === 'qty'){
+      sorted.sort(function(a, b){
+        var qa = qtyFn(a), qb = qtyFn(b);
+        if (qb !== qa) return qb - qa;
+        return a.name.localeCompare(b.name, 'it', { sensitivity: 'base' });
+      });
+    } else {
+      sorted.sort(function(a, b){ return a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }); });
+    }
+    return sorted;
+  }
+
+  function setSortMode(mode){
+    if (state.sortMode === mode) return;
+    state.sortMode = mode;
+    try { localStorage.setItem('regina-sort-mode-liquori', mode); } catch(e){}
+    updateSortButtons();
+    rerenderCurrentView();
+  }
+
+  function updateSortButtons(){
+    var nameBtn = document.getElementById('sortByName');
+    var qtyBtn = document.getElementById('sortByQty');
+    if (nameBtn) nameBtn.classList.toggle('active', state.sortMode === 'name');
+    if (qtyBtn) qtyBtn.classList.toggle('active', state.sortMode === 'qty');
+  }
 
   var pending = {}; // 'loc:prodId' -> { loc, prodId, netDelta, newQty, timer }
   var pendingPhoto = null; // { file, previewUrl, dataUrl, processing, error } — photo picked in the open add-form
@@ -857,6 +919,7 @@
         return p.cat === cat && (!q || normalize(p.name).indexOf(q) !== -1);
       });
       if (!items.length) return;
+      items = sortItems(items, function(p){ return locData[p.id] || 0; });
       anyMatch = true;
       html += '<div class="category"><span>' + escapeHtml(cat) + '</span><span class="cat-badge">' + items.length + '</span></div>';
       html += '<div class="list">';
@@ -1493,6 +1556,10 @@
     state.categories.forEach(function(cat){
       var items = state.products.filter(function(p){ return p.cat === cat; });
       if (!items.length) return;
+      var sumLocs = SUM_MODES[sumMode].locs;
+      items = sortItems(items, function(p){
+        return sumLocs.reduce(function(sum, loc){ return sum + ((state.cache[loc] && state.cache[loc][p.id]) || 0); }, 0);
+      });
       anyCat = true;
       html += '<div class="category"><span>' + escapeHtml(cat) + '</span><span class="cat-badge">' + items.length + '</span></div>';
       html += '<div class="list">';
@@ -1679,6 +1746,10 @@
     state.search = e.target.value;
     renderList();
   });
+
+  document.getElementById('sortByName').addEventListener('click', function(){ setSortMode('name'); });
+  document.getElementById('sortByQty').addEventListener('click', function(){ setSortMode('qty'); });
+  updateSortButtons();
 
   document.getElementById('rowPhotoInput').addEventListener('change', function(e){
     var file = e.target.files && e.target.files[0];
