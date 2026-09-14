@@ -738,7 +738,7 @@
     search: '',
     cache: { negozio:{}, magazzino:{}, furgone:{}, garage:{} },
     steps: {},
-    products: [],     // { id, name, cat, photo, unitWeightKg }
+    products: [],     // { id, name, cat, photo, unitVolumeMl }
     categories: [],   // [ 'Gommose', ... ]
     movements: [],
     addOpen: false,
@@ -842,15 +842,15 @@
 
   function photoSrcFor(p){ return p.photo || null; }
 
-  function formatWeight(kg){
-    var n = Number(kg);
+  function formatWeight(ml){
+    var n = Number(ml);
     if (!n) return '';
     var rounded = Math.round(n * 100) / 100;
-    return String(rounded).replace('.', ',') + ' kg';
+    return String(rounded).replace('.', ',') + ' ml';
   }
 
   function weightBadgeHtml(p){
-    return p.unitWeightKg ? '<span class="thumb-weight">' + escapeHtml(formatWeight(p.unitWeightKg)) + '</span>' : '';
+    return p.unitVolumeMl ? '<span class="thumb-weight">' + escapeHtml(formatWeight(p.unitVolumeMl)) + '</span>' : '';
   }
 
   function thumbInner(p){
@@ -934,7 +934,7 @@
                 '<div class="row-name-wrap"><div class="row-name">' + escapeHtml(p.name) + '</div></div>' +
                 '<div class="row-qty">' +
                   '<span class="qty-line"><span class="qty-num" data-qtyid="' + p.id + '">' + qty + '</span><span class="unit">pz</span></span>' +
-                  (p.unitWeightKg ? '<span class="qty-weight" data-qtywid="' + p.id + '">' + escapeHtml(formatWeight(qty * p.unitWeightKg)) + '</span>' : '') +
+                  (p.unitVolumeMl ? '<span class="qty-weight" data-qtywid="' + p.id + '">' + escapeHtml(formatWeight(qty * p.unitVolumeMl)) + '</span>' : '') +
                 '</div>' +
               '</div>' +
               (confirming ?
@@ -1035,9 +1035,9 @@
       numEl.classList.add('pulse');
     }
     var product = productById(prodId);
-    if (product && product.unitWeightKg){
+    if (product && product.unitVolumeMl){
       var wEl = document.querySelector('.qty-weight[data-qtywid="' + cssEscape(prodId) + '"]');
-      if (wEl) wEl.textContent = formatWeight(newQty * product.unitWeightKg);
+      if (wEl) wEl.textContent = formatWeight(newQty * product.unitVolumeMl);
     }
 
     schedulePersist(loc, prodId, newQty, actualDelta);
@@ -1134,7 +1134,7 @@
   }
 
   function productDocData(p){
-    return { name: p.name, cat: p.cat, photo: p.photo || null, unitWeightKg: p.unitWeightKg || null };
+    return { name: p.name, cat: p.cat, photo: p.photo || null, unitVolumeMl: p.unitVolumeMl || null };
   }
 
   function replaceProductPhoto(prodId, dataUrl){
@@ -1294,9 +1294,9 @@
 
     var weightFieldHtml =
       '<div class="add-field">' +
-        '<label for="newProdWeight">Peso per pezzo (facoltativo)</label>' +
+        '<label for="newProdWeight">Volume per pezzo, in ml (facoltativo)</label>' +
         '<div class="weight-input-wrap">' +
-          '<input type="text" id="newProdWeight" inputmode="decimal" placeholder="Es. 1 oppure 1,5" value="' + (editing && product.unitWeightKg ? escapeHtml(String(product.unitWeightKg).replace('.', ',')) : '') + '">' +
+          '<input type="text" id="newProdWeight" inputmode="decimal" placeholder="Es. 200 oppure 700" value="' + (editing && product.unitVolumeMl ? escapeHtml(String(product.unitVolumeMl).replace('.', ',')) : '') + '">' +
           '<span class="weight-unit-suffix">kg</span>' +
         '</div>' +
       '</div>';
@@ -1396,11 +1396,11 @@
 
     var weightInput = document.getElementById('newProdWeight').value.trim().replace(',', '.');
     var weightRaw = parseFloat(weightInput);
-    var unitWeightKg = (!isNaN(weightRaw) && weightRaw > 0) ? weightRaw : null;
+    var unitVolumeMl = (!isNaN(weightRaw) && weightRaw > 0) ? weightRaw : null;
 
     if (state.editingId){
       var editedId = state.editingId;
-      updateProduct(editedId, { name: name, cat: catName, unitWeightKg: unitWeightKg }, function(){
+      updateProduct(editedId, { name: name, cat: catName, unitVolumeMl: unitVolumeMl }, function(){
         showToast('Referenza aggiornata.');
       });
       closeForm();
@@ -1414,14 +1414,14 @@
     var initialStock = isNaN(stockRaw) ? 0 : Math.max(0, stockRaw);
     var photo = pendingPhoto ? pendingPhoto.dataUrl : null;
 
-    addProduct(name, catName, initialStock, photo, unitWeightKg);
+    addProduct(name, catName, initialStock, photo, unitVolumeMl);
     closeForm();
     renderList();
   }
 
-  function addProduct(name, catName, initialStock, photo, unitWeightKg){
+  function addProduct(name, catName, initialStock, photo, unitVolumeMl){
     var id = 'ref_' + slugify(name) + '_' + Math.random().toString(36).slice(2, 7);
-    var newProduct = { id: id, name: name, cat: catName, photo: photo || null, unitWeightKg: unitWeightKg || null };
+    var newProduct = { id: id, name: name, cat: catName, photo: photo || null, unitVolumeMl: unitVolumeMl || null };
     state.products = state.products.concat([newProduct]);
     var docData = productDocData(newProduct);
     window.__fb.setDoc('products_liquori/' + id, docData).catch(function(e){
@@ -1573,7 +1573,7 @@
             '<div class="row-name-wrap"><div class="row-name">' + escapeHtml(p.name) + '</div></div>' +
             '<div class="row-qty">' +
               '<span class="qty-line">' + total + '<span class="unit">pz</span></span>' +
-              (p.unitWeightKg ? '<span class="qty-weight">' + escapeHtml(formatWeight(total * p.unitWeightKg)) + '</span>' : '') +
+              (p.unitVolumeMl ? '<span class="qty-weight">' + escapeHtml(formatWeight(total * p.unitVolumeMl)) + '</span>' : '') +
             '</div>' +
           '</div></div>' +
           '<span class="thumb" aria-hidden="true">' + thumbInnerReadonly(p) + '</span>' +
