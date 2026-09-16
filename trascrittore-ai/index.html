@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trascrittore AI — Riassunti & Punti Chiave</title>
+<style>
+  :root {
+    --bg1: #0f172a;
+    --bg2: #1e1b4b;
+    --accent: #8b5cf6;
+    --accent2: #22d3ee;
+    --panel: rgba(255,255,255,0.05);
+    --border: rgba(255,255,255,0.1);
+    --text: #f1f1f6;
+    --muted: #9ca3af;
+    --success: #4ade80;
+    --danger: #f87171;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: linear-gradient(135deg, var(--bg1), var(--bg2));
+    color: var(--text);
+    padding: 24px 16px 60px;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 28px; }
+  header h1 { font-size: 1.9rem; margin: 0 0 6px; }
+  header p { color: var(--muted); margin: 0; font-size: 0.95rem; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 22px;
+    margin-bottom: 20px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+  }
+  .card h2 {
+    margin: 0 0 14px;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
+  button {
+    padding: 12px 18px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 10px;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    transition: transform 0.1s, background 0.2s, opacity 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  button:hover { background: #7c3aed; }
+  button:active { transform: scale(0.96); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.secondary { background: rgba(255,255,255,0.08); border: 1px solid var(--border); color: var(--text); }
+  button.secondary:hover { background: rgba(255,255,255,0.14); }
+  button.danger { background: var(--danger); }
+  button.danger:hover { background: #ef4444; }
+
+  .mic-btn { position: relative; }
+  .mic-btn .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #fff; display: inline-block;
+  }
+  .mic-btn.listening { background: var(--danger); }
+  .mic-btn.listening .dot { animation: pulse 1s infinite; }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0.6); }
+    50% { box-shadow: 0 0 0 8px rgba(255,255,255,0); }
+  }
+
+  textarea {
+    width: 100%;
+    min-height: 200px;
+    resize: vertical;
+    background: rgba(0,0,0,0.25);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    padding: 14px;
+    font-size: 1rem;
+    line-height: 1.5;
+    font-family: inherit;
+  }
+  textarea::placeholder { color: #6b7280; }
+  .interim { color: var(--accent2); font-style: italic; }
+
+  .stats-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    margin-top: 12px;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+  .stats-bar span b { color: var(--text); }
+
+  .status-badge {
+    font-size: 0.8rem;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.08);
+  }
+  .status-badge.on { background: rgba(74, 222, 128, 0.18); color: var(--success); }
+  .status-badge.warn { background: rgba(248, 113, 113, 0.18); color: var(--danger); }
+
+  .banner {
+    background: rgba(248, 113, 113, 0.12);
+    border: 1px solid rgba(248, 113, 113, 0.35);
+    color: #fecaca;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 0.88rem;
+    margin-bottom: 14px;
+    display: none;
+  }
+  .banner.show { display: block; }
+
+  .empty-hint {
+    color: var(--muted);
+    font-size: 0.9rem;
+    text-align: center;
+    padding: 30px 10px;
+  }
+
+  .summary-text {
+    line-height: 1.7;
+    font-size: 1.02rem;
+    background: rgba(139, 92, 246, 0.08);
+    border-left: 3px solid var(--accent);
+    padding: 14px 18px;
+    border-radius: 0 10px 10px 0;
+  }
+
+  .keypoint {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+  }
+  .keypoint-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .keypoint-badge {
+    flex-shrink: 0;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.8rem; font-weight: 700;
+  }
+  .keypoint-title { font-weight: 600; flex: 1; }
+  .keypoint-toggle { color: var(--muted); font-size: 0.8rem; }
+  .keypoint-detail {
+    display: none;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--border);
+    font-size: 0.9rem;
+    color: #d1d5db;
+    line-height: 1.6;
+  }
+  .keypoint.open .keypoint-detail { display: block; }
+  .keypoint.open .keypoint-toggle::before { content: "▲"; }
+  .keypoint-toggle::before { content: "▼"; }
+  .keypoint-detail mark {
+    background: rgba(34, 211, 238, 0.25);
+    color: #a5f3fc;
+    padding: 0 3px;
+    border-radius: 3px;
+  }
+  .keypoint-tags { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .tag {
+    font-size: 0.75rem;
+    background: rgba(34, 211, 238, 0.12);
+    color: var(--accent2);
+    padding: 2px 9px;
+    border-radius: 20px;
+  }
+
+  .cloud { display: flex; flex-wrap: wrap; gap: 8px; }
+  .cloud span {
+    background: rgba(139, 92, 246, 0.15);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+  }
+
+  footer { text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 30px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>🎙️ Trascrittore AI</h1>
+    <p>Ascolta, trascrive, riassume e spiega i punti chiave — tutto nel browser</p>
+  </header>
+
+  <div class="banner" id="unsupportedBanner">
+    ⚠️ Il riconoscimento vocale non è supportato in questo browser (prova Chrome/Edge su desktop o Android). Puoi comunque incollare o scrivere un testo qui sotto per generare riassunto e punti chiave.
+  </div>
+
+  <div class="card">
+    <h2>📝 Trascrizione</h2>
+    <div class="controls">
+      <button id="micBtn" class="mic-btn"><span class="dot"></span> <span id="micLabel">Avvia ascolto</span></button>
+      <button id="clearBtn" class="secondary">🗑️ Svuota</button>
+      <span class="status-badge" id="statusBadge">Inattivo</span>
+      <span class="status-badge" id="timerBadge" style="display:none;">00:00</span>
+    </div>
+
+    <textarea id="transcript" placeholder="Premi 'Avvia ascolto' e inizia a parlare (in italiano), oppure incolla/scrivi qui un testo o una trascrizione già pronta..."></textarea>
+
+    <div class="stats-bar">
+      <span>Parole: <b id="wordCount">0</b></span>
+      <span>Frasi: <b id="sentenceCount">0</b></span>
+      <span>Tempo di lettura stimato: <b id="readTime">0 min</b></span>
+    </div>
+
+    <div class="controls" style="margin-top: 16px;">
+      <button id="generateBtn">✨ Genera riassunto e punti chiave</button>
+    </div>
+  </div>
+
+  <div class="card" id="resultsCard" style="display:none;">
+    <h2>📌 Riassunto</h2>
+    <div class="summary-text" id="summaryText"></div>
+
+    <h2 style="margin-top: 26px;">🔑 Punti chiave</h2>
+    <div id="keypointsList"></div>
+
+    <h2 style="margin-top: 26px;">🏷️ Argomenti principali</h2>
+    <div class="cloud" id="topicsCloud"></div>
+
+    <div class="controls" style="margin-top: 22px;">
+      <button id="copyBtn" class="secondary">📋 Copia riassunto</button>
+      <button id="downloadBtn" class="secondary">⬇️ Scarica .txt</button>
+    </div>
+  </div>
+
+  <div class="card" id="emptyCard">
+    <div class="empty-hint">Nessun riassunto ancora generato. Trascrivi o incolla un testo e premi "Genera riassunto e punti chiave".</div>
+  </div>
+
+  <footer>Elaborazione 100% locale nel browser — nessun dato viene inviato a server esterni.</footer>
+</div>
+
+<script>
+(function () {
+  const micBtn = document.getElementById('micBtn');
+  const micLabel = document.getElementById('micLabel');
+  const clearBtn = document.getElementById('clearBtn');
+  const statusBadge = document.getElementById('statusBadge');
+  const timerBadge = document.getElementById('timerBadge');
+  const transcriptEl = document.getElementById('transcript');
+  const wordCountEl = document.getElementById('wordCount');
+  const sentenceCountEl = document.getElementById('sentenceCount');
+  const readTimeEl = document.getElementById('readTime');
+  const generateBtn = document.getElementById('generateBtn');
+  const resultsCard = document.getElementById('resultsCard');
+  const emptyCard = document.getElementById('emptyCard');
+  const summaryTextEl = document.getElementById('summaryText');
+  const keypointsListEl = document.getElementById('keypointsList');
+  const topicsCloudEl = document.getElementById('topicsCloud');
+  const copyBtn = document.getElementById('copyBtn');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const unsupportedBanner = document.getElementById('unsupportedBanner');
+
+  const STOPWORDS = new Set([
+    'il','lo','la','i','gli','le','un','uno','una','di','a','da','in','con','su','per','tra','fra',
+    'e','o','ma','se','che','chi','cui','non','si','ci','vi','mi','ti','ne','come','quando','dove',
+    'perche','perché','quindi','quanto','quale','quali','questo','questa','questi','queste','quello',
+    'quella','quelli','quelle','sono','sei','è','e\'','siamo','siete','essere','stato','stata','stati',
+    'state','ha','hai','ho','abbiamo','avete','hanno','avere','avuto','fa','fare','faccio','fai',
+    'facciamo','fate','fanno','molto','molti','molta','molte','poco','pochi','più','piu','meno',
+    'anche','ancora','già','gia','sempre','mai','oggi','ieri','domani','qui','qua','li','là','la',
+    'cioè','cioe','ecco','cosa','cose','alla','allo','alle','agli','al','dei','delle','degli','del',
+    'della','dello','dal','dallo','dalla','dai','dagli','dalle','nel','nello','nella','nei','negli',
+    'nelle','col','coi','sul','sullo','sulla','sui','sugli','sulle','suo','sua','suoi','sue','mio',
+    'mia','miei','mie','tuo','tua','tuoi','tue','loro','nostro','nostra','nostri','nostre','vostro',
+    'vostra','vostri','vostre','io','tu','lui','lei','noi','voi','un\'','c\'è','c\'e','po\'','d\'',
+    'l\'','due','tre','tutto','tutti','tutta','tutte','cui','stessa','stesso','stessi','stesse',
+    'proprio','propria','propri','proprie','altro','altra','altri','altre','ogni','ogni','solo',
+    'sola','soli','sole','dopo','prima','ora','adesso','oltre','invece','però','pero','infatti',
+    'inoltre','quasi','forse','circa','così','cosi','tanto','tanta','tanti','tante'
+  ]);
+
+  let recognition = null;
+  let listening = false;
+  let finalTranscript = '';
+  let timerInterval = null;
+  let secondsElapsed = 0;
+
+  const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  function setStatus(text, cls) {
+    statusBadge.textContent = text;
+    statusBadge.className = 'status-badge' + (cls ? ' ' + cls : '');
+  }
+
+  function formatTime(totalSeconds) {
+    const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+    const s = (totalSeconds % 60).toString().padStart(2, '0');
+    return m + ':' + s;
+  }
+
+  function startTimer() {
+    secondsElapsed = 0;
+    timerBadge.style.display = 'inline-block';
+    timerBadge.textContent = formatTime(0);
+    timerInterval = setInterval(() => {
+      secondsElapsed++;
+      timerBadge.textContent = formatTime(secondsElapsed);
+    }, 1000);
+  }
+
+  function stopTimer() {
+    clearInterval(timerInterval);
+  }
+
+  if (!SpeechRecognitionAPI) {
+    unsupportedBanner.classList.add('show');
+    micBtn.disabled = true;
+  } else {
+    recognition = new SpeechRecognitionAPI();
+    recognition.lang = 'it-IT';
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    finalTranscript = '';
+
+    recognition.onresult = function (event) {
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const chunk = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += chunk + ' ';
+        } else {
+          interim += chunk;
+        }
+      }
+      transcriptEl.value = (finalTranscript + interim).trim();
+      updateStats();
+    };
+
+    recognition.onerror = function (event) {
+      setStatus('Errore: ' + event.error, 'warn');
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        stopListening();
+      }
+    };
+
+    recognition.onend = function () {
+      if (listening) {
+        try { recognition.start(); } catch (e) { /* già avviato */ }
+      }
+    };
+  }
+
+  function startListening() {
+    if (!recognition) return;
+    finalTranscript = transcriptEl.value ? transcriptEl.value + ' ' : '';
+    listening = true;
+    try { recognition.start(); } catch (e) { /* già in ascolto */ }
+    micBtn.classList.add('listening');
+    micLabel.textContent = 'Ferma ascolto';
+    setStatus('In ascolto...', 'on');
+    startTimer();
+  }
+
+  function stopListening() {
+    if (!recognition) return;
+    listening = false;
+    recognition.stop();
+    micBtn.classList.remove('listening');
+    micLabel.textContent = 'Avvia ascolto';
+    setStatus('Inattivo');
+    stopTimer();
+  }
+
+  micBtn.addEventListener('click', function () {
+    if (listening) stopListening(); else startListening();
+  });
+
+  clearBtn.addEventListener('click', function () {
+    if (listening) stopListening();
+    transcriptEl.value = '';
+    finalTranscript = '';
+    updateStats();
+    resultsCard.style.display = 'none';
+    emptyCard.style.display = 'block';
+  });
+
+  function tokenizeWords(text) {
+    return (text.toLowerCase().match(/[a-zàèéìòóù]+/g) || []);
+  }
+
+  function splitSentences(text) {
+    const clean = text.replace(/\s+/g, ' ').trim();
+    if (!clean) return [];
+    const parts = clean.split(/(?<=[.!?])\s+(?=[A-ZÀ-Ú0-9])|(?<=[.!?])\s*$/).filter(Boolean);
+    if (parts.length <= 1) {
+      return clean.split(/[.!?]+\s*/).map(s => s.trim()).filter(s => s.length > 0);
+    }
+    return parts.map(s => s.trim()).filter(s => s.length > 0);
+  }
+
+  function updateStats() {
+    const text = transcriptEl.value;
+    const words = tokenizeWords(text);
+    const sentences = splitSentences(text);
+    wordCountEl.textContent = words.length;
+    sentenceCountEl.textContent = sentences.length;
+    readTimeEl.textContent = Math.max(1, Math.round(words.length / 200)) + ' min';
+  }
+
+  transcriptEl.addEventListener('input', updateStats);
+
+  function buildWordFrequencies(sentences) {
+    const freq = {};
+    sentences.forEach(sentence => {
+      tokenizeWords(sentence).forEach(word => {
+        if (word.length <= 2 || STOPWORDS.has(word)) return;
+        freq[word] = (freq[word] || 0) + 1;
+      });
+    });
+    return freq;
+  }
+
+  function scoreSentence(sentence, freq) {
+    const words = tokenizeWords(sentence).filter(w => w.length > 2 && !STOPWORDS.has(w));
+    if (words.length === 0) return 0;
+    const sum = words.reduce((acc, w) => acc + (freq[w] || 0), 0);
+    return sum / Math.sqrt(words.length);
+  }
+
+  function topKeywordsForSentence(sentence, freq, n) {
+    const words = tokenizeWords(sentence).filter(w => w.length > 2 && !STOPWORDS.has(w));
+    const uniq = [...new Set(words)];
+    uniq.sort((a, b) => (freq[b] || 0) - (freq[a] || 0));
+    return uniq.slice(0, n);
+  }
+
+  function highlightKeywords(sentence, keywords) {
+    let html = sentence;
+    keywords.forEach(kw => {
+      const re = new RegExp('(' + kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+      html = html.replace(re, '<mark>$1</mark>');
+    });
+    return html;
+  }
+
+  function generateAnalysis() {
+    const text = transcriptEl.value.trim();
+    if (!text) {
+      alert('Trascrivi o scrivi prima un testo da analizzare.');
+      return;
+    }
+
+    const sentences = splitSentences(text);
+    if (sentences.length === 0) {
+      alert('Non riesco a individuare frasi nel testo. Aggiungi punteggiatura o più contenuto.');
+      return;
+    }
+
+    const freq = buildWordFrequencies(sentences);
+
+    const scored = sentences.map((sentence, index) => {
+      let score = scoreSentence(sentence, freq);
+      if (index === 0 || index === sentences.length - 1) score *= 1.15;
+      return { sentence, index, score };
+    });
+
+    const summaryCount = Math.max(2, Math.min(6, Math.ceil(sentences.length * 0.3)));
+    const summarySentences = [...scored]
+      .sort((a, b) => b.score - a.score)
+      .slice(0, summaryCount)
+      .sort((a, b) => a.index - b.index)
+      .map(s => s.sentence);
+
+    summaryTextEl.textContent = summarySentences.join(' ');
+
+    const keypointCount = Math.min(6, sentences.length);
+    const keypoints = [...scored]
+      .sort((a, b) => b.score - a.score)
+      .slice(0, keypointCount)
+      .sort((a, b) => a.index - b.index);
+
+    keypointsListEl.innerHTML = '';
+    keypoints.forEach((kp, i) => {
+      const keywords = topKeywordsForSentence(kp.sentence, freq, 3);
+      const prev = kp.index > 0 ? sentences[kp.index - 1] : null;
+      const next = kp.index < sentences.length - 1 ? sentences[kp.index + 1] : null;
+
+      const contextParts = [];
+      if (prev) contextParts.push(prev);
+      contextParts.push(highlightKeywords(kp.sentence, keywords));
+      if (next) contextParts.push(next);
+
+      const el = document.createElement('div');
+      el.className = 'keypoint';
+      el.innerHTML = `
+        <div class="keypoint-head">
+          <div class="keypoint-badge">${i + 1}</div>
+          <div class="keypoint-title">${kp.sentence}</div>
+          <div class="keypoint-toggle"></div>
+        </div>
+        <div class="keypoint-detail">
+          <div><b>Spiegazione dettagliata:</b> questo punto è stato individuato perché la frase concentra i termini più ricorrenti del discorso (${keywords.join(', ') || 'nessun termine dominante'}), segnale che l'argomento trattato è centrale nel contenuto.</div>
+          <div style="margin-top:8px;"><b>Contesto nel discorso:</b> ${contextParts.join(' ')}</div>
+          <div class="keypoint-tags">${keywords.map(k => `<span class="tag">#${k}</span>`).join('')}</div>
+        </div>
+      `;
+      el.querySelector('.keypoint-head').addEventListener('click', () => {
+        el.classList.toggle('open');
+      });
+      keypointsListEl.appendChild(el);
+    });
+
+    const topWords = Object.entries(freq)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10);
+    const maxFreq = topWords.length ? topWords[0][1] : 1;
+    topicsCloudEl.innerHTML = topWords
+      .map(([word, count]) => {
+        const size = 0.8 + (count / maxFreq) * 0.6;
+        return `<span style="font-size:${size.toFixed(2)}rem;">${word} <small style="opacity:0.6;">(${count})</small></span>`;
+      })
+      .join('');
+
+    emptyCard.style.display = 'none';
+    resultsCard.style.display = 'block';
+    resultsCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  generateBtn.addEventListener('click', generateAnalysis);
+
+  copyBtn.addEventListener('click', function () {
+    const keypointsText = [...keypointsListEl.querySelectorAll('.keypoint-title')]
+      .map((el, i) => `${i + 1}. ${el.textContent}`)
+      .join('\n');
+    const fullText = `RIASSUNTO\n${summaryTextEl.textContent}\n\nPUNTI CHIAVE\n${keypointsText}`;
+    navigator.clipboard.writeText(fullText).then(() => {
+      const original = copyBtn.textContent;
+      copyBtn.textContent = '✅ Copiato!';
+      setTimeout(() => { copyBtn.textContent = original; }, 1500);
+    }).catch(() => {
+      alert('Impossibile copiare automaticamente. Seleziona e copia manualmente.');
+    });
+  });
+
+  downloadBtn.addEventListener('click', function () {
+    const keypointsText = [...keypointsListEl.querySelectorAll('.keypoint-detail')]
+      .map((el, i) => {
+        const title = keypointsListEl.querySelectorAll('.keypoint-title')[i].textContent;
+        const explanation = el.querySelector('div').textContent;
+        return `${i + 1}. ${title}\n   ${explanation}`;
+      })
+      .join('\n\n');
+    const content = `TRASCRIZIONE\n${transcriptEl.value}\n\n---\n\nRIASSUNTO\n${summaryTextEl.textContent}\n\nPUNTI CHIAVE\n${keypointsText}\n\nARGOMENTI PRINCIPALI\n${topicsCloudEl.textContent.trim()}`;
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'trascrizione-riassunto.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+  updateStats();
+})();
+</script>
+
+</body>
+</html>
