@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Trascrittore AI — Riassunti & Punti Chiave</title>
 <style>
   :root {
@@ -16,18 +16,20 @@
     --muted: #9ca3af;
     --success: #4ade80;
     --danger: #f87171;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
   }
-  * { box-sizing: border-box; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body {
     margin: 0;
     min-height: 100vh;
     font-family: 'Segoe UI', system-ui, sans-serif;
     background: linear-gradient(135deg, var(--bg1), var(--bg2));
     color: var(--text);
-    padding: 24px 16px 60px;
+    padding: calc(24px + var(--safe-top)) 16px calc(60px + var(--safe-bottom));
   }
   .wrap { max-width: 980px; margin: 0 auto; }
-  header { text-align: center; margin-bottom: 28px; }
+  header { text-align: center; margin-bottom: 24px; }
   header h1 { font-size: 1.9rem; margin: 0 0 6px; }
   header p { color: var(--muted); margin: 0; font-size: 0.95rem; }
 
@@ -35,8 +37,8 @@
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 18px;
-    padding: 22px;
-    margin-bottom: 20px;
+    padding: 20px;
+    margin-bottom: 18px;
     box-shadow: 0 20px 50px rgba(0,0,0,0.35);
   }
   .card h2 {
@@ -49,7 +51,7 @@
 
   .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
   button {
-    padding: 12px 18px;
+    padding: 13px 18px;
     font-size: 0.95rem;
     font-weight: 600;
     border: none;
@@ -61,19 +63,19 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
+    min-height: 44px;
   }
   button:hover { background: #7c3aed; }
   button:active { transform: scale(0.96); }
   button:disabled { opacity: 0.4; cursor: not-allowed; }
   button.secondary { background: rgba(255,255,255,0.08); border: 1px solid var(--border); color: var(--text); }
   button.secondary:hover { background: rgba(255,255,255,0.14); }
-  button.danger { background: var(--danger); }
-  button.danger:hover { background: #ef4444; }
+  button.ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 8px 12px; min-height: auto; font-size: 0.82rem; }
 
   .mic-btn { position: relative; }
   .mic-btn .dot {
     width: 10px; height: 10px; border-radius: 50%;
-    background: #fff; display: inline-block;
+    background: #fff; display: inline-block; flex-shrink: 0;
   }
   .mic-btn.listening { background: var(--danger); }
   .mic-btn.listening .dot { animation: pulse 1s infinite; }
@@ -84,24 +86,23 @@
 
   textarea {
     width: 100%;
-    min-height: 200px;
+    min-height: 190px;
     resize: vertical;
     background: rgba(0,0,0,0.25);
     border: 1px solid var(--border);
     border-radius: 12px;
     color: var(--text);
     padding: 14px;
-    font-size: 1rem;
+    font-size: 16px;
     line-height: 1.5;
     font-family: inherit;
   }
   textarea::placeholder { color: #6b7280; }
-  .interim { color: var(--accent2); font-style: italic; }
 
   .stats-bar {
     display: flex;
     flex-wrap: wrap;
-    gap: 18px;
+    gap: 16px;
     margin-top: 12px;
     font-size: 0.85rem;
     color: var(--muted);
@@ -117,17 +118,18 @@
   .status-badge.on { background: rgba(74, 222, 128, 0.18); color: var(--success); }
   .status-badge.warn { background: rgba(248, 113, 113, 0.18); color: var(--danger); }
 
-  .banner {
-    background: rgba(248, 113, 113, 0.12);
-    border: 1px solid rgba(248, 113, 113, 0.35);
-    color: #fecaca;
-    padding: 12px 16px;
-    border-radius: 10px;
-    font-size: 0.88rem;
-    margin-bottom: 14px;
-    display: none;
+  .info-card {
+    background: rgba(34, 211, 238, 0.08);
+    border: 1px solid rgba(34, 211, 238, 0.28);
+    color: #cffafe;
+    padding: 16px 18px;
+    border-radius: 14px;
+    font-size: 0.9rem;
+    line-height: 1.55;
+    margin-bottom: 18px;
   }
-  .banner.show { display: block; }
+  .info-card strong { color: #a5f3fc; }
+  .info-card .controls { margin-top: 12px; margin-bottom: 0; }
 
   .empty-hint {
     color: var(--muted);
@@ -168,7 +170,7 @@
     font-size: 0.8rem; font-weight: 700;
   }
   .keypoint-title { font-weight: 600; flex: 1; }
-  .keypoint-toggle { color: var(--muted); font-size: 0.8rem; }
+  .keypoint-toggle { color: var(--muted); font-size: 0.8rem; flex-shrink: 0; }
   .keypoint-detail {
     display: none;
     margin-top: 12px;
@@ -195,6 +197,25 @@
     padding: 2px 9px;
     border-radius: 20px;
   }
+  .feedback-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--border);
+  }
+  .feedback-row span { font-size: 0.78rem; color: var(--muted); margin-right: 4px; }
+  .fb-btn {
+    padding: 7px 12px;
+    min-height: auto;
+    font-size: 0.85rem;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .fb-btn.active-up { background: rgba(74, 222, 128, 0.2); border-color: var(--success); color: var(--success); }
+  .fb-btn.active-down { background: rgba(248, 113, 113, 0.2); border-color: var(--danger); color: var(--danger); }
 
   .cloud { display: flex; flex-wrap: wrap; gap: 8px; }
   .cloud span {
@@ -205,7 +226,18 @@
     font-size: 0.85rem;
   }
 
+  .learning-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+  .learning-tags .liked { background: rgba(74, 222, 128, 0.14); border: 1px solid rgba(74, 222, 128, 0.35); color: var(--success); padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; }
+  .learning-tags .disliked { background: rgba(248, 113, 113, 0.14); border: 1px solid rgba(248, 113, 113, 0.35); color: var(--danger); padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; }
+  .learning-empty { color: var(--muted); font-size: 0.85rem; }
+
   footer { text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 30px; }
+
+  @media (max-width: 480px) {
+    .card { padding: 16px; border-radius: 14px; }
+    header h1 { font-size: 1.6rem; }
+    button { padding: 12px 14px; font-size: 0.9rem; }
+  }
 </style>
 </head>
 <body>
@@ -213,20 +245,26 @@
 
   <header>
     <h1>🎙️ Trascrittore AI</h1>
-    <p>Ascolta, trascrive, riassume e spiega i punti chiave — tutto nel browser</p>
+    <p>Ascolta, trascrive, riassume e spiega i punti chiave — e impara dal tuo feedback</p>
   </header>
 
-  <div class="banner" id="unsupportedBanner">
-    ⚠️ Il riconoscimento vocale non è supportato in questo browser (prova Chrome/Edge su desktop o Android). Puoi comunque incollare o scrivere un testo qui sotto per generare riassunto e punti chiave.
+  <div class="info-card" id="dictateCard" style="display:none;">
+    <div>🍎 <strong>Sei su iPhone/iPad (o un browser senza ascolto in diretta)?</strong> È una restrizione di Apple valida per tutti i browser iOS, non aggirabile via web. Nessun problema: tocca il campo qui sotto e usa il <strong>microfono della tastiera</strong> per dettare il testo — funziona perfettamente e resta tutto sul dispositivo.</div>
+    <div class="controls">
+      <button id="focusTranscriptBtn">⌨️ Tocca qui per iniziare a dettare</button>
+    </div>
   </div>
 
   <div class="card">
     <h2>📝 Trascrizione</h2>
-    <div class="controls">
+    <div class="controls" id="micControls" style="display:none;">
       <button id="micBtn" class="mic-btn"><span class="dot"></span> <span id="micLabel">Avvia ascolto</span></button>
       <button id="clearBtn" class="secondary">🗑️ Svuota</button>
       <span class="status-badge" id="statusBadge">Inattivo</span>
       <span class="status-badge" id="timerBadge" style="display:none;">00:00</span>
+    </div>
+    <div class="controls" id="fallbackControls" style="display:none;">
+      <button id="clearBtnFallback" class="secondary">🗑️ Svuota</button>
     </div>
 
     <textarea id="transcript" placeholder="Premi 'Avvia ascolto' e inizia a parlare (in italiano), oppure incolla/scrivi qui un testo o una trascrizione già pronta..."></textarea>
@@ -239,6 +277,15 @@
 
     <div class="controls" style="margin-top: 16px;">
       <button id="generateBtn">✨ Genera riassunto e punti chiave</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🧠 Il motore impara da te</h2>
+    <p style="color: var(--muted); font-size: 0.87rem; margin: 0 0 10px;">Vota 👍/👎 i punti chiave: il motore ricorda quali temi ti interessano (salvato solo su questo dispositivo) e li usa per pesare i prossimi riassunti. Premi di nuovo "Genera" dopo un voto per vedere l'effetto.</p>
+    <div id="learningPanel" class="learning-tags"><span class="learning-empty">Nessuna preferenza imparata ancora.</span></div>
+    <div class="controls" style="margin-top: 12px; margin-bottom: 0;">
+      <button id="resetLearningBtn" class="ghost">↺ Dimentica le preferenze imparate</button>
     </div>
   </div>
 
@@ -262,14 +309,19 @@
     <div class="empty-hint">Nessun riassunto ancora generato. Trascrivi o incolla un testo e premi "Genera riassunto e punti chiave".</div>
   </div>
 
-  <footer>Elaborazione 100% locale nel browser — nessun dato viene inviato a server esterni.</footer>
+  <footer>Elaborazione 100% locale nel browser — nessun dato viene inviato a server esterni. Le preferenze imparate restano solo su questo dispositivo.</footer>
 </div>
 
 <script>
 (function () {
+  const dictateCard = document.getElementById('dictateCard');
+  const focusTranscriptBtn = document.getElementById('focusTranscriptBtn');
+  const micControls = document.getElementById('micControls');
+  const fallbackControls = document.getElementById('fallbackControls');
   const micBtn = document.getElementById('micBtn');
   const micLabel = document.getElementById('micLabel');
   const clearBtn = document.getElementById('clearBtn');
+  const clearBtnFallback = document.getElementById('clearBtnFallback');
   const statusBadge = document.getElementById('statusBadge');
   const timerBadge = document.getElementById('timerBadge');
   const transcriptEl = document.getElementById('transcript');
@@ -284,7 +336,8 @@
   const topicsCloudEl = document.getElementById('topicsCloud');
   const copyBtn = document.getElementById('copyBtn');
   const downloadBtn = document.getElementById('downloadBtn');
-  const unsupportedBanner = document.getElementById('unsupportedBanner');
+  const learningPanel = document.getElementById('learningPanel');
+  const resetLearningBtn = document.getElementById('resetLearningBtn');
 
   const STOPWORDS = new Set([
     'il','lo','la','i','gli','le','un','uno','una','di','a','da','in','con','su','per','tra','fra',
@@ -304,6 +357,43 @@
     'sola','soli','sole','dopo','prima','ora','adesso','oltre','invece','però','pero','infatti',
     'inoltre','quasi','forse','circa','così','cosi','tanto','tanta','tanti','tante'
   ]);
+
+  const WEIGHTS_KEY = 'trascrittore-ai-weights-v1';
+  const WEIGHT_MIN = -5;
+  const WEIGHT_MAX = 5;
+
+  function loadWeights() {
+    try {
+      const raw = localStorage.getItem(WEIGHTS_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function saveWeights(weights) {
+    try { localStorage.setItem(WEIGHTS_KEY, JSON.stringify(weights)); } catch (e) { /* storage non disponibile */ }
+  }
+
+  function renderLearningPanel() {
+    const weights = loadWeights();
+    const entries = Object.entries(weights).filter(([, v]) => v !== 0);
+    if (entries.length === 0) {
+      learningPanel.innerHTML = '<span class="learning-empty">Nessuna preferenza imparata ancora. Vota i punti chiave qui sotto per iniziare.</span>';
+      return;
+    }
+    const liked = entries.filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    const disliked = entries.filter(([, v]) => v < 0).sort((a, b) => a[1] - b[1]).slice(0, 8);
+    let html = '';
+    liked.forEach(([w]) => { html += `<span class="liked">👍 ${w}</span>`; });
+    disliked.forEach(([w]) => { html += `<span class="disliked">👎 ${w}</span>`; });
+    learningPanel.innerHTML = html || '<span class="learning-empty">Nessuna preferenza imparata ancora.</span>';
+  }
+
+  resetLearningBtn.addEventListener('click', function () {
+    saveWeights({});
+    renderLearningPanel();
+  });
 
   let recognition = null;
   let listening = false;
@@ -339,9 +429,10 @@
   }
 
   if (!SpeechRecognitionAPI) {
-    unsupportedBanner.classList.add('show');
-    micBtn.disabled = true;
+    dictateCard.style.display = 'block';
+    fallbackControls.style.display = 'flex';
   } else {
+    micControls.style.display = 'flex';
     recognition = new SpeechRecognitionAPI();
     recognition.lang = 'it-IT';
     recognition.continuous = true;
@@ -377,6 +468,11 @@
     };
   }
 
+  focusTranscriptBtn.addEventListener('click', function () {
+    transcriptEl.focus();
+    transcriptEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+
   function startListening() {
     if (!recognition) return;
     finalTranscript = transcriptEl.value ? transcriptEl.value + ' ' : '';
@@ -398,18 +494,22 @@
     stopTimer();
   }
 
-  micBtn.addEventListener('click', function () {
-    if (listening) stopListening(); else startListening();
-  });
+  if (micBtn) {
+    micBtn.addEventListener('click', function () {
+      if (listening) stopListening(); else startListening();
+    });
+  }
 
-  clearBtn.addEventListener('click', function () {
+  function clearTranscript() {
     if (listening) stopListening();
     transcriptEl.value = '';
     finalTranscript = '';
     updateStats();
     resultsCard.style.display = 'none';
     emptyCard.style.display = 'block';
-  });
+  }
+  if (clearBtn) clearBtn.addEventListener('click', clearTranscript);
+  if (clearBtnFallback) clearBtnFallback.addEventListener('click', clearTranscript);
 
   function tokenizeWords(text) {
     return (text.toLowerCase().match(/[a-zàèéìòóù]+/g) || []);
@@ -447,11 +547,12 @@
     return freq;
   }
 
-  function scoreSentence(sentence, freq) {
+  function scoreSentence(sentence, freq, weights) {
     const words = tokenizeWords(sentence).filter(w => w.length > 2 && !STOPWORDS.has(w));
     if (words.length === 0) return 0;
-    const sum = words.reduce((acc, w) => acc + (freq[w] || 0), 0);
-    return sum / Math.sqrt(words.length);
+    const base = words.reduce((acc, w) => acc + (freq[w] || 0), 0) / Math.sqrt(words.length);
+    const weightAvg = words.reduce((acc, w) => acc + (weights[w] || 0), 0) / words.length;
+    return base * (1 + 0.2 * weightAvg);
   }
 
   function topKeywordsForSentence(sentence, freq, n) {
@@ -470,6 +571,12 @@
     return html;
   }
 
+  function applyFeedback(word, delta, weights) {
+    const current = weights[word] || 0;
+    const next = Math.max(WEIGHT_MIN, Math.min(WEIGHT_MAX, current + delta));
+    if (next === 0) delete weights[word]; else weights[word] = next;
+  }
+
   function generateAnalysis() {
     const text = transcriptEl.value.trim();
     if (!text) {
@@ -484,9 +591,10 @@
     }
 
     const freq = buildWordFrequencies(sentences);
+    const weights = loadWeights();
 
     const scored = sentences.map((sentence, index) => {
-      let score = scoreSentence(sentence, freq);
+      let score = scoreSentence(sentence, freq, weights);
       if (index === 0 || index === sentences.length - 1) score *= 1.15;
       return { sentence, index, score };
     });
@@ -519,6 +627,7 @@
 
       const el = document.createElement('div');
       el.className = 'keypoint';
+      el.dataset.feedback = 'none';
       el.innerHTML = `
         <div class="keypoint-head">
           <div class="keypoint-badge">${i + 1}</div>
@@ -529,11 +638,42 @@
           <div><b>Spiegazione dettagliata:</b> questo punto è stato individuato perché la frase concentra i termini più ricorrenti del discorso (${keywords.join(', ') || 'nessun termine dominante'}), segnale che l'argomento trattato è centrale nel contenuto.</div>
           <div style="margin-top:8px;"><b>Contesto nel discorso:</b> ${contextParts.join(' ')}</div>
           <div class="keypoint-tags">${keywords.map(k => `<span class="tag">#${k}</span>`).join('')}</div>
+          <div class="feedback-row">
+            <span>È stato utile?</span>
+            <button type="button" class="fb-btn fb-up">👍 Utile</button>
+            <button type="button" class="fb-btn fb-down">👎 Non rilevante</button>
+          </div>
         </div>
       `;
       el.querySelector('.keypoint-head').addEventListener('click', () => {
         el.classList.toggle('open');
       });
+
+      const upBtn = el.querySelector('.fb-up');
+      const downBtn = el.querySelector('.fb-down');
+
+      function setFeedback(nextState) {
+        const prevState = el.dataset.feedback;
+        if (prevState === nextState) nextState = 'none';
+
+        const w = loadWeights();
+        const prevDelta = prevState === 'up' ? 1 : (prevState === 'down' ? -1 : 0);
+        const nextDelta = nextState === 'up' ? 1 : (nextState === 'down' ? -1 : 0);
+        const diff = nextDelta - prevDelta;
+        if (diff !== 0) {
+          keywords.forEach(kw => applyFeedback(kw, diff, w));
+          saveWeights(w);
+          renderLearningPanel();
+        }
+
+        el.dataset.feedback = nextState;
+        upBtn.classList.toggle('active-up', nextState === 'up');
+        downBtn.classList.toggle('active-down', nextState === 'down');
+      }
+
+      upBtn.addEventListener('click', (e) => { e.stopPropagation(); setFeedback('up'); });
+      downBtn.addEventListener('click', (e) => { e.stopPropagation(); setFeedback('down'); });
+
       keypointsListEl.appendChild(el);
     });
 
@@ -589,6 +729,7 @@
     URL.revokeObjectURL(url);
   });
 
+  renderLearningPanel();
   updateStats();
 })();
 </script>
