@@ -458,6 +458,44 @@
   }
   .row-name-btn:active{ opacity:.7; }
 
+  .auth-gate[hidden]{ display:none; }
+  .auth-gate{
+    position:fixed; inset:0; z-index:100;
+    background:var(--bg);
+    display:flex; align-items:center; justify-content:center;
+    padding:1.5rem;
+  }
+  .auth-card{
+    width:100%; max-width:360px;
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:1rem;
+    padding:1.7rem 1.4rem 1.5rem;
+    box-shadow:var(--shadow);
+  }
+  .auth-title{
+    font-family:'Oswald', sans-serif; font-weight:700; font-size:1.4rem;
+    text-transform:uppercase; letter-spacing:.02em; margin:0 0 .1rem;
+    color:var(--raspberry); text-align:center;
+  }
+  .auth-subtitle{
+    font-size:.75rem; letter-spacing:.08em; text-transform:uppercase; color:var(--muted);
+    font-family:'Oswald', sans-serif; text-align:center; margin:0 0 1.5rem;
+  }
+  .auth-submit{ width:100%; padding:.75rem; font-size:.78rem; }
+  .signout-btn{
+    display:flex; align-items:center; justify-content:center;
+    width:1.6rem; height:1.6rem;
+    border-radius:.4rem;
+    border:1px solid var(--line);
+    background:var(--surface-2);
+    color:var(--muted);
+    cursor:pointer;
+    flex:none;
+  }
+  .signout-btn svg{ width:12px; height:12px; }
+  .signout-btn[hidden]{ display:none; }
+
   .modal-overlay[hidden]{ display:none; }
   .modal-overlay{
     position:fixed; inset:0; z-index:50;
@@ -715,6 +753,25 @@
 </head>
 <body>
 
+<div class="auth-gate" id="authGate" hidden>
+  <div class="auth-card">
+    <h1 class="auth-title">Giacenze</h1>
+    <p class="auth-subtitle">Regina Spirits</p>
+    <form id="authForm">
+      <div class="modal-field">
+        <label for="authEmail">Email</label>
+        <input type="email" id="authEmail" autocomplete="username" required>
+      </div>
+      <div class="modal-field">
+        <label for="authPassword">Password</label>
+        <input type="password" id="authPassword" autocomplete="current-password" required>
+      </div>
+      <p class="modal-hint modal-hint-warn" id="authError" hidden></p>
+      <button type="submit" class="modal-confirm auth-submit" id="authSubmitBtn">Accedi</button>
+    </form>
+  </div>
+</div>
+
 <div class="app">
   <header class="top">
     <div class="top-row">
@@ -725,6 +782,7 @@
       <div class="top-actions">
         <div class="view-switch" id="viewSwitch"></div>
         <div class="sync-pill">
+          <button type="button" class="signout-btn" id="signOutBtn" title="Esci" aria-label="Esci" hidden></button>
           <span class="sync-dot" id="syncDot"></span>
           <span id="syncLabel">Connessione…</span>
         </div>
@@ -765,6 +823,9 @@
   import {
     initializeFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, onSnapshot
   } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+  import {
+    getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut
+  } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 
   var firebaseConfig = {
     apiKey: "AIzaSyCZWXqgSjuz23bv684sKZcr3LhopO56cJU",
@@ -780,6 +841,7 @@
   // or networks/firewalls that mishandle the WebSocket-like channel Firestore
   // prefers by default (a real-world compatibility issue, not just a theoretical one).
   var fs = initializeFirestore(fbApp, { experimentalAutoDetectLongPolling: true });
+  var fbAuth = getAuth(fbApp);
 
   function pathToRef(path){
     var parts = path.split('/');
@@ -787,6 +849,15 @@
   }
 
   window.__fb = {
+    signIn: function(email, password){
+      return signInWithEmailAndPassword(fbAuth, email, password);
+    },
+    signOut: function(){
+      return signOut(fbAuth);
+    },
+    onAuthState: function(cb){
+      return onAuthStateChanged(fbAuth, cb);
+    },
     getDoc: function(path){
       return getDoc(pathToRef(path)).then(function(snap){
         return snap.exists() ? snap.data() : null;
@@ -905,6 +976,7 @@
   function iconCounter(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10h18l-1.5 9h-15z"/><path d="M3 10l2-5h14l2 5"/><path d="M9 14v2M15 14v2"/></svg>'; }
   function iconSwap(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h13l-3-3M4 7l3 3"/><path d="M20 17H7l3 3M20 17l-3-3"/></svg>'; }
   function iconBox(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l9-5 9 5-9 5-9-5Z"/><path d="M3 8v9l9 5 9-5V8"/><path d="M12 13v9"/></svg>'; }
+  function iconLogout(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>'; }
   function iconClipboard(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2.3" width="6" height="3" rx="1"/><path d="M9 11h6M9 15h6"/></svg>'; }
   function iconGrid(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.2"/><rect x="14" y="3" width="7" height="7" rx="1.2"/><rect x="3" y="14" width="7" height="7" rx="1.2"/><rect x="14" y="14" width="7" height="7" rx="1.2"/></svg>'; }
   function iconTag(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 12 22l-9-9 8.59-8.59A2 2 0 0 1 13 4h6a1 1 0 0 1 1 1v6a2 2 0 0 1-.41 1.41Z"/><circle cx="16.5" cy="7.5" r="1.1" fill="currentColor" stroke="none"/></svg>'; }
@@ -2092,6 +2164,70 @@
     window.addEventListener('fb-ready', cb, { once: true });
   }
 
+  // ---------- login gate ----------
+
+  var syncStarted = false;
+
+  function showAuthGate(errorMsg){
+    document.getElementById('authGate').hidden = false;
+    var errEl = document.getElementById('authError');
+    if (errorMsg){ errEl.textContent = errorMsg; errEl.hidden = false; }
+    else { errEl.hidden = true; }
+    var signOutBtn = document.getElementById('signOutBtn');
+    if (signOutBtn) signOutBtn.hidden = true;
+  }
+
+  function hideAuthGate(){
+    document.getElementById('authGate').hidden = true;
+    var signOutBtn = document.getElementById('signOutBtn');
+    if (signOutBtn) signOutBtn.hidden = false;
+  }
+
+  function authErrorMessage(err){
+    var code = err && err.code;
+    if (code === 'auth/invalid-email') return 'Email non valida.';
+    if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') return 'Email o password errati.';
+    if (code === 'auth/too-many-requests') return 'Troppi tentativi. Riprova tra qualche minuto.';
+    if (code === 'auth/network-request-failed') return 'Problema di connessione. Riprova.';
+    return 'Accesso non riuscito. Controlla email e password.';
+  }
+
+  function bindAuthForm(){
+    document.getElementById('authForm').addEventListener('submit', function(e){
+      e.preventDefault();
+      var email = document.getElementById('authEmail').value.trim();
+      var password = document.getElementById('authPassword').value;
+      var btn = document.getElementById('authSubmitBtn');
+      btn.disabled = true;
+      btn.textContent = 'Accesso in corso…';
+      window.__fb.signIn(email, password).catch(function(err){
+        console.error(err);
+        showAuthGate(authErrorMessage(err));
+      }).finally(function(){
+        btn.disabled = false;
+        btn.textContent = 'Accedi';
+      });
+    });
+    var signOutBtn = document.getElementById('signOutBtn');
+    if (signOutBtn){
+      signOutBtn.innerHTML = iconLogout();
+      signOutBtn.addEventListener('click', function(){
+        window.__fb.signOut();
+      });
+    }
+  }
+
+  function initAuth(){
+    window.__fb.onAuthState(function(user){
+      if (user){
+        hideAuthGate();
+        if (!syncStarted){ syncStarted = true; startSync(); }
+      } else {
+        showAuthGate();
+      }
+    });
+  }
+
   function startSync(){
     window.__fb.onDocSnapshot('meta/categories', function(data, err){
       if (err){ setSyncStatus('error'); return; }
@@ -2143,8 +2279,9 @@
 
   bindListDelegation();
   bindMoveModalDelegation();
+  bindAuthForm();
   render();
-  whenFirebaseReady(startSync);
+  whenFirebaseReady(initAuth);
 })();
 </script>
 </body>
