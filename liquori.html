@@ -670,6 +670,7 @@
   .move-main{ display:flex; flex-direction:column; gap:.15rem; min-width:0; }
   .move-name{ font-weight:600; font-size:.85rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .move-loc{ font-size:.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; font-family:'Oswald', sans-serif; }
+  .move-causale{ font-size:.7rem; color:var(--ink); font-style:italic; }
   .move-side{ display:flex; flex-direction:column; align-items:flex-end; gap:.15rem; flex:none; }
   .move-delta{ font-family:'IBM Plex Mono', monospace; font-weight:700; font-size:.95rem; }
   .move-delta.plus{ color:var(--mint); }
@@ -1374,6 +1375,10 @@
             '<label for="moveQty">Quantità</label>' +
             '<input type="number" id="moveQty" inputmode="numeric" min="1" step="1" value="1">' +
           '</div>' +
+          '<div class="modal-field">' +
+            '<label for="moveCausale">Causale (facoltativo)</label>' +
+            '<input type="text" id="moveCausale" placeholder="Es. Fornitore, reso, rientro…" autocomplete="off">' +
+          '</div>' +
           '<div class="modal-actions">' +
             '<button type="button" class="modal-back" data-modal-action="back">Indietro</button>' +
             '<button type="button" class="modal-confirm" data-modal-action="confirm-carico">Conferma carico</button>' +
@@ -1394,6 +1399,10 @@
           '<div class="modal-field">' +
             '<label for="moveQty">Quantità</label>' +
             '<input type="number" id="moveQty" inputmode="numeric" min="1" step="1" value="1">' +
+          '</div>' +
+          '<div class="modal-field">' +
+            '<label for="moveCausale">Causale (facoltativo)</label>' +
+            '<input type="text" id="moveCausale" placeholder="Es. Vendita, reso, rottura…" autocomplete="off">' +
           '</div>' +
           '<p class="modal-hint" id="moveHint"></p>' +
           '<div class="modal-actions">' +
@@ -1427,6 +1436,10 @@
           '<div class="modal-field">' +
             '<label for="moveQty">Quantità</label>' +
             '<input type="number" id="moveQty" inputmode="numeric" min="1" step="1" value="1">' +
+          '</div>' +
+          '<div class="modal-field">' +
+            '<label for="moveCausale">Causale (facoltativo)</label>' +
+            '<input type="text" id="moveCausale" placeholder="Es. Riassortimento banco, richiesta negozio…" autocomplete="off">' +
           '</div>' +
           '<p class="modal-hint" id="moveHint"></p>' +
           '<div class="modal-actions">' +
@@ -1517,6 +1530,7 @@
     if (!product){ closeMoveModal(); return; }
     var loc = document.getElementById('moveLoc').value;
     var qty = Math.round(parseFloat(document.getElementById('moveQty').value));
+    var causale = document.getElementById('moveCausale').value.trim() || null;
     if (!qty || qty <= 0){ showToast('Inserisci una quantità maggiore di zero.'); return; }
 
     if (!state.cache[loc]) state.cache[loc] = {};
@@ -1532,7 +1546,8 @@
       productId: m.productId,
       productName: product.name,
       delta: qty,
-      newQty: newQty
+      newQty: newQty,
+      causale: causale
     });
     showToast('Carico registrato: +' + qty + ' pz a ' + labelForLocation(loc) + '.');
     closeMoveModal();
@@ -1544,6 +1559,7 @@
     if (!product){ closeMoveModal(); return; }
     var loc = document.getElementById('moveLoc').value;
     var qty = Math.round(parseFloat(document.getElementById('moveQty').value));
+    var causale = document.getElementById('moveCausale').value.trim() || null;
     if (!qty || qty <= 0){ showToast('Inserisci una quantità maggiore di zero.'); return; }
 
     var current = (state.cache[loc] && state.cache[loc][m.productId]) || 0;
@@ -1562,7 +1578,8 @@
       productId: m.productId,
       productName: product.name,
       delta: -removed,
-      newQty: newQty
+      newQty: newQty,
+      causale: causale
     });
     var warn = removed < qty ? (' (disponibili solo ' + removed + ')') : '';
     showToast('Scarico registrato: -' + removed + ' pz da ' + labelForLocation(loc) + '.' + warn);
@@ -1576,6 +1593,7 @@
     var fromLoc = document.getElementById('moveFrom').value;
     var toLoc = document.getElementById('moveTo').value;
     var qty = Math.round(parseFloat(document.getElementById('moveQty').value));
+    var causale = document.getElementById('moveCausale').value.trim() || null;
     if (fromLoc === toLoc){ showToast('Scegli due depositi diversi.'); return; }
     if (!qty || qty <= 0){ showToast('Inserisci una quantità maggiore di zero.'); return; }
 
@@ -1604,7 +1622,8 @@
       productName: product.name,
       delta: moved,
       fromNewQty: fromNewQty,
-      toNewQty: toNewQty
+      toNewQty: toNewQty,
+      causale: causale
     });
     var warn = moved < qty ? (' (disponibili solo ' + moved + ')') : '';
     showToast('Spostati ' + moved + ' pz da ' + labelForLocation(fromLoc) + ' a ' + labelForLocation(toLoc) + '.' + warn);
@@ -2242,9 +2261,10 @@
   }
 
   function renderMoveRow(m){
+    var causaleHtml = m.causale ? '<span class="move-causale">' + escapeHtml(m.causale) + '</span>' : '';
     if (m.type === 'spostamento'){
       return '<div class="move-row">' +
-        '<div class="move-main"><span class="move-name">' + escapeHtml(m.productName) + '</span><span class="move-loc">' + escapeHtml(m.fromLocationLabel) + ' → ' + escapeHtml(m.toLocationLabel) + '</span></div>' +
+        '<div class="move-main"><span class="move-name">' + escapeHtml(m.productName) + '</span><span class="move-loc">' + escapeHtml(m.fromLocationLabel) + ' → ' + escapeHtml(m.toLocationLabel) + '</span>' + causaleHtml + '</div>' +
         '<div class="move-side"><span class="move-delta plus">' + m.delta + '</span><span class="move-time">' + formatDateTime(m.ts) + '</span></div>' +
       '</div>';
     }
@@ -2252,7 +2272,7 @@
     var cls = m.delta > 0 ? 'plus' : 'minus';
     var typeSuffix = m.type === 'carico' ? ' · carico' : (m.type === 'scarico' ? ' · scarico' : '');
     return '<div class="move-row">' +
-      '<div class="move-main"><span class="move-name">' + escapeHtml(m.productName) + '</span><span class="move-loc">' + escapeHtml(m.locationLabel) + typeSuffix + '</span></div>' +
+      '<div class="move-main"><span class="move-name">' + escapeHtml(m.productName) + '</span><span class="move-loc">' + escapeHtml(m.locationLabel) + typeSuffix + '</span>' + causaleHtml + '</div>' +
       '<div class="move-side"><span class="move-delta ' + cls + '">' + sign + m.delta + '</span><span class="move-time">' + formatDateTime(m.ts) + '</span></div>' +
     '</div>';
   }
@@ -2265,22 +2285,23 @@
 
   function exportMovementsCsv(){
     if (!state.movements.length){ showToast('Nessun movimento da esportare.'); return; }
-    var rows = [['Data', 'Ora', 'Tipo', 'Referenza', 'Da', 'A', 'Quantità', 'Giacenza Da', 'Giacenza A']];
+    var rows = [['Data', 'Ora', 'Tipo', 'Referenza', 'Da', 'A', 'Quantità', 'Giacenza Da', 'Giacenza A', 'Causale']];
     state.movements.forEach(function(m){
       var d = new Date(m.ts);
       var validDate = !isNaN(d.getTime());
       var date = validDate ? d.toLocaleDateString('it-IT') : '';
       var time = validDate ? d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
+      var causale = m.causale || '';
       if (m.type === 'spostamento'){
-        rows.push([date, time, 'Spostamento', m.productName, m.fromLocationLabel, m.toLocationLabel, m.delta, m.fromNewQty, m.toNewQty]);
+        rows.push([date, time, 'Spostamento', m.productName, m.fromLocationLabel, m.toLocationLabel, m.delta, m.fromNewQty, m.toNewQty, causale]);
       } else if (m.type === 'carico'){
-        rows.push([date, time, 'Carico', m.productName, '', m.locationLabel, m.delta, '', m.newQty]);
+        rows.push([date, time, 'Carico', m.productName, '', m.locationLabel, m.delta, '', m.newQty, causale]);
       } else if (m.type === 'scarico'){
-        rows.push([date, time, 'Scarico', m.productName, m.locationLabel, '', -m.delta, m.newQty, '']);
+        rows.push([date, time, 'Scarico', m.productName, m.locationLabel, '', -m.delta, m.newQty, '', causale]);
       } else if (m.delta < 0){
-        rows.push([date, time, 'Rapido', m.productName, m.locationLabel, '', -m.delta, m.newQty, '']);
+        rows.push([date, time, 'Rapido', m.productName, m.locationLabel, '', -m.delta, m.newQty, '', '']);
       } else {
-        rows.push([date, time, 'Rapido', m.productName, '', m.locationLabel, m.delta, '', m.newQty]);
+        rows.push([date, time, 'Rapido', m.productName, '', m.locationLabel, m.delta, '', m.newQty, '']);
       }
     });
     var csv = rows.map(function(r){ return r.map(csvEscape).join(';'); }).join('\r\n');
