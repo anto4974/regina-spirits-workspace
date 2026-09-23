@@ -908,8 +908,8 @@
   ];
 
   var SUM_MODES = {
-    negozio_banchi: { label: 'Negozio + Banchi', locs: ['negozio', 'banco1', 'banco2'] },
-    magazzino_furgone_garage: { label: 'Deposito', locs: ['magazzino', 'furgone', 'garage'] }
+    negozio_magazzino: { label: 'Negozio + Magazzino', locs: ['negozio', 'magazzino'] },
+    banchi_furgone_garage: { label: 'Banchi + Furgone + Garage', locs: ['banco1', 'banco2', 'furgone', 'garage'] }
   };
 
   var NEW_CAT_VALUE = '__new__';
@@ -930,7 +930,7 @@
     categories: [],   // [ 'Gommose', ... ]
     movements: [],
     addOpen: false,
-    sumMode: 'negozio_banchi',
+    sumMode: 'negozio_magazzino',
     sortMode: savedSortMode, // 'name' | 'qty'
     confirmDeleteId: null,
     editingId: null,
