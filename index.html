@@ -216,6 +216,20 @@
     cursor:pointer;
   }
   .sort-btn.active{ background:var(--raspberry); border-color:var(--raspberry); color:var(--raspberry-ink); }
+  .sort-select{
+    padding:.35rem .55rem;
+    border-radius:.5rem;
+    border:1px solid var(--line);
+    background:var(--surface);
+    color:var(--ink);
+    font-family:'Oswald', sans-serif;
+    font-size:.66rem;
+    text-transform:uppercase;
+    letter-spacing:.03em;
+    cursor:pointer;
+    margin-left:auto;
+    max-width:9.5rem;
+  }
 
   .category{
     margin:1.1rem .75rem .4rem;
@@ -853,6 +867,7 @@
       <span class="sort-label">Ordina</span>
       <button type="button" class="sort-btn" id="sortByName">Nome A-Z</button>
       <button type="button" class="sort-btn" id="sortByQty">Più quantità</button>
+      <select class="sort-select" id="categoryFilterSelect" aria-label="Filtra per categoria"></select>
     </div>
 
     <div class="add-wrap" id="addWrap"></div>
@@ -996,7 +1011,8 @@
     sortMode: savedSortMode, // 'name' | 'qty'
     confirmDeleteId: null,
     editingId: null,
-    moveModal: null // { productId, step: 'choose' | 'carico' | 'spostamento' }
+    moveModal: null, // { productId, step: 'choose' | 'carico' | 'spostamento' }
+    categoryFilter: '' // '' = tutte le categorie
   };
 
   function sortItems(items, qtyFn){
@@ -1026,6 +1042,20 @@
     var qtyBtn = document.getElementById('sortByQty');
     if (nameBtn) nameBtn.classList.toggle('active', state.sortMode === 'name');
     if (qtyBtn) qtyBtn.classList.toggle('active', state.sortMode === 'qty');
+  }
+
+  function renderCategoryFilterOptions(){
+    var sel = document.getElementById('categoryFilterSelect');
+    if (!sel) return;
+    if (state.categoryFilter && state.categories.indexOf(state.categoryFilter) === -1){
+      state.categoryFilter = '';
+    }
+    sel.innerHTML = '<option value="">Tutte le categorie</option>' +
+      state.categories.map(function(c){
+        var sel2 = c === state.categoryFilter ? ' selected' : '';
+        return '<option value="' + escapeHtml(c) + '"' + sel2 + '>' + escapeHtml(c) + '</option>';
+      }).join('');
+    sel.value = state.categoryFilter;
   }
 
   var pending = {}; // 'loc:prodId' -> { loc, prodId, netDelta, newQty, timer }
@@ -1171,7 +1201,8 @@
     var html = '';
     var anyMatch = false;
 
-    state.categories.forEach(function(cat){
+    var catsToShow = state.categoryFilter ? [state.categoryFilter] : state.categories;
+    catsToShow.forEach(function(cat){
       var items = state.products.filter(function(p){
         return p.cat === cat && (!q || normalize(p.name).indexOf(q) !== -1);
       });
@@ -2485,6 +2516,7 @@
     window.__fb.onDocSnapshot('meta/categories', function(data, err){
       if (err){ setSyncStatus('error'); return; }
       state.categories = (data && data.items) ? data.items : [];
+      renderCategoryFilterOptions();
       setSyncStatus('synced');
       rerenderCurrentView();
     });
@@ -2523,6 +2555,12 @@
   document.getElementById('sortByName').addEventListener('click', function(){ setSortMode('name'); });
   document.getElementById('sortByQty').addEventListener('click', function(){ setSortMode('qty'); });
   updateSortButtons();
+
+  document.getElementById('categoryFilterSelect').addEventListener('change', function(e){
+    state.categoryFilter = e.target.value;
+    renderList();
+  });
+  renderCategoryFilterOptions();
 
   document.getElementById('rowPhotoInput').addEventListener('change', function(e){
     var file = e.target.files && e.target.files[0];
