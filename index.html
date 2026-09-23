@@ -14,6 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="Giacenze">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js" defer></script>
 <style>
   :root{
     color-scheme: light;
@@ -413,6 +414,17 @@
     font-family:'Oswald', sans-serif; font-weight:600; font-size:.85rem;
     text-transform:uppercase; letter-spacing:.04em; color:var(--raspberry);
   }
+  .sku-input-wrap{ display:flex; gap:.5rem; }
+  .sku-input-wrap input{ flex:1; min-width:0; }
+  .sku-scan-btn{
+    flex:none; width:2.6rem;
+    border-radius:.55rem; border:1px solid var(--line);
+    background:var(--surface-2); color:var(--raspberry);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+  }
+  .sku-scan-btn svg{ width:18px; height:18px; }
+
   .weight-input-wrap{ position:relative; }
   .weight-input-wrap input{ padding-right:2.7rem; width:100%; }
   .weight-unit-suffix{
@@ -495,6 +507,45 @@
   }
   .signout-btn svg{ width:12px; height:12px; }
   .signout-btn[hidden]{ display:none; }
+
+  .scan-fab{
+    position:fixed; right:1.1rem; bottom:1.3rem; z-index:40;
+    width:3.4rem; height:3.4rem; border-radius:50%;
+    border:none; background:var(--raspberry); color:var(--raspberry-ink);
+    box-shadow:0 6px 18px rgba(20,12,6,.3);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+  }
+  .scan-fab::before{
+    content:''; width:24px; height:24px;
+    -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 5v14M7 5v14M11 5v10M15 5v14M19 5v10'/%3E%3C/svg%3E") center/contain no-repeat;
+    mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 5v14M7 5v14M11 5v10M15 5v14M19 5v10'/%3E%3C/svg%3E") center/contain no-repeat;
+    background:var(--raspberry-ink);
+  }
+  .scan-fab[hidden]{ display:none; }
+
+  .scanner-overlay[hidden]{ display:none; }
+  .scanner-overlay{
+    position:fixed; inset:0; z-index:60;
+    background:#000;
+    display:flex; flex-direction:column;
+  }
+  .scanner-top{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:.9rem 1rem; color:#fff;
+    font-family:'Oswald', sans-serif; font-size:.85rem; text-transform:uppercase; letter-spacing:.03em;
+  }
+  .scanner-close{
+    width:2.1rem; height:2.1rem; border-radius:50%;
+    border:none; background:rgba(255,255,255,.15); color:#fff;
+    font-size:1.3rem; line-height:1; cursor:pointer;
+  }
+  .scanner-video{ flex:1; min-height:0; }
+  .scanner-video video{ width:100%; height:100%; object-fit:cover; }
+  .scanner-hint{
+    color:#fff; text-align:center; font-size:.78rem; opacity:.8;
+    padding:.9rem 1rem 1.2rem;
+  }
 
   .modal-overlay[hidden]{ display:none; }
   .modal-overlay{
@@ -816,6 +867,17 @@
   <input type="file" id="rowPhotoInput" accept="image/*" hidden>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <div class="modal-overlay" id="moveModal" hidden></div>
+
+  <button type="button" class="scan-fab" id="scanFabBtn" aria-label="Scansiona codice a barre" title="Scansiona codice a barre"></button>
+
+  <div class="scanner-overlay" id="scannerOverlay" hidden>
+    <div class="scanner-top">
+      <span class="scanner-title">Inquadra il codice a barre</span>
+      <button type="button" class="scanner-close" id="scannerCloseBtn" aria-label="Chiudi">×</button>
+    </div>
+    <div id="scannerVideo" class="scanner-video"></div>
+    <p class="scanner-hint" id="scannerHint">Avvio fotocamera…</p>
+  </div>
 </div>
 
 <script type="module">
@@ -977,6 +1039,8 @@
   function iconSwap(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h13l-3-3M4 7l3 3"/><path d="M20 17H7l3 3M20 17l-3-3"/></svg>'; }
   function iconBox(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l9-5 9 5-9 5-9-5Z"/><path d="M3 8v9l9 5 9-5V8"/><path d="M12 13v9"/></svg>'; }
   function iconLogout(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>'; }
+  function iconBarcode(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5v14M7 5v14M11 5v10M15 5v14M19 5v10"/></svg>'; }
+  function iconMinus(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>'; }
   function iconClipboard(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2.3" width="6" height="3" rx="1"/><path d="M9 11h6M9 15h6"/></svg>'; }
   function iconGrid(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.2"/><rect x="14" y="3" width="7" height="7" rx="1.2"/><rect x="3" y="14" width="7" height="7" rx="1.2"/><rect x="14" y="14" width="7" height="7" rx="1.2"/></svg>'; }
   function iconTag(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 12 22l-9-9 8.59-8.59A2 2 0 0 1 13 4h6a1 1 0 0 1 1 1v6a2 2 0 0 1-.41 1.41Z"/><circle cx="16.5" cy="7.5" r="1.1" fill="currentColor" stroke="none"/></svg>'; }
@@ -1314,6 +1378,30 @@
             '<button type="button" class="modal-confirm" data-modal-action="confirm-carico">Conferma carico</button>' +
           '</div>' +
         '</div>';
+    } else if (m.step === 'scarico'){
+      el.innerHTML =
+        '<div class="modal-sheet">' +
+          '<h3 class="modal-title">Scarico — ' + escapeHtml(product.name) + '</h3>' +
+          '<p class="modal-subtitle">Da quale deposito sono usciti?</p>' +
+          '<div class="modal-field">' +
+            '<label for="moveLoc">Deposito</label>' +
+            '<select id="moveLoc">' + LOCATIONS.map(function(l){
+              var sel = l.id === state.active ? ' selected' : '';
+              return '<option value="' + l.id + '"' + sel + '>' + escapeHtml(l.label) + '</option>';
+            }).join('') + '</select>' +
+          '</div>' +
+          '<div class="modal-field">' +
+            '<label for="moveQty">Quantità</label>' +
+            '<input type="number" id="moveQty" inputmode="numeric" min="1" step="1" value="1">' +
+          '</div>' +
+          '<p class="modal-hint" id="moveHint"></p>' +
+          '<div class="modal-actions">' +
+            '<button type="button" class="modal-back" data-modal-action="back">Indietro</button>' +
+            '<button type="button" class="modal-confirm" data-modal-action="confirm-scarico">Conferma scarico</button>' +
+          '</div>' +
+        '</div>';
+      updateScaricoHint();
+      document.getElementById('moveLoc').addEventListener('change', updateScaricoHint);
     } else if (m.step === 'spostamento'){
       var fromDefault = state.active;
       var toDefault = LOCATIONS.filter(function(l){ return l.id !== fromDefault; })[0];
@@ -1357,6 +1445,9 @@
             '<button type="button" class="modal-choice-btn" data-modal-action="choose-carico">' + iconBox() +
               '<span>Carico<span class="modal-choice-sub">Aggiungi pezzi arrivati in un deposito</span></span>' +
             '</button>' +
+            '<button type="button" class="modal-choice-btn" data-modal-action="choose-scarico">' + iconMinus() +
+              '<span>Scarico<span class="modal-choice-sub">Togli pezzi usciti da un deposito</span></span>' +
+            '</button>' +
             '<button type="button" class="modal-choice-btn" data-modal-action="choose-spostamento">' + iconSwap() +
               '<span>Spostamento<span class="modal-choice-sub">Sposta pezzi da un deposito a un altro</span></span>' +
             '</button>' +
@@ -1364,6 +1455,17 @@
           '<div class="modal-actions"><button type="button" class="modal-cancel" data-modal-action="cancel">Annulla</button></div>' +
         '</div>';
     }
+  }
+
+  function updateScaricoHint(){
+    var m = state.moveModal;
+    if (!m) return;
+    var locSel = document.getElementById('moveLoc');
+    var hint = document.getElementById('moveHint');
+    if (!locSel || !hint) return;
+    var avail = (state.cache[locSel.value] && state.cache[locSel.value][m.productId]) || 0;
+    hint.textContent = 'Disponibili in ' + labelForLocation(locSel.value) + ': ' + avail + ' pz.';
+    hint.classList.remove('modal-hint-warn');
   }
 
   function updateSpostamentoHint(){
@@ -1397,8 +1499,10 @@
       if (action === 'cancel'){ closeMoveModal(); return; }
       if (action === 'back'){ m.step = 'choose'; renderMoveModal(); return; }
       if (action === 'choose-carico'){ m.step = 'carico'; renderMoveModal(); return; }
+      if (action === 'choose-scarico'){ m.step = 'scarico'; renderMoveModal(); return; }
       if (action === 'choose-spostamento'){ m.step = 'spostamento'; renderMoveModal(); return; }
       if (action === 'confirm-carico'){ confirmCarico(); return; }
+      if (action === 'confirm-scarico'){ confirmScarico(); return; }
       if (action === 'confirm-spostamento'){ confirmSpostamento(); return; }
     });
     el.addEventListener('change', function(e){
@@ -1430,6 +1534,37 @@
       newQty: newQty
     });
     showToast('Carico registrato: +' + qty + ' pz a ' + labelForLocation(loc) + '.');
+    closeMoveModal();
+  }
+
+  function confirmScarico(){
+    var m = state.moveModal;
+    var product = productById(m.productId);
+    if (!product){ closeMoveModal(); return; }
+    var loc = document.getElementById('moveLoc').value;
+    var qty = Math.round(parseFloat(document.getElementById('moveQty').value));
+    if (!qty || qty <= 0){ showToast('Inserisci una quantità maggiore di zero.'); return; }
+
+    var current = (state.cache[loc] && state.cache[loc][m.productId]) || 0;
+    var removed = Math.min(qty, current);
+    if (removed <= 0){ showToast('Non ci sono pezzi disponibili in ' + labelForLocation(loc) + '.'); return; }
+
+    var newQty = current - removed;
+    if (!state.cache[loc]) state.cache[loc] = {};
+    state.cache[loc][m.productId] = newQty;
+    rerenderCurrentView();
+    persist(loc, m.productId, newQty);
+    logMovementEntry({
+      type: 'scarico',
+      location: loc,
+      locationLabel: labelForLocation(loc),
+      productId: m.productId,
+      productName: product.name,
+      delta: -removed,
+      newQty: newQty
+    });
+    var warn = removed < qty ? (' (disponibili solo ' + removed + ')') : '';
+    showToast('Scarico registrato: -' + removed + ' pz da ' + labelForLocation(loc) + '.' + warn);
     closeMoveModal();
   }
 
@@ -1473,6 +1608,77 @@
     var warn = moved < qty ? (' (disponibili solo ' + moved + ')') : '';
     showToast('Spostati ' + moved + ' pz da ' + labelForLocation(fromLoc) + ' a ' + labelForLocation(toLoc) + '.' + warn);
     closeMoveModal();
+  }
+
+  // ---------- barcode scanner ----------
+
+  var html5QrInstance = null;
+  var scannerFieldCallback = null;
+  var scannerBusy = false;
+
+  function openScannerForMovement(){
+    scannerFieldCallback = null;
+    startScannerOverlay();
+  }
+
+  function openScannerForField(cb){
+    scannerFieldCallback = cb;
+    startScannerOverlay();
+  }
+
+  function startScannerOverlay(){
+    var overlay = document.getElementById('scannerOverlay');
+    var hint = document.getElementById('scannerHint');
+    overlay.hidden = false;
+    hint.textContent = 'Avvio fotocamera…';
+    scannerBusy = false;
+
+    if (typeof Html5Qrcode === 'undefined'){
+      hint.textContent = 'Lo scanner non è ancora pronto: aspetta un attimo e riprova.';
+      return;
+    }
+
+    html5QrInstance = new Html5Qrcode('scannerVideo');
+    html5QrInstance.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: function(vw, vh){ var size = Math.floor(Math.min(vw, vh) * 0.7); return { width: size, height: size }; } },
+      function(decodedText){
+        if (scannerBusy) return;
+        scannerBusy = true;
+        onScanSuccess(decodedText);
+      },
+      function(){ /* per-frame miss: ignore, keep scanning */ }
+    ).then(function(){
+      hint.textContent = 'Inquadra il codice a barre della referenza.';
+    }).catch(function(err){
+      console.error(err);
+      hint.textContent = 'Fotocamera non disponibile. Controlla i permessi del browser e riprova.';
+    });
+  }
+
+  function stopScannerOverlay(){
+    document.getElementById('scannerOverlay').hidden = true;
+    if (html5QrInstance){
+      var instance = html5QrInstance;
+      html5QrInstance = null;
+      instance.stop().then(function(){ instance.clear(); }).catch(function(){});
+    }
+  }
+
+  function onScanSuccess(code){
+    stopScannerOverlay();
+    if (scannerFieldCallback){
+      var cb = scannerFieldCallback;
+      scannerFieldCallback = null;
+      cb(code);
+      return;
+    }
+    var product = productByBarcode(code);
+    if (!product){
+      showToast('Nessuna referenza trovata con il codice ' + code + '.');
+      return;
+    }
+    openMoveModal(product.id);
   }
 
   // ---------- toast ----------
@@ -1534,7 +1740,13 @@
   }
 
   function productDocData(p){
-    return { name: p.name, cat: p.cat, photo: p.photo || null, unitWeightKg: p.unitWeightKg || null };
+    return { name: p.name, cat: p.cat, photo: p.photo || null, unitWeightKg: p.unitWeightKg || null, sku: p.sku || null };
+  }
+
+  function productByBarcode(code){
+    var norm = String(code || '').trim();
+    if (!norm) return null;
+    return state.products.filter(function(p){ return p.sku && String(p.sku).trim() === norm; })[0];
   }
 
   function replaceProductPhoto(prodId, dataUrl){
@@ -1692,6 +1904,15 @@
         '</div>';
     }
 
+    var skuFieldHtml =
+      '<div class="add-field">' +
+        '<label for="newProdSku">Codice a barre (facoltativo)</label>' +
+        '<div class="sku-input-wrap">' +
+          '<input type="text" id="newProdSku" inputmode="text" placeholder="Scansiona o scrivi il codice" autocomplete="off" value="' + (editing && product.sku ? escapeHtml(product.sku) : '') + '">' +
+          '<button type="button" class="sku-scan-btn" id="skuScanBtn" aria-label="Scansiona codice a barre">' + iconBarcode() + '</button>' +
+        '</div>' +
+      '</div>';
+
     var weightFieldHtml =
       '<div class="add-field">' +
         '<label for="newProdWeight">Peso per pezzo (facoltativo)</label>' +
@@ -1732,6 +1953,7 @@
           '<label for="newProdCatNew">Nome nuova categoria</label>' +
           '<input type="text" id="newProdCatNew" placeholder="Es. Gommose" autocomplete="off">' +
         '</div>' +
+        skuFieldHtml +
         weightFieldHtml +
         stockFieldHtml +
         '<div class="add-form-actions">' +
@@ -1766,6 +1988,13 @@
       if (!newCatWrap.hidden) document.getElementById('newProdCatNew').focus();
     });
 
+    document.getElementById('skuScanBtn').addEventListener('click', function(){
+      openScannerForField(function(code){
+        var skuInput = document.getElementById('newProdSku');
+        if (skuInput) skuInput.value = code;
+      });
+    });
+
     document.getElementById('addCancelBtn').addEventListener('click', closeForm);
     document.getElementById('addSaveBtn').addEventListener('click', submitAddForm);
     wrap.addEventListener('keydown', function(e){
@@ -1797,10 +2026,11 @@
     var weightInput = document.getElementById('newProdWeight').value.trim().replace(',', '.');
     var weightRaw = parseFloat(weightInput);
     var unitWeightKg = (!isNaN(weightRaw) && weightRaw > 0) ? weightRaw : null;
+    var sku = document.getElementById('newProdSku').value.trim() || null;
 
     if (state.editingId){
       var editedId = state.editingId;
-      updateProduct(editedId, { name: name, cat: catName, unitWeightKg: unitWeightKg }, function(){
+      updateProduct(editedId, { name: name, cat: catName, unitWeightKg: unitWeightKg, sku: sku }, function(){
         showToast('Referenza aggiornata.');
       });
       closeForm();
@@ -1814,14 +2044,14 @@
     var initialStock = isNaN(stockRaw) ? 0 : Math.max(0, stockRaw);
     var photo = pendingPhoto ? pendingPhoto.dataUrl : null;
 
-    addProduct(name, catName, initialStock, photo, unitWeightKg);
+    addProduct(name, catName, initialStock, photo, unitWeightKg, sku);
     closeForm();
     renderList();
   }
 
-  function addProduct(name, catName, initialStock, photo, unitWeightKg){
+  function addProduct(name, catName, initialStock, photo, unitWeightKg, sku){
     var id = 'ref_' + slugify(name) + '_' + Math.random().toString(36).slice(2, 7);
-    var newProduct = { id: id, name: name, cat: catName, photo: photo || null, unitWeightKg: unitWeightKg || null };
+    var newProduct = { id: id, name: name, cat: catName, photo: photo || null, unitWeightKg: unitWeightKg || null, sku: sku || null };
     state.products = state.products.concat([newProduct]);
     var docData = productDocData(newProduct);
     window.__fb.setDoc('products/' + id, docData).catch(function(e){
@@ -2019,7 +2249,7 @@
     }
     var sign = m.delta > 0 ? '+' : '';
     var cls = m.delta > 0 ? 'plus' : 'minus';
-    var typeSuffix = m.type === 'carico' ? ' · carico' : '';
+    var typeSuffix = m.type === 'carico' ? ' · carico' : (m.type === 'scarico' ? ' · scarico' : '');
     return '<div class="move-row">' +
       '<div class="move-main"><span class="move-name">' + escapeHtml(m.productName) + '</span><span class="move-loc">' + escapeHtml(m.locationLabel) + typeSuffix + '</span></div>' +
       '<div class="move-side"><span class="move-delta ' + cls + '">' + sign + m.delta + '</span><span class="move-time">' + formatDateTime(m.ts) + '</span></div>' +
@@ -2044,6 +2274,8 @@
         rows.push([date, time, 'Spostamento', m.productName, m.fromLocationLabel, m.toLocationLabel, m.delta, m.fromNewQty, m.toNewQty]);
       } else if (m.type === 'carico'){
         rows.push([date, time, 'Carico', m.productName, '', m.locationLabel, m.delta, '', m.newQty]);
+      } else if (m.type === 'scarico'){
+        rows.push([date, time, 'Scarico', m.productName, m.locationLabel, '', -m.delta, m.newQty, '']);
       } else if (m.delta < 0){
         rows.push([date, time, 'Rapido', m.productName, m.locationLabel, '', -m.delta, m.newQty, '']);
       } else {
@@ -2276,6 +2508,9 @@
     e.target.value = '';
     if (file && rowPhotoTargetId) changeRowPhoto(rowPhotoTargetId, file);
   });
+
+  document.getElementById('scanFabBtn').addEventListener('click', openScannerForMovement);
+  document.getElementById('scannerCloseBtn').addEventListener('click', stopScannerOverlay);
 
   bindListDelegation();
   bindMoveModalDelegation();
