@@ -1,0 +1,1974 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Produzione Materie Prime</title>
+<link rel="icon" type="image/png" sizes="32x32" href="icons/produzione-32.png">
+<link rel="apple-touch-icon" href="icons/produzione-180.png">
+<link rel="manifest" href="manifest-produzione.json">
+<meta name="theme-color" content="#a85a2a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Produzione">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap">
+<style>
+  :root{
+    color-scheme: light;
+    --bg:#f6ede1;
+    --surface:#fffaf3;
+    --surface-2:#f2e6d3;
+    --ink:#2b2013;
+    --muted:#8a7256;
+    --line:#e3d2b0;
+    --terra:#a85a2a;
+    --terra-ink:#fff6e9;
+    --good:#2f4d3c;
+    --good-ink:#eaf2ec;
+    --bad:#883427;
+    --bad-ink:#fbeae6;
+    --warn:#a9692a;
+    --warn-ink:#2a1c0d;
+    --shadow: 0 1px 2px rgba(36,31,22,0.06), 0 1px 1px rgba(36,31,22,0.04);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#181209;
+      --surface:#21180f;
+      --surface-2:#2a1f13;
+      --ink:#f1e5d2;
+      --muted:#b39c7c;
+      --line:#3c2d1a;
+      --terra:#e08a4f;
+      --terra-ink:#20130a;
+      --good:#7fae82;
+      --good-ink:#10190f;
+      --bad:#d97a68;
+      --bad-ink:#2c0f0a;
+      --warn:#e3a15a;
+      --warn-ink:#2a1a08;
+      --shadow: 0 1px 3px rgba(0,0,0,0.4);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#181209; --surface:#21180f; --surface-2:#2a1f13; --ink:#f1e5d2; --muted:#b39c7c;
+    --line:#3c2d1a; --terra:#e08a4f; --terra-ink:#20130a; --good:#7fae82; --good-ink:#10190f;
+    --bad:#d97a68; --bad-ink:#2c0f0a; --warn:#e3a15a; --warn-ink:#2a1a08;
+    --shadow: 0 1px 3px rgba(0,0,0,0.4);
+  }
+
+  *{ box-sizing:border-box; touch-action:manipulation; }
+  html, body{ background:var(--bg); }
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:'Work Sans', system-ui, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y:contain;
+  }
+  input, textarea, select{ -webkit-user-select:text; user-select:text; }
+  .app{ max-width:560px; margin:0 auto; min-height:100vh; background:var(--bg); padding-bottom:3rem; }
+
+  header.top{
+    position:sticky; top:0; z-index:20;
+    background:color-mix(in srgb, var(--surface) 90%, transparent);
+    backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+    box-shadow:0 8px 18px -14px rgba(20,12,6,.35);
+    border-bottom:1px solid var(--line);
+    padding:.85rem 1rem .7rem;
+  }
+  .top-row{ display:flex; align-items:flex-start; justify-content:space-between; gap:.5rem; }
+  .brand h1{
+    margin:0; font-family:'Oswald', sans-serif; font-weight:700; font-size:1.28rem;
+    letter-spacing:.02em; text-transform:uppercase; line-height:1.15; color:var(--terra);
+  }
+  .brand p{ margin:.2rem 0 0; font-size:.72rem; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-family:'Oswald', sans-serif; }
+  .top-actions{ display:flex; flex-direction:column; align-items:flex-end; gap:.4rem; flex:none; }
+  .icon-btn{
+    display:flex; align-items:center; justify-content:center; width:2.1rem; height:2.1rem;
+    border-radius:.5rem; border:1px solid var(--line); background:var(--surface-2); color:var(--muted);
+    cursor:pointer; transition:background-color .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .icon-btn svg{ width:15px; height:15px; }
+  .icon-btn.active{ background:var(--terra); border-color:var(--terra); color:var(--terra-ink); }
+  .top-icons{ display:flex; gap:.35rem; }
+  .sync-pill{ display:flex; align-items:center; gap:.4rem; font-size:.68rem; color:var(--muted); white-space:nowrap; padding-top:.25rem; }
+  .sync-dot{ width:.5rem; height:.5rem; border-radius:50%; background:var(--muted); flex:none; }
+  .sync-dot.synced{ background:var(--good); box-shadow:0 0 0 3px color-mix(in srgb, var(--good) 25%, transparent); }
+  .sync-dot.error{ background:var(--bad); }
+  .signout-btn{
+    display:flex; align-items:center; justify-content:center; width:1.6rem; height:1.6rem; border-radius:.4rem;
+    border:1px solid var(--line); background:var(--surface-2); color:var(--muted); cursor:pointer; flex:none;
+  }
+  .signout-btn svg{ width:12px; height:12px; }
+  .signout-btn[hidden]{ display:none; }
+
+  nav.tabs{
+    display:flex; gap:.4rem; background:var(--bg); padding:.6rem .75rem 0;
+    overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none;
+  }
+  nav.tabs::-webkit-scrollbar{ display:none; }
+  .tab-btn{
+    display:flex; flex-direction:column; align-items:center; gap:.25rem; flex:none;
+    padding:.5rem .8rem .55rem; border-radius:.65rem; border:1px solid var(--line); background:var(--surface);
+    color:var(--muted); font-family:'Oswald', sans-serif; font-size:.68rem; letter-spacing:.04em;
+    text-transform:uppercase; cursor:pointer; min-height:44px; min-width:4.6rem;
+    transition:background-color .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .tab-btn svg{ width:18px; height:18px; }
+  .tab-btn.active{ background:var(--terra); border-color:var(--terra); color:var(--terra-ink); }
+
+  main.view{ padding:.9rem .75rem 0; }
+  .search-wrap{ padding:0 0 .6rem; }
+  .search-wrap input{
+    width:100%; padding:.6rem .8rem; border-radius:.6rem; border:1px solid var(--line);
+    background:var(--surface); color:var(--ink); font-family:'Work Sans', sans-serif; font-size:.9rem;
+  }
+  .search-wrap input:focus{ outline:2px solid var(--terra); outline-offset:1px; }
+
+  .section-title{
+    font-family:'Oswald', sans-serif; font-weight:600; font-size:.95rem; text-transform:uppercase;
+    letter-spacing:.03em; color:var(--terra); margin:.2rem 0 .6rem;
+  }
+  .section-sub{ font-size:.78rem; color:var(--muted); margin:-.4rem 0 .8rem; line-height:1.4; }
+
+  .list{ display:flex; flex-direction:column; gap:.55rem; margin-bottom:1rem; }
+  .empty{ text-align:center; color:var(--muted); font-size:.85rem; padding:2rem 1rem; line-height:1.5; }
+
+  .card{
+    background:var(--surface); border:1px solid var(--line); border-radius:.75rem;
+    padding:.7rem .8rem; box-shadow:var(--shadow);
+  }
+  .ref-card{ display:flex; gap:.75rem; align-items:flex-start; }
+  .ref-main{ flex:1; min-width:0; }
+  .ref-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:.5rem; }
+  .ref-name{ font-weight:600; font-size:.95rem; line-height:1.25; }
+  .ref-badge{
+    font-family:'Oswald', sans-serif; font-size:.6rem; text-transform:uppercase; letter-spacing:.04em;
+    padding:.12rem .45rem; border-radius:1rem; white-space:nowrap; flex:none;
+  }
+  .ref-badge.liquido{ background:var(--good); color:var(--good-ink); }
+  .ref-badge.solido{ background:var(--warn); color:var(--warn-ink); }
+  .ref-stock{ font-family:'IBM Plex Mono', monospace; font-weight:700; font-size:1.05rem; color:var(--terra); margin-top:.3rem; }
+  .ref-stock .unit{ font-size:.62rem; font-weight:600; color:var(--muted); margin-left:.15rem; text-transform:uppercase; font-family:'Work Sans', sans-serif; }
+  .ref-meta{ font-size:.72rem; color:var(--muted); margin-top:.2rem; }
+  .ref-actions{ display:flex; gap:.4rem; margin-top:.55rem; }
+  .ref-actions button{
+    flex:none; padding:.35rem .6rem; border-radius:.5rem; border:1px solid var(--line);
+    background:var(--surface-2); color:var(--muted); font-family:'Oswald', sans-serif; font-size:.65rem;
+    text-transform:uppercase; letter-spacing:.03em; cursor:pointer; display:flex; align-items:center; gap:.3rem;
+  }
+  .ref-actions button svg{ width:13px; height:13px; }
+  .ref-actions button.expand.open{ background:var(--terra); border-color:var(--terra); color:var(--terra-ink); }
+
+  .lot-table{ margin-top:.6rem; border-top:1px dashed var(--line); padding-top:.55rem; display:flex; flex-direction:column; gap:.45rem; }
+  .lot-row{
+    display:flex; align-items:center; justify-content:space-between; gap:.5rem;
+    background:var(--surface-2); border-radius:.55rem; padding:.5rem .6rem; font-size:.78rem;
+  }
+  .lot-row-main{ min-width:0; }
+  .lot-num{ font-weight:600; font-family:'IBM Plex Mono', monospace; font-size:.78rem; }
+  .lot-detail{ color:var(--muted); font-size:.68rem; margin-top:.1rem; }
+  .lot-qty{ font-family:'IBM Plex Mono', monospace; font-weight:700; font-size:.85rem; text-align:right; white-space:nowrap; }
+  .lot-mini-btn{
+    flex:none; padding:.3rem .5rem; border-radius:.4rem; border:1px solid var(--line);
+    background:var(--surface); color:var(--terra); font-family:'Oswald', sans-serif; font-size:.6rem;
+    text-transform:uppercase; cursor:pointer;
+  }
+
+  .thumb{
+    flex:none; width:3.6rem; height:3.6rem; border-radius:.6rem; border:1px solid var(--line);
+    background:var(--surface-2); color:var(--muted); display:flex; align-items:center; justify-content:center;
+    overflow:hidden; position:relative;
+  }
+  .thumb-img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .thumb-placeholder{ font-family:'Oswald', sans-serif; font-weight:700; font-size:1.3rem; color:var(--terra); }
+
+  .form-card{ background:var(--surface); border:1px solid var(--line); border-radius:.75rem; padding:.85rem; display:flex; flex-direction:column; gap:.7rem; margin-bottom:1rem; }
+  .field label{
+    font-family:'Oswald', sans-serif; font-size:.64rem; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--muted); display:block; margin-bottom:.25rem;
+  }
+  .field{ display:flex; flex-direction:column; }
+  .field input, .field select, .field textarea{
+    padding:.55rem .7rem; border-radius:.5rem; border:1px solid var(--line); background:var(--surface-2);
+    color:var(--ink); font-family:'Work Sans', sans-serif; font-size:.9rem; width:100%;
+  }
+  .field textarea{ resize:vertical; min-height:2.4rem; }
+  .field select{
+    appearance:none; -webkit-appearance:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238a7256' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>");
+    background-repeat:no-repeat; background-position:right .6rem center; background-size:16px; padding-right:2rem;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus{ outline:2px solid var(--terra); outline-offset:1px; }
+  .field-hint{ font-size:.68rem; color:var(--muted); margin-top:.25rem; }
+  .row-split{ display:grid; grid-template-columns:1fr 1fr; gap:.55rem; }
+  .row-split3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:.5rem; }
+  .readonly-box{
+    padding:.55rem .7rem; border-radius:.5rem; border:1px dashed var(--line); background:var(--surface-2);
+    color:var(--ink); font-family:'IBM Plex Mono', monospace; font-size:.88rem; font-weight:700;
+  }
+  .readonly-box .unit{ font-family:'Work Sans', sans-serif; font-weight:500; font-size:.65rem; color:var(--muted); text-transform:uppercase; margin-left:.25rem; }
+
+  .seg{ display:flex; gap:.4rem; }
+  .seg-btn{
+    flex:1; padding:.55rem .4rem; border-radius:.55rem; border:1px solid var(--line); background:var(--surface-2);
+    color:var(--muted); font-family:'Oswald', sans-serif; font-size:.68rem; text-transform:uppercase;
+    letter-spacing:.03em; cursor:pointer; transition:background-color .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .seg-btn.active{ background:var(--terra); border-color:var(--terra); color:var(--terra-ink); }
+
+  .btn{
+    padding:.6rem 1rem; border-radius:.55rem; border:none; font-family:'Oswald', sans-serif; font-size:.74rem;
+    text-transform:uppercase; letter-spacing:.03em; cursor:pointer; transition:opacity .15s ease;
+  }
+  .btn:disabled{ opacity:.55; cursor:default; }
+  .btn-primary{ background:var(--terra); color:var(--terra-ink); }
+  .btn-good{ background:var(--good); color:var(--good-ink); }
+  .btn-bad{ background:var(--bad); color:var(--bad-ink); }
+  .btn-ghost{ background:var(--surface-2); color:var(--muted); border:1px solid var(--line); }
+  .btn-row{ display:flex; gap:.5rem; justify-content:flex-end; flex-wrap:wrap; }
+  .btn-block{ width:100%; }
+
+  .add-toggle{
+    width:100%; padding:.65rem; border-radius:.6rem; border:1px dashed var(--line); background:transparent;
+    color:var(--muted); font-family:'Work Sans', sans-serif; font-size:.85rem; font-weight:600; cursor:pointer;
+    margin-bottom:.8rem; transition:border-color .15s ease, color .15s ease;
+  }
+  .add-toggle:hover{ border-color:var(--terra); color:var(--terra); }
+
+  .photo-field{ display:flex; align-items:center; gap:.75rem; }
+  .photo-picker{
+    flex:none; width:4.6rem; height:4.6rem; padding:0; border-radius:.65rem; border:1.5px dashed var(--line);
+    background:var(--surface-2); color:var(--muted); display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:.15rem; cursor:pointer; position:relative; overflow:hidden;
+  }
+  .photo-picker svg{ width:18px; height:18px; }
+  .photo-picker-text{ font-size:.55rem; text-transform:uppercase; letter-spacing:.03em; font-family:'Oswald', sans-serif; }
+  .photo-preview{ width:100%; height:100%; object-fit:cover; display:block; }
+  .photo-remove{
+    position:absolute; top:.2rem; right:.2rem; width:1.25rem; height:1.25rem; border-radius:50%; border:none;
+    background:rgba(20,12,6,.6); color:#fff; font-size:.65rem; line-height:1; cursor:pointer; display:flex;
+    align-items:center; justify-content:center;
+  }
+
+  .component-row{
+    background:var(--surface-2); border:1px solid var(--line); border-radius:.6rem; padding:.55rem .6rem;
+    display:flex; flex-direction:column; gap:.45rem;
+  }
+  .component-row-top{ display:flex; gap:.4rem; align-items:flex-end; }
+  .component-row-top .field{ flex:1; min-width:0; }
+  .component-del{
+    flex:none; width:2.2rem; height:2.2rem; border-radius:.5rem; border:1px solid var(--line); background:var(--surface);
+    color:var(--bad); display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .component-del svg{ width:15px; height:15px; }
+
+  .alloc-row{ display:flex; gap:.4rem; align-items:flex-end; }
+  .alloc-row .field{ flex:1; min-width:0; }
+  .alloc-del{
+    flex:none; width:2.2rem; height:2.2rem; border-radius:.5rem; border:1px solid var(--line); background:var(--surface);
+    color:var(--bad); display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .alloc-del svg{ width:14px; height:14px; }
+  .alloc-summary{ font-size:.72rem; color:var(--muted); }
+  .alloc-summary.ok{ color:var(--good); }
+  .alloc-summary.warn{ color:var(--bad); }
+
+  .prod-card{ background:var(--surface); border:1px solid var(--line); border-radius:.7rem; padding:.65rem .75rem; box-shadow:var(--shadow); margin-bottom:.6rem; }
+  .prod-top{ display:flex; justify-content:space-between; align-items:baseline; gap:.5rem; }
+  .prod-lotto{ font-weight:700; font-family:'IBM Plex Mono', monospace; font-size:.9rem; }
+  .prod-date{ font-size:.66rem; color:var(--muted); font-family:'IBM Plex Mono', monospace; }
+  .prod-meta{ font-size:.75rem; color:var(--muted); margin-top:.25rem; line-height:1.5; }
+  .prod-comps{ font-size:.72rem; color:var(--ink); margin-top:.4rem; line-height:1.6; }
+  .prod-comps summary{ cursor:pointer; color:var(--terra); font-size:.72rem; font-family:'Oswald', sans-serif; text-transform:uppercase; letter-spacing:.03em; }
+  .prod-push-row{ display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin-top:.55rem; }
+  .prod-push-status{ font-size:.7rem; color:var(--muted); }
+
+  .move-list{ display:flex; flex-direction:column; gap:.4rem; margin-bottom:1.2rem; }
+  .move-row{
+    background:var(--surface); border:1px solid var(--line); border-radius:.6rem; padding:.55rem .7rem;
+    display:flex; align-items:center; justify-content:space-between; gap:.6rem; box-shadow:var(--shadow);
+  }
+  .move-main{ display:flex; flex-direction:column; gap:.15rem; min-width:0; }
+  .move-name{ font-weight:600; font-size:.85rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .move-sub{ font-size:.66rem; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; font-family:'Oswald', sans-serif; }
+  .move-causale{ font-size:.7rem; color:var(--ink); font-style:italic; }
+  .move-side{ display:flex; flex-direction:column; align-items:flex-end; gap:.15rem; flex:none; }
+  .move-delta{ font-family:'IBM Plex Mono', monospace; font-weight:700; font-size:.9rem; }
+  .move-delta.plus{ color:var(--good); }
+  .move-delta.minus{ color:var(--bad); }
+  .move-time{ font-size:.63rem; color:var(--muted); font-family:'IBM Plex Mono', monospace; white-space:nowrap; }
+  .move-del{
+    flex:none; width:1.8rem; height:1.8rem; border-radius:.5rem; border:1px solid var(--line); background:var(--surface-2);
+    color:var(--muted); display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .move-del svg{ width:13px; height:13px; }
+
+  .modal-overlay[hidden]{ display:none; }
+  .modal-overlay{ position:fixed; inset:0; z-index:50; background:rgba(20,12,6,.45); display:flex; align-items:flex-end; justify-content:center; }
+  @media (min-width:560px){ .modal-overlay{ align-items:center; padding:1rem; } }
+  .modal-sheet{
+    width:100%; max-width:520px; max-height:90vh; overflow-y:auto; background:var(--surface);
+    border-radius:1rem 1rem 0 0; padding:1.1rem 1.1rem 1.4rem; box-shadow:0 -4px 24px rgba(20,12,6,.25);
+  }
+  @media (min-width:560px){ .modal-sheet{ border-radius:1rem; } }
+  .modal-title{ font-family:'Oswald', sans-serif; font-weight:700; font-size:1.05rem; margin:0 0 .2rem; }
+  .modal-subtitle{ font-size:.8rem; color:var(--muted); margin:0 0 1rem; }
+  .modal-hint{ font-size:.74rem; color:var(--muted); margin:-.35rem 0 .7rem; }
+  .modal-hint.warn{ color:var(--bad); }
+
+  .auth-gate[hidden]{ display:none; }
+  .auth-gate{ position:fixed; inset:0; z-index:100; background:var(--bg); display:flex; align-items:center; justify-content:center; padding:1.5rem; }
+  .auth-card{ width:100%; max-width:360px; background:var(--surface); border:1px solid var(--line); border-radius:1rem; padding:1.7rem 1.4rem 1.5rem; box-shadow:var(--shadow); }
+  .auth-title{ font-family:'Oswald', sans-serif; font-weight:700; font-size:1.4rem; text-transform:uppercase; letter-spacing:.02em; margin:0 0 .1rem; color:var(--terra); text-align:center; }
+  .auth-subtitle{ font-size:.75rem; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-family:'Oswald', sans-serif; text-align:center; margin:0 0 1.5rem; }
+  .auth-submit{ width:100%; padding:.75rem; font-size:.78rem; }
+  .modal-field{ margin-bottom:.85rem; }
+
+  .toast{
+    position:fixed; left:50%; bottom:1.1rem; transform:translateX(-50%) translateY(6px); max-width:88vw;
+    background:var(--ink); color:var(--bg); padding:.6rem .7rem .6rem .9rem; border-radius:.6rem; font-size:.78rem;
+    line-height:1.4; box-shadow:0 10px 24px rgba(0,0,0,.3); display:flex; align-items:center; gap:.6rem;
+    opacity:0; pointer-events:none; transition:opacity .18s ease, transform .18s ease; z-index:80;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); pointer-events:auto; }
+  .toast-retry{
+    flex:none; background:transparent; border:1px solid color-mix(in srgb, var(--bg) 45%, transparent);
+    color:var(--bg); border-radius:.4rem; padding:.28rem .6rem; font-size:.7rem; cursor:pointer;
+    font-family:'Oswald', sans-serif; text-transform:uppercase; letter-spacing:.03em; white-space:nowrap;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="auth-gate" id="authGate" hidden>
+  <div class="auth-card">
+    <h1 class="auth-title">Produzione</h1>
+    <p class="auth-subtitle">Regina Spirits</p>
+    <form id="authForm">
+      <div class="modal-field">
+        <label for="authEmail">Email</label>
+        <input type="email" id="authEmail" autocomplete="username" required>
+      </div>
+      <div class="modal-field">
+        <label for="authPassword">Password</label>
+        <input type="password" id="authPassword" autocomplete="current-password" required>
+      </div>
+      <p class="modal-hint warn" id="authError" hidden></p>
+      <button type="submit" class="btn btn-primary auth-submit" id="authSubmitBtn">Accedi</button>
+    </form>
+  </div>
+</div>
+
+<div class="app">
+  <header class="top">
+    <div class="top-row">
+      <div class="brand">
+        <h1>Produzione</h1>
+        <p>Materie Prime &amp; Giacenza</p>
+      </div>
+      <div class="top-actions">
+        <div class="top-icons">
+          <button type="button" class="icon-btn" id="storicoBtn" title="Storico movimenti" aria-label="Storico movimenti"></button>
+          <button type="button" class="signout-btn" id="signOutBtn" title="Esci" aria-label="Esci" hidden></button>
+        </div>
+        <div class="sync-pill">
+          <span class="sync-dot" id="syncDot"></span>
+          <span id="syncLabel">Connessione…</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs"></nav>
+
+  <main class="view" id="viewRoot"></main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="modal-overlay" id="refModalOverlay" hidden></div>
+  <div class="modal-overlay" id="pushModalOverlay" hidden></div>
+  <div class="modal-overlay" id="confirmModalOverlay" hidden></div>
+  <input type="file" id="photoInput" accept="image/*" hidden>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+  import {
+    initializeFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs, onSnapshot
+  } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+  import {
+    getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut
+  } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+
+  var firebaseConfig = {
+    apiKey: "AIzaSyCZWXqgSjuz23bv684sKZcr3LhopO56cJU",
+    authDomain: "regina-caramelle-592f7.firebaseapp.com",
+    projectId: "regina-caramelle-592f7",
+    storageBucket: "regina-caramelle-592f7.firebasestorage.app",
+    messagingSenderId: "1023078192035",
+    appId: "1:1023078192035:web:630b72beebbeb438818016"
+  };
+
+  var fbApp = initializeApp(firebaseConfig);
+  var fs = initializeFirestore(fbApp, { experimentalAutoDetectLongPolling: true });
+  var fbAuth = getAuth(fbApp);
+
+  function pathToRef(path){
+    var parts = path.split('/');
+    return doc.apply(null, [fs].concat(parts));
+  }
+
+  window.__fb = {
+    signIn: function(email, password){ return signInWithEmailAndPassword(fbAuth, email, password); },
+    signOut: function(){ return signOut(fbAuth); },
+    onAuthState: function(cb){ return onAuthStateChanged(fbAuth, cb); },
+    getDoc: function(path){
+      return getDoc(pathToRef(path)).then(function(snap){ return snap.exists() ? snap.data() : null; });
+    },
+    setDoc: function(path, data, merge){
+      return setDoc(pathToRef(path), data, merge ? { merge: true } : undefined);
+    },
+    deleteDoc: function(path){ return deleteDoc(pathToRef(path)); },
+    getCollection: function(path){
+      var ref = collection.apply(null, [fs].concat(path.split('/')));
+      return getDocs(ref).then(function(qs){
+        var out = [];
+        qs.forEach(function(d){ out.push({ id: d.id, data: d.data() }); });
+        return out;
+      });
+    },
+    onDocSnapshot: function(path, cb){
+      return onSnapshot(pathToRef(path), function(snap){
+        cb(snap.exists() ? snap.data() : null);
+      }, function(err){ console.error(err); cb(null, err); });
+    },
+    onCollectionSnapshot: function(path, cb){
+      var ref = collection.apply(null, [fs].concat(path.split('/')));
+      return onSnapshot(ref, function(qs){
+        var out = [];
+        qs.forEach(function(d){ out.push({ id: d.id, data: d.data() }); });
+        cb(out);
+      }, function(err){ console.error(err); cb(null, err); });
+    }
+  };
+  window.dispatchEvent(new Event('fb-ready'));
+</script>
+
+<script>
+(function(){
+  'use strict';
+
+  // ---------- constants ----------
+  var REFS_COLL = 'references_produzione';
+  var LOTS_COLL = 'lots_produzione';
+  var RECIPES_COLL = 'recipes_produzione';
+  var PRODUCTIONS_COLL = 'productions_produzione';
+  var MOVES_DOC = 'log/movements_produzione';
+  var LIQ_PRODUCTS_COLL = 'products_liquori';
+  var LIQ_MOVES_DOC = 'log/movements_liquori';
+
+  var LOCATIONS = [
+    { id:'negozio',   label:'Negozio' },
+    { id:'magazzino', label:'Magazzino' },
+    { id:'banco1',    label:'Banco Antonio' },
+    { id:'banco2',    label:'Banco Gianna' },
+    { id:'furgone',   label:'Furgone' },
+    { id:'garage',    label:'Garage' }
+  ];
+
+  var PHOTO_MAX_DIM = 480;
+  var PHOTO_QUALITY = 0.72;
+  var MOVES_CAP = 3000;
+
+  var TABS = [
+    { id:'materie',    label:'Materie Prime', icon: iconBox() },
+    { id:'carico',     label:'Carico',        icon: iconPlus() },
+    { id:'scarico',    label:'Scarico',       icon: iconMinus() },
+    { id:'produzione', label:'Produzione',    icon: iconFlask() },
+    { id:'ricette',    label:'Ricette',       icon: iconBook() }
+  ];
+
+  // ---------- state ----------
+  var state = {
+    view: 'materie',
+    references: [],
+    lots: [],
+    recipes: [],
+    productions: [],
+    movements: [],
+    liquoriProducts: [],
+    liquoriStock: { negozio:{}, magazzino:{}, banco1:{}, banco2:{}, furgone:{}, garage:{} },
+    liquoriMovements: [],
+    search: '',
+    expandedRef: null,
+    refModal: null,       // { mode:'new'|'edit', draft:{...}, returnTo:null|'carico' }
+    pushModal: null,      // { productionId, mode:'existing'|'new', productId, newName, location, qty }
+    confirmModal: null,   // { title, message, onConfirm }
+    carico: freshCaricoDraft(),
+    scarico: freshScaricoDraft(),
+    produzione: freshProduzioneDraft(),
+    ricette: { editingId: null, formOpen: false, draft: null },
+    pendingPhotoTarget: null // 'refModal'
+  };
+
+  function freshCaricoDraft(){
+    return { refId:'', lotto:'', qtyLt:'', qtyKg:'', density:'', grade:'', causale:'' };
+  }
+  function freshScaricoDraft(){
+    return { refId:'', lotId:'', qtyLt:'', qtyKg:'', causale:'' };
+  }
+  function freshProduzioneDraft(){
+    return {
+      recipeId:'', libera:false, quantity:'', components:[], // components: [{refId, doseLt, doseKg, allocations:[{lotId, qty}]}]
+      finishedLotto:'', gradeEffective:'', note:''
+    };
+  }
+
+  // ---------- utils ----------
+  function round(n, d){
+    if (n === null || n === undefined || isNaN(n)) return null;
+    var f = Math.pow(10, d === undefined ? 3 : d);
+    return Math.round((n + Number.EPSILON) * f) / f;
+  }
+  function numOrNull(v){
+    if (v === '' || v === null || v === undefined) return null;
+    var n = parseFloat(String(v).replace(',', '.'));
+    return isNaN(n) ? null : n;
+  }
+  function fmt(n, d){
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    var v = round(n, d === undefined ? 2 : d);
+    var s = String(v);
+    return s.replace('.', ',');
+  }
+  function escapeHtml(s){
+    return String(s === null || s === undefined ? '' : s).replace(/[&<>"']/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+  function slugify(s){
+    var out = String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    return out || 'x';
+  }
+  function uid(prefix){
+    return prefix + '_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+  }
+  function lotDocId(refId, lotto){
+    return refId + '__' + slugify(lotto);
+  }
+  function formatDateTime(iso){
+    var d = new Date(iso);
+    return d.toLocaleDateString('it-IT') + ' ' + d.toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit' });
+  }
+  function todayStr(){
+    var d = new Date();
+    return d.getFullYear() + '' + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0');
+  }
+
+  // ---------- icons ----------
+  function iconBox(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l9-5 9 5-9 5-9-5Z"/><path d="M3 8v9l9 5 9-5V8"/><path d="M12 13v9"/></svg>'; }
+  function iconPlus(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>'; }
+  function iconMinus(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>'; }
+  function iconFlask(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6"/><path d="M10 3v6l-6 10a1.5 1.5 0 0 0 1.3 2.2h13.4A1.5 1.5 0 0 0 20 19L14 9V3"/><path d="M7.5 15h9"/></svg>'; }
+  function iconBook(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>'; }
+  function iconClock(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>'; }
+  function iconLogout(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>'; }
+  function iconEdit(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>'; }
+  function iconTrash(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4.8A1.8 1.8 0 0 1 10.8 3h2.4A1.8 1.8 0 0 1 15 4.8V7"/><path d="M6 7l1 13a2 2 0 0 0 2 1.9h6a2 2 0 0 0 2-1.9l1-13"/><path d="M10 11v6M14 11v6"/></svg>'; }
+  function iconChevron(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>'; }
+  function iconCamera(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13.3" r="3.2"/></svg>'; }
+  function iconUpload(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>'; }
+
+  // ---------- data helpers ----------
+  function referenceById(id){ return state.references.filter(function(r){ return r.id === id; })[0] || null; }
+  function lotById(id){ return state.lots.filter(function(l){ return l.id === id; })[0] || null; }
+  function lotsForRef(refId){ return state.lots.filter(function(l){ return l.refId === refId; }); }
+  function recipeById(id){ return state.recipes.filter(function(r){ return r.id === id; })[0] || null; }
+  function productionById(id){ return state.productions.filter(function(p){ return p.id === id; })[0] || null; }
+  function liquoriProductById(id){ return state.liquoriProducts.filter(function(p){ return p.id === id; })[0] || null; }
+
+  function totalStock(refId){
+    var lots = lotsForRef(refId);
+    var lt = 0, kg = 0, hasLt = false, hasKg = false;
+    lots.forEach(function(l){
+      if (l.qtyLt !== null && l.qtyLt !== undefined){ lt += l.qtyLt; hasLt = true; }
+      if (l.qtyKg !== null && l.qtyKg !== undefined){ kg += l.qtyKg; hasKg = true; }
+    });
+    return { lt: hasLt ? round(lt,3) : null, kg: hasKg ? round(kg,3) : null };
+  }
+
+  function anidriFor(qtyLt, grade){
+    if (qtyLt === null || qtyLt === undefined || grade === null || grade === undefined) return null;
+    return round(qtyLt * grade / 100, 3);
+  }
+
+  function consumeFromLot(lot, qty, unit){
+    var newLt = lot.qtyLt, newKg = lot.qtyKg;
+    if (unit === 'lt'){
+      newLt = round(Math.max(0, (lot.qtyLt || 0) - qty), 3);
+      if (lot.density) newKg = round(Math.max(0, (lot.qtyKg || 0) - qty * lot.density), 3);
+    } else {
+      newKg = round(Math.max(0, (lot.qtyKg || 0) - qty), 3);
+      if (lot.density) newLt = round(Math.max(0, (lot.qtyLt || 0) - qty / lot.density), 3);
+    }
+    return { qtyLt: newLt, qtyKg: newKg };
+  }
+
+  function availableQty(lot, unit){
+    if (unit === 'lt') return lot.qtyLt || 0;
+    return lot.qtyKg || 0;
+  }
+
+  // ---------- toast ----------
+  var toastTimer = null;
+  function showToast(message, retryFn){
+    var el = document.getElementById('toast');
+    el.innerHTML = '<span>' + escapeHtml(message) + '</span>' +
+      (retryFn ? '<button type="button" class="toast-retry" id="toastRetryBtn">Riprova</button>' : '');
+    if (retryFn){
+      document.getElementById('toastRetryBtn').addEventListener('click', function(){ hideToast(); retryFn(); });
+    }
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(hideToast, 5000);
+  }
+  function hideToast(){ document.getElementById('toast').classList.remove('show'); }
+
+  function setSyncStatus(kind){
+    var dot = document.getElementById('syncDot');
+    var label = document.getElementById('syncLabel');
+    dot.className = 'sync-dot ' + kind;
+    if (kind === 'synced') label.textContent = 'Sincronizzato';
+    else if (kind === 'error') label.textContent = 'Errore connessione';
+    else label.textContent = 'Connessione…';
+  }
+
+  // ---------- photo compression ----------
+  function readAndCompressImage(file){
+    return new Promise(function(resolve, reject){
+      var reader = new FileReader();
+      reader.onerror = function(){ reject(new Error('read_failed')); };
+      reader.onload = function(){
+        var img = new Image();
+        img.onerror = function(){ reject(new Error('decode_failed')); };
+        img.onload = function(){
+          var w = img.width, h = img.height;
+          var scale = Math.min(1, PHOTO_MAX_DIM / Math.max(w, h));
+          var cw = Math.max(1, Math.round(w * scale));
+          var ch = Math.max(1, Math.round(h * scale));
+          var canvas = document.createElement('canvas');
+          canvas.width = cw; canvas.height = ch;
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, cw, ch);
+          try { resolve(canvas.toDataURL('image/jpeg', PHOTO_QUALITY)); } catch(e){ reject(e); }
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ==================================================================
+  // RENDER: top-level
+  // ==================================================================
+  function render(){
+    renderTabs();
+    renderView();
+  }
+
+  function renderTabs(){
+    var el = document.getElementById('tabs');
+    el.innerHTML = TABS.map(function(t){
+      return '<button type="button" class="tab-btn' + (state.view === t.id ? ' active' : '') + '" data-action="tab" data-tab="' + t.id + '">' + t.icon + '<span>' + t.label + '</span></button>';
+    }).join('');
+  }
+
+  function renderView(){
+    var root = document.getElementById('viewRoot');
+    var html = '';
+    if (state.view === 'materie') html = renderMaterieView();
+    else if (state.view === 'carico') html = renderCaricoView();
+    else if (state.view === 'scarico') html = renderScaricoView();
+    else if (state.view === 'produzione') html = renderProduzioneView();
+    else if (state.view === 'ricette') html = renderRicetteView();
+    else if (state.view === 'storico') html = renderStoricoView();
+    root.innerHTML = html;
+  }
+
+  // ==================================================================
+  // VIEW: Materie Prime (Giacenze)
+  // ==================================================================
+  function renderMaterieView(){
+    var search = state.search.trim().toLowerCase();
+    var refs = state.references.slice().sort(function(a,b){ return a.name.localeCompare(b.name, 'it', {sensitivity:'base'}); });
+    if (search) refs = refs.filter(function(r){ return r.name.toLowerCase().indexOf(search) !== -1; });
+
+    var html = '';
+    html += '<div class="search-wrap"><input type="text" id="materieSearch" placeholder="Cerca una referenza…" value="' + escapeHtml(state.search) + '"></div>';
+    html += '<button type="button" class="add-toggle" data-action="new-reference">+ Nuova referenza materia prima</button>';
+
+    if (!refs.length){
+      html += '<p class="empty">Nessuna referenza trovata.<br>Aggiungine una per iniziare a registrare i carichi.</p>';
+    } else {
+      html += '<div class="list">';
+      refs.forEach(function(r){
+        var tot = totalStock(r.id);
+        var lots = lotsForRef(r.id).filter(function(l){ return (l.qtyLt||0) > 0.0005 || (l.qtyKg||0) > 0.0005; });
+        var isOpen = state.expandedRef === r.id;
+        html += '<div class="card ref-card">';
+        html += renderThumb(r);
+        html += '<div class="ref-main">';
+        html += '<div class="ref-top"><span class="ref-name">' + escapeHtml(r.name) + '</span>' +
+          '<span class="ref-badge ' + r.unit + '">' + (r.unit === 'liquido' ? 'Liquido' : 'Solido') + '</span></div>';
+        var stockParts = [];
+        if (tot.lt !== null) stockParts.push(fmt(tot.lt,3) + '<span class="unit">Lt</span>');
+        if (tot.kg !== null) stockParts.push(fmt(tot.kg,3) + '<span class="unit">Kg</span>');
+        html += '<div class="ref-stock">' + (stockParts.length ? stockParts.join(' &nbsp;·&nbsp; ') : '<span class="unit">Nessuna giacenza</span>') + '</div>';
+        var metaParts = [];
+        if (r.density !== null && r.density !== undefined) metaParts.push('Densità ' + fmt(r.density,3) + ' kg/Lt');
+        if (r.grade !== null && r.grade !== undefined) metaParts.push('Gradazione ' + fmt(r.grade,1) + '%');
+        if (metaParts.length) html += '<div class="ref-meta">' + metaParts.join(' · ') + '</div>';
+        html += '<div class="ref-actions">';
+        html += '<button type="button" data-action="edit-reference" data-id="' + r.id + '">' + iconEdit() + ' Modifica</button>';
+        if (lots.length) html += '<button type="button" class="expand' + (isOpen ? ' open' : '') + '" data-action="toggle-lots" data-id="' + r.id + '">' + iconChevron() + ' Lotti (' + lots.length + ')</button>';
+        html += '</div>';
+        if (isOpen && lots.length){
+          html += '<div class="lot-table">';
+          lots.forEach(function(l){
+            html += '<div class="lot-row">';
+            html += '<div class="lot-row-main"><div class="lot-num">Lotto ' + escapeHtml(l.lotto) + '</div>';
+            var det = [];
+            if (l.density !== null && l.density !== undefined) det.push('densità ' + fmt(l.density,3));
+            if (l.grade !== null && l.grade !== undefined) det.push('grad. ' + fmt(l.grade,1) + '%');
+            if (det.length) html += '<div class="lot-detail">' + det.join(' · ') + '</div>';
+            html += '</div>';
+            var qtyParts = [];
+            if (l.qtyLt !== null && l.qtyLt !== undefined) qtyParts.push(fmt(l.qtyLt,3) + ' Lt');
+            if (l.qtyKg !== null && l.qtyKg !== undefined) qtyParts.push(fmt(l.qtyKg,3) + ' Kg');
+            html += '<div class="lot-qty">' + qtyParts.join('<br>') + '</div>';
+            html += '<button type="button" class="lot-mini-btn" data-action="quick-scarico" data-ref="' + r.id + '" data-lot="' + l.id + '">Scarico</button>';
+            html += '</div>';
+          });
+          html += '</div>';
+        }
+        html += '</div></div>';
+      });
+      html += '</div>';
+    }
+    return html;
+  }
+
+  function renderThumb(r){
+    if (r.photo){
+      return '<div class="thumb"><img class="thumb-img" src="' + r.photo + '" alt=""></div>';
+    }
+    var initial = (r.name || '?').trim().charAt(0).toUpperCase();
+    return '<div class="thumb"><span class="thumb-placeholder">' + escapeHtml(initial) + '</span></div>';
+  }
+
+  // ==================================================================
+  // VIEW: Carico
+  // ==================================================================
+  function renderCaricoView(){
+    var d = state.carico;
+    var ref = d.refId ? referenceById(d.refId) : null;
+    var html = '';
+    html += '<div class="section-title">Carico materia prima</div>';
+    html += '<div class="section-sub">Registra l\'arrivo di una materia prima: seleziona la referenza, indica il lotto e la quantità.</div>';
+    html += '<div class="form-card" id="caricoForm">';
+
+    html += fieldSelect('caricoRef', 'Referenza', [{value:'', label:'— Seleziona referenza —'}]
+      .concat(state.references.slice().sort(function(a,b){return a.name.localeCompare(b.name,'it');}).map(function(r){ return { value:r.id, label:r.name + (r.unit==='solido'?' (solido)':'') }; }))
+      .concat([{value:'__new__', label:'+ Nuova referenza…'}]), d.refId);
+
+    if (ref){
+      html += '<div class="field"><label for="caricoLotto">Lotto</label><input type="text" id="caricoLotto" placeholder="Es. L2026-001" value="' + escapeHtml(d.lotto) + '" list="caricoLottiList"></div>';
+      html += '<datalist id="caricoLottiList">' + lotsForRef(ref.id).map(function(l){ return '<option value="' + escapeHtml(l.lotto) + '">'; }).join('') + '</datalist>';
+
+      if (ref.unit === 'liquido'){
+        html += '<div class="row-split3">';
+        html += fieldInput('caricoLt', 'Quantità (Lt)', 'number', d.qtyLt, 'step="0.001" min="0"');
+        html += fieldInput('caricoKg', 'Quantità (Kg)', 'number', d.qtyKg, 'step="0.001" min="0"');
+        html += fieldInput('caricoDensity', 'Densità (kg/Lt)', 'number', d.density, 'step="0.0001" min="0"');
+        html += '</div>';
+        html += '<div class="field-hint">Inserisci Lt o Kg: se conosci la densità, l\'altro valore si calcola da solo. Se inserisci sia Lt che Kg senza densità, verrà calcolata automaticamente.</div>';
+        html += '<div class="row-split">';
+        html += fieldInput('caricoGrade', 'Gradazione (%) — opzionale', 'number', d.grade, 'step="0.1" min="0" max="100"');
+        var anidri = anidriFor(numOrNull(d.qtyLt), numOrNull(d.grade));
+        html += '<div class="field"><label>Litri anidri</label><div class="readonly-box">' + (anidri===null?'—':fmt(anidri,3)) + '<span class="unit">Lt</span></div></div>';
+        html += '</div>';
+      } else {
+        html += fieldInput('caricoKg', 'Quantità (Kg)', 'number', d.qtyKg, 'step="0.001" min="0"');
+      }
+
+      html += '<div class="field"><label for="caricoCausale">Causale (opzionale)</label><input type="text" id="caricoCausale" placeholder="Es. arrivo fornitore XY" value="' + escapeHtml(d.causale) + '"></div>';
+      html += '<div class="btn-row"><button type="button" class="btn btn-good" data-action="save-carico">Registra carico</button></div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function fieldInput(id, label, type, value, extra){
+    return '<div class="field"><label for="' + id + '">' + escapeHtml(label) + '</label><input type="' + type + '" id="' + id + '" value="' + escapeHtml(value === null || value === undefined ? '' : value) + '" ' + (extra||'') + '></div>';
+  }
+  function fieldSelect(id, label, options, value){
+    var html = '<div class="field"><label for="' + id + '">' + escapeHtml(label) + '</label><select id="' + id + '">';
+    options.forEach(function(o){
+      html += '<option value="' + escapeHtml(o.value) + '"' + (String(value||'') === String(o.value) ? ' selected' : '') + '>' + escapeHtml(o.label) + '</option>';
+    });
+    html += '</select></div>';
+    return html;
+  }
+
+  // ==================================================================
+  // VIEW: Scarico (manuale)
+  // ==================================================================
+  function renderScaricoView(){
+    var d = state.scarico;
+    var refsWithStock = state.references.filter(function(r){
+      return lotsForRef(r.id).some(function(l){ return (l.qtyLt||0) > 0.0005 || (l.qtyKg||0) > 0.0005; });
+    }).sort(function(a,b){ return a.name.localeCompare(b.name,'it'); });
+
+    var ref = d.refId ? referenceById(d.refId) : null;
+    var lot = d.lotId ? lotById(d.lotId) : null;
+
+    var html = '';
+    html += '<div class="section-title">Scarico manuale materia prima</div>';
+    html += '<div class="section-sub">Per lo scarico automatico legato a una produzione usa la scheda "Produzione".</div>';
+    html += '<div class="form-card">';
+    html += fieldSelect('scaricoRef', 'Referenza', [{value:'', label:'— Seleziona referenza —'}]
+      .concat(refsWithStock.map(function(r){ return { value:r.id, label:r.name }; })), d.refId);
+
+    if (ref){
+      var lots = lotsForRef(ref.id).filter(function(l){ return (l.qtyLt||0) > 0.0005 || (l.qtyKg||0) > 0.0005; });
+      html += fieldSelect('scaricoLot', 'Lotto', [{value:'', label:'— Seleziona lotto —'}]
+        .concat(lots.map(function(l){
+          var av = ref.unit === 'liquido' ? fmt(l.qtyLt,3) + ' Lt' : fmt(l.qtyKg,3) + ' Kg';
+          return { value:l.id, label:'Lotto ' + l.lotto + ' — disp. ' + av };
+        })), d.lotId);
+    }
+
+    if (lot){
+      var meta = [];
+      if (lot.density !== null && lot.density !== undefined) meta.push('densità ' + fmt(lot.density,3) + ' kg/Lt');
+      if (lot.grade !== null && lot.grade !== undefined) meta.push('gradazione ' + fmt(lot.grade,1) + '%');
+      html += '<div class="section-sub" style="margin-top:-.3rem;">Disponibile: ' +
+        (lot.qtyLt!==null&&lot.qtyLt!==undefined? fmt(lot.qtyLt,3)+' Lt · ':'') +
+        (lot.qtyKg!==null&&lot.qtyKg!==undefined? fmt(lot.qtyKg,3)+' Kg':'') +
+        (meta.length? ' &nbsp;(' + meta.join(', ') + ')':'') + '</div>';
+
+      if (ref.unit === 'liquido'){
+        html += '<div class="row-split">';
+        html += fieldInput('scaricoLt', 'Da scaricare (Lt)', 'number', d.qtyLt, 'step="0.001" min="0"');
+        html += fieldInput('scaricoKg', 'Da scaricare (Kg)', 'number', d.qtyKg, 'step="0.001" min="0"');
+        html += '</div>';
+      } else {
+        html += fieldInput('scaricoKg', 'Da scaricare (Kg)', 'number', d.qtyKg, 'step="0.001" min="0"');
+      }
+      html += '<div class="field"><label for="scaricoCausale">Causale (opzionale)</label><input type="text" id="scaricoCausale" placeholder="Es. scarto, campione, rettifica" value="' + escapeHtml(d.causale) + '"></div>';
+      html += '<div class="btn-row"><button type="button" class="btn btn-bad" data-action="save-scarico">Registra scarico</button></div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  // ==================================================================
+  // VIEW: Produzione
+  // ==================================================================
+  function renderProduzioneView(){
+    var d = state.produzione;
+    var html = '';
+    html += '<div class="section-title">Registra una produzione</div>';
+    html += '<div class="section-sub">Scegli una ricetta: le dosi si moltiplicano in automatico in base ai litri da produrre. Per ogni componente scegli da quale lotto prelevare.</div>';
+    html += '<div class="form-card">';
+
+    html += fieldSelect('prodRecipe', 'Ricetta', [{value:'', label:'— Produzione libera (senza ricetta) —'}]
+      .concat(state.recipes.slice().sort(function(a,b){return a.name.localeCompare(b.name,'it');}).map(function(r){ return { value:r.id, label:r.name }; })), d.recipeId);
+
+    var recipe = d.recipeId ? recipeById(d.recipeId) : null;
+    html += fieldInput('prodQuantity', recipe ? 'Litri da produrre' : 'Litri prodotto finito (per riferimento)', 'number', d.quantity, 'step="0.01" min="0"');
+
+    html += '<div id="prodComponentsWrap">' + renderProdComponents() + '</div>';
+
+    if (!recipe){
+      html += '<button type="button" class="add-toggle" data-action="prod-add-component">+ Aggiungi componente</button>';
+    }
+
+    var calc = computeProdCalc();
+    html += '<div class="row-split">';
+    html += '<div class="field"><label>Litri anidri totali</label><div class="readonly-box">' + (calc.anidri===null?'—':fmt(calc.anidri,3)) + '<span class="unit">Lt</span></div></div>';
+    html += '<div class="field"><label>Gradazione teorica</label><div class="readonly-box">' + (calc.gradeTheoretical===null?'—':fmt(calc.gradeTheoretical,2)) + '<span class="unit">%</span></div></div>';
+    html += '</div>';
+
+    html += '<div class="row-split">';
+    html += fieldInput('prodLotto', 'Lotto prodotto finito', 'text', d.finishedLotto, 'placeholder="Es. PF-' + todayStr() + '-01"');
+    html += fieldInput('prodGradeEff', 'Gradazione effettiva (%)', 'number', d.gradeEffective, 'step="0.1" min="0" max="100"');
+    html += '</div>';
+    html += '<div class="field"><label for="prodNote">Note (opzionale)</label><input type="text" id="prodNote" value="' + escapeHtml(d.note) + '"></div>';
+
+    html += '<div class="btn-row"><button type="button" class="btn btn-primary" data-action="save-produzione">Registra produzione</button></div>';
+    html += '</div>';
+
+    html += renderProductionsHistory();
+    return html;
+  }
+
+  function renderProdComponents(){
+    var d = state.produzione;
+    var recipe = d.recipeId ? recipeById(d.recipeId) : null;
+    var qty = numOrNull(d.quantity);
+    var html = '';
+    d.components.forEach(function(c, idx){
+      var ref = referenceById(c.refId);
+      if (!ref && recipe) return;
+      html += '<div class="component-row" data-comp-idx="' + idx + '">';
+      html += '<div class="component-row-top">';
+      if (!recipe){
+        html += '<div class="field"><label>Referenza</label><select data-comp-field="refId" data-comp-idx="' + idx + '">';
+        html += '<option value="">— Seleziona —</option>';
+        state.references.slice().sort(function(a,b){return a.name.localeCompare(b.name,'it');}).forEach(function(r){
+          html += '<option value="' + r.id + '"' + (r.id===c.refId?' selected':'') + '>' + escapeHtml(r.name) + '</option>';
+        });
+        html += '</select></div>';
+        html += '<button type="button" class="component-del" data-action="prod-remove-component" data-idx="' + idx + '">' + iconTrash() + '</button>';
+      }
+      html += '</div>';
+
+      if (ref){
+        var required = null;
+        if (recipe){
+          var factor = (qty && recipe.baseLt) ? (qty / recipe.baseLt) : null;
+          required = factor !== null ? round((ref.unit==='liquido' ? c.doseLt : c.doseKg) * factor, 3) : null;
+        }
+        var unitLabel = ref.unit === 'liquido' ? 'Lt' : 'Kg';
+        if (recipe){
+          html += '<div class="field-hint">' + escapeHtml(ref.name) + (required!==null? ' — richiesti ' + fmt(required,3) + ' ' + unitLabel : '') + '</div>';
+        }
+        html += renderAllocations(c, ref, required, idx);
+      }
+      html += '</div>';
+    });
+    return html;
+  }
+
+  function renderAllocations(c, ref, required, compIdx){
+    var lots = lotsForRef(ref.id).filter(function(l){ return (ref.unit==='liquido'? (l.qtyLt||0) : (l.qtyKg||0)) > 0.0005; });
+    var html = '<div class="alloc-list">';
+    var total = 0;
+    c.allocations.forEach(function(a, aIdx){
+      total += numOrNull(a.qty) || 0;
+      html += '<div class="alloc-row">';
+      html += '<div class="field"><label>Lotto</label><select data-alloc-field="lotId" data-comp-idx="' + compIdx + '" data-alloc-idx="' + aIdx + '">';
+      html += '<option value="">— Seleziona lotto —</option>';
+      lots.forEach(function(l){
+        var av = ref.unit==='liquido' ? l.qtyLt : l.qtyKg;
+        html += '<option value="' + l.id + '"' + (l.id===a.lotId?' selected':'') + '>Lotto ' + escapeHtml(l.lotto) + ' — disp. ' + fmt(av,3) + '</option>';
+      });
+      html += '</select></div>';
+      html += '<div class="field"><label>Quantità (' + (ref.unit==='liquido'?'Lt':'Kg') + ')</label><input type="number" step="0.001" min="0" value="' + escapeHtml(a.qty) + '" data-alloc-field="qty" data-comp-idx="' + compIdx + '" data-alloc-idx="' + aIdx + '"></div>';
+      html += '<button type="button" class="alloc-del" data-action="prod-remove-alloc" data-comp-idx="' + compIdx + '" data-alloc-idx="' + aIdx + '">' + iconTrash() + '</button>';
+      html += '</div>';
+    });
+    html += '<button type="button" class="add-toggle" style="margin-bottom:0;" data-action="prod-add-alloc" data-comp-idx="' + compIdx + '">+ Aggiungi lotto</button>';
+    if (required !== null){
+      var diff = round(required - total, 3);
+      var cls = Math.abs(diff) < 0.001 ? 'ok' : 'warn';
+      html += '<div class="alloc-summary ' + cls + '">Allocati: ' + fmt(total,3) + ' / ' + fmt(required,3) + (Math.abs(diff)>=0.001 ? (diff>0? ' (mancano '+fmt(diff,3)+')' : ' (in eccesso di '+fmt(-diff,3)+')') : ' ✓') + '</div>';
+    } else if (total > 0) {
+      html += '<div class="alloc-summary">Allocati: ' + fmt(total,3) + '</div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function computeProdCalc(){
+    var d = state.produzione;
+    var qty = numOrNull(d.quantity);
+    var anidri = 0; var hasAny = false;
+    d.components.forEach(function(c){
+      var ref = referenceById(c.refId);
+      if (!ref || ref.unit !== 'liquido') return;
+      c.allocations.forEach(function(a){
+        var lot = lotById(a.lotId);
+        var q = numOrNull(a.qty);
+        if (!lot || q === null) return;
+        if (lot.grade !== null && lot.grade !== undefined){
+          anidri += q * lot.grade / 100;
+          hasAny = true;
+        }
+      });
+    });
+    anidri = hasAny ? round(anidri, 3) : null;
+    var gradeTheoretical = (anidri !== null && qty) ? round(anidri / qty * 100, 2) : null;
+    return { anidri: anidri, gradeTheoretical: gradeTheoretical };
+  }
+
+  function renderProductionsHistory(){
+    var list = state.productions.slice().sort(function(a,b){ return (b.createdAt||'').localeCompare(a.createdAt||''); }).slice(0, 25);
+    if (!list.length) return '';
+    var html = '<div class="section-title" style="margin-top:1.2rem;">Produzioni registrate</div>';
+    list.forEach(function(p){
+      var pushed = (p.pushes||[]).reduce(function(s,x){ return s + (x.qty||0); }, 0);
+      var remaining = round(Math.max(0, (p.quantityLt||0) - pushed), 3);
+      html += '<div class="prod-card">';
+      html += '<div class="prod-top"><span class="prod-lotto">Lotto ' + escapeHtml(p.finishedLotto) + '</span><span class="prod-date">' + (p.createdAt?formatDateTime(p.createdAt):'') + '</span></div>';
+      html += '<div class="prod-meta">' + (p.recipeName? escapeHtml(p.recipeName)+' · ' : 'Produzione libera · ') + fmt(p.quantityLt,2) + ' Lt';
+      if (p.gradeTheoretical!==null && p.gradeTheoretical!==undefined) html += ' · grad. teorica ' + fmt(p.gradeTheoretical,2) + '%';
+      if (p.gradeEffective!==null && p.gradeEffective!==undefined) html += ' · grad. effettiva ' + fmt(p.gradeEffective,2) + '%';
+      html += '</div>';
+      if (p.components && p.components.length){
+        html += '<details class="prod-comps"><summary>Componenti usati</summary><div style="margin-top:.3rem;">';
+        p.components.forEach(function(c){
+          html += escapeHtml(c.refName) + ' — lotto ' + escapeHtml(c.lotto) + ': ' + fmt(c.qty,3) + ' ' + (c.unit==='lt'?'Lt':'Kg') + '<br>';
+        });
+        html += '</div></details>';
+      }
+      html += '<div class="prod-push-row">';
+      if (remaining > 0.0005){
+        html += '<span class="prod-push-status">Da caricare: ' + fmt(remaining,2) + ' Lt</span>';
+        html += '<button type="button" class="btn btn-primary" data-action="open-push" data-id="' + p.id + '">Carica in Giacenze Liquori</button>';
+      } else {
+        html += '<span class="prod-push-status">✓ Tutto caricato in Giacenze Liquori</span>';
+      }
+      html += '</div>';
+      html += '</div>';
+    });
+    return html;
+  }
+
+  // ==================================================================
+  // VIEW: Ricette
+  // ==================================================================
+  function renderRicetteView(){
+    var html = '';
+    html += '<div class="section-title">Ricette</div>';
+    html += '<div class="section-sub">Definisci la ricetta per un certo numero di litri di riferimento: in produzione le dosi si moltiplicano automaticamente.</div>';
+
+    if (!state.ricette.formOpen){
+      html += '<button type="button" class="add-toggle" data-action="new-recipe">+ Nuova ricetta</button>';
+    } else {
+      html += renderRecipeForm();
+    }
+
+    var recipes = state.recipes.slice().sort(function(a,b){ return a.name.localeCompare(b.name,'it'); });
+    if (!recipes.length && !state.ricette.formOpen){
+      html += '<p class="empty">Nessuna ricetta salvata.</p>';
+    } else if (recipes.length) {
+      html += '<div class="list">';
+      recipes.forEach(function(r){
+        var calc = recipeCalc(r);
+        html += '<div class="card">';
+        html += '<div class="ref-top"><span class="ref-name">' + escapeHtml(r.name) + '</span></div>';
+        html += '<div class="ref-meta">Per ' + fmt(r.baseLt,2) + ' Lt · ' + (r.components||[]).length + ' componenti</div>';
+        html += '<div class="ref-meta">Litri anidri: ' + (calc.anidri===null?'—':fmt(calc.anidri,3)) + ' Lt · Gradazione teorica: ' + (calc.gradeTheoretical===null?'—':fmt(calc.gradeTheoretical,2)) + '%</div>';
+        html += '<div class="ref-actions">';
+        html += '<button type="button" data-action="edit-recipe" data-id="' + r.id + '">' + iconEdit() + ' Modifica</button>';
+        html += '<button type="button" data-action="delete-recipe" data-id="' + r.id + '">' + iconTrash() + ' Elimina</button>';
+        html += '</div></div>';
+      });
+      html += '</div>';
+    }
+    return html;
+  }
+
+  function recipeCalc(r){
+    var anidri = 0, hasAny = false;
+    (r.components||[]).forEach(function(c){
+      var ref = referenceById(c.refId);
+      if (!ref || ref.unit !== 'liquido' || ref.grade === null || ref.grade === undefined) return;
+      if (c.doseLt === null || c.doseLt === undefined) return;
+      anidri += c.doseLt * ref.grade / 100;
+      hasAny = true;
+    });
+    anidri = hasAny ? round(anidri,3) : null;
+    var gradeTheoretical = (anidri !== null && r.baseLt) ? round(anidri / r.baseLt * 100, 2) : null;
+    return { anidri: anidri, gradeTheoretical: gradeTheoretical };
+  }
+
+  function renderRecipeForm(){
+    var d = state.ricette.draft;
+    var html = '<div class="form-card">';
+    html += fieldInput('recipeName', 'Nome ricetta', 'text', d.name, 'placeholder="Es. Liquore di Liquirizia"');
+    html += fieldInput('recipeBaseLt', 'Litri di riferimento', 'number', d.baseLt, 'step="0.01" min="0.01"');
+
+    html += '<div id="recipeComponentsWrap">';
+    d.components.forEach(function(c, idx){
+      var ref = c.refId ? referenceById(c.refId) : null;
+      html += '<div class="component-row">';
+      html += '<div class="component-row-top">';
+      html += '<div class="field"><label>Componente</label><select data-rc-field="refId" data-rc-idx="' + idx + '">';
+      html += '<option value="">— Seleziona referenza —</option>';
+      state.references.slice().sort(function(a,b){return a.name.localeCompare(b.name,'it');}).forEach(function(r){
+        html += '<option value="' + r.id + '"' + (r.id===c.refId?' selected':'') + '>' + escapeHtml(r.name) + '</option>';
+      });
+      html += '</select></div>';
+      html += '<button type="button" class="component-del" data-action="recipe-remove-component" data-idx="' + idx + '">' + iconTrash() + '</button>';
+      html += '</div>';
+      if (ref){
+        var unitLabel = ref.unit === 'liquido' ? 'Lt' : 'Kg';
+        var val = ref.unit === 'liquido' ? c.doseLt : c.doseKg;
+        html += '<div class="field"><label>Dose per ' + fmt(d.baseLt||1,2) + ' Lt (' + unitLabel + ')</label><input type="number" step="0.001" min="0" value="' + escapeHtml(val===null||val===undefined?'':val) + '" data-rc-field="dose" data-rc-idx="' + idx + '"></div>';
+      }
+      html += '</div>';
+    });
+    html += '</div>';
+    html += '<button type="button" class="add-toggle" data-action="recipe-add-component">+ Aggiungi componente</button>';
+
+    var calc = recipeCalc(mergedDraftRecipe(d));
+    html += '<div class="row-split">';
+    html += '<div class="field"><label>Litri anidri totali</label><div class="readonly-box">' + (calc.anidri===null?'—':fmt(calc.anidri,3)) + '<span class="unit">Lt</span></div></div>';
+    html += '<div class="field"><label>Gradazione teorica</label><div class="readonly-box">' + (calc.gradeTheoretical===null?'—':fmt(calc.gradeTheoretical,2)) + '<span class="unit">%</span></div></div>';
+    html += '</div>';
+
+    html += fieldSelect('recipeLiquoriProduct', 'Prodotto Liquori collegato (opzionale)', [{value:'', label:'— Nessuno —'}]
+      .concat(state.liquoriProducts.slice().sort(function(a,b){return (a.name||'').localeCompare(b.name||'','it');}).map(function(p){ return { value:p.id, label:p.name }; })), d.liquoriProductId);
+
+    html += '<div class="btn-row"><button type="button" class="btn btn-ghost" data-action="cancel-recipe">Annulla</button><button type="button" class="btn btn-primary" data-action="save-recipe">Salva ricetta</button></div>';
+    html += '</div>';
+    return html;
+  }
+
+  function mergedDraftRecipe(d){
+    return {
+      baseLt: numOrNull(d.baseLt) || 1,
+      components: d.components.filter(function(c){ return c.refId; }).map(function(c){
+        var ref = referenceById(c.refId);
+        return { refId: c.refId, doseLt: ref && ref.unit==='liquido' ? numOrNull(c.doseLt) : null, doseKg: ref && ref.unit==='solido' ? numOrNull(c.doseKg) : null };
+      })
+    };
+  }
+
+  // ==================================================================
+  // VIEW: Storico
+  // ==================================================================
+  function renderStoricoView(){
+    var html = '<div class="section-title">Storico movimenti materie prime</div>';
+    var moves = state.movements.slice().sort(function(a,b){ return (b.ts||'').localeCompare(a.ts||''); });
+    if (!moves.length){
+      html += '<p class="empty">Nessun movimento registrato.</p>';
+      return html;
+    }
+    html += '<div class="move-list">';
+    moves.forEach(function(m){
+      var isPlus = m.delta > 0;
+      var typeLabel = m.type === 'carico' ? 'Carico' : (m.type === 'scarico_produzione' ? 'Scarico produzione' : 'Scarico');
+      html += '<div class="move-row">';
+      html += '<div class="move-main"><span class="move-name">' + escapeHtml(m.refName) + '</span><span class="move-sub">' + typeLabel + ' · lotto ' + escapeHtml(m.lotto) + '</span>';
+      if (m.causale) html += '<span class="move-causale">' + escapeHtml(m.causale) + '</span>';
+      html += '</div>';
+      html += '<div class="move-side"><span class="move-delta ' + (isPlus?'plus':'minus') + '">' + (isPlus?'+':'') + fmt(m.delta,3) + ' ' + (m.unit==='lt'?'Lt':'Kg') + '</span><span class="move-time">' + formatDateTime(m.ts) + '</span></div>';
+      html += '<button type="button" class="move-del" data-action="delete-movement" data-id="' + m.id + '">' + iconTrash() + '</button>';
+      html += '</div>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  // ==================================================================
+  // MODALS: reference add/edit
+  // ==================================================================
+  function openRefModal(mode, ref, returnTo){
+    state.refModal = {
+      mode: mode,
+      returnTo: returnTo || null,
+      draft: ref ? {
+        id: ref.id, name: ref.name, unit: ref.unit,
+        density: ref.density===null||ref.density===undefined?'':ref.density,
+        grade: ref.grade===null||ref.grade===undefined?'':ref.grade,
+        photo: ref.photo || null, notes: ref.notes || ''
+      } : { id: null, name:'', unit:'liquido', density:'', grade:'', photo:null, notes:'' }
+    };
+    renderRefModal();
+  }
+  function closeRefModal(){
+    state.refModal = null;
+    document.getElementById('refModalOverlay').hidden = true;
+    document.getElementById('refModalOverlay').innerHTML = '';
+  }
+
+  function renderRefModal(){
+    var overlay = document.getElementById('refModalOverlay');
+    var m = state.refModal;
+    if (!m){ overlay.hidden = true; return; }
+    var d = m.draft;
+    var isEdit = m.mode === 'edit';
+    var html = '<div class="modal-sheet">';
+    html += '<h2 class="modal-title">' + (isEdit ? 'Modifica referenza' : 'Nuova referenza') + '</h2>';
+    html += '<p class="modal-subtitle">Materia prima</p>';
+
+    html += '<div class="modal-field"><label>Foto</label><div class="photo-field">';
+    html += '<button type="button" class="photo-picker" id="refPhotoPicker">' + (d.photo ? '<img class="photo-preview" src="' + d.photo + '">' : (iconCamera() + '<span class="photo-picker-text">Aggiungi</span>')) + (d.photo ? '<button type="button" class="photo-remove" id="refPhotoRemove">✕</button>' : '') + '</button>';
+    html += '<div class="field-hint">Una foto aiuta a riconoscere la referenza al volo.</div>';
+    html += '</div></div>';
+
+    html += '<div class="modal-field"><label>Nome referenza</label><input type="text" id="refName" value="' + escapeHtml(d.name) + '" placeholder="Es. Alcool etilico 96%"></div>';
+
+    html += '<div class="modal-field"><label>Tipo</label><div class="seg">';
+    html += '<button type="button" class="seg-btn' + (d.unit==='liquido'?' active':'') + '" data-action="ref-set-unit" data-unit="liquido">Liquido</button>';
+    html += '<button type="button" class="seg-btn' + (d.unit==='solido'?' active':'') + '" data-action="ref-set-unit" data-unit="solido">Solido</button>';
+    html += '</div></div>';
+
+    if (d.unit === 'liquido'){
+      html += '<div class="row-split">';
+      html += '<div class="modal-field"><label>Densità (kg/Lt) — opzionale</label><input type="number" step="0.0001" min="0" id="refDensity" value="' + escapeHtml(d.density) + '"></div>';
+      html += '<div class="modal-field"><label>Gradazione (%) — opzionale</label><input type="number" step="0.1" min="0" max="100" id="refGrade" value="' + escapeHtml(d.grade) + '"></div>';
+      html += '</div>';
+    }
+
+    html += '<div class="modal-field"><label>Note (opzionale)</label><input type="text" id="refNotes" value="' + escapeHtml(d.notes) + '"></div>';
+
+    html += '<div class="btn-row">';
+    if (isEdit) html += '<button type="button" class="btn btn-bad" data-action="delete-reference" data-id="' + d.id + '">Elimina</button>';
+    html += '<button type="button" class="btn btn-ghost" data-action="close-ref-modal">Annulla</button>';
+    html += '<button type="button" class="btn btn-primary" data-action="save-reference">Salva</button>';
+    html += '</div></div>';
+
+    overlay.innerHTML = html;
+    overlay.hidden = false;
+  }
+
+  // ==================================================================
+  // MODAL: push to Liquori
+  // ==================================================================
+  function openPushModal(productionId){
+    var p = productionById(productionId);
+    if (!p) return;
+    var pushed = (p.pushes||[]).reduce(function(s,x){ return s + (x.qty||0); }, 0);
+    var remaining = round(Math.max(0, (p.quantityLt||0) - pushed), 3);
+    state.pushModal = { productionId: productionId, mode:'existing', productId:'', newName:'', location: LOCATIONS[0].id, qty: remaining };
+    renderPushModal();
+  }
+  function closePushModal(){
+    state.pushModal = null;
+    document.getElementById('pushModalOverlay').hidden = true;
+    document.getElementById('pushModalOverlay').innerHTML = '';
+  }
+  function renderPushModal(){
+    var overlay = document.getElementById('pushModalOverlay');
+    var m = state.pushModal;
+    if (!m){ overlay.hidden = true; return; }
+    var p = productionById(m.productionId);
+    if (!p){ closePushModal(); return; }
+    var html = '<div class="modal-sheet">';
+    html += '<h2 class="modal-title">Carica in Giacenze Liquori</h2>';
+    html += '<p class="modal-subtitle">Lotto prodotto finito ' + escapeHtml(p.finishedLotto) + '</p>';
+
+    html += '<div class="modal-field"><label>Prodotto</label><div class="seg">';
+    html += '<button type="button" class="seg-btn' + (m.mode==='existing'?' active':'') + '" data-action="push-set-mode" data-mode="existing">Esistente</button>';
+    html += '<button type="button" class="seg-btn' + (m.mode==='new'?' active':'') + '" data-action="push-set-mode" data-mode="new">Nuovo</button>';
+    html += '</div></div>';
+
+    if (m.mode === 'existing'){
+      html += fieldSelect('pushProductId', 'Prodotto Liquori', [{value:'', label:'— Seleziona —'}]
+        .concat(state.liquoriProducts.slice().sort(function(a,b){return (a.name||'').localeCompare(b.name||'','it');}).map(function(pr){ return { value:pr.id, label:pr.name }; })), m.productId);
+    } else {
+      html += fieldInput('pushNewName', 'Nome nuovo prodotto', 'text', m.newName, 'placeholder="Es. Liquore di Liquirizia"');
+    }
+
+    html += fieldSelect('pushLocation', 'Ubicazione', LOCATIONS.map(function(l){ return { value:l.id, label:l.label }; }), m.location);
+    html += fieldInput('pushQty', 'Quantità da caricare (Lt)', 'number', m.qty, 'step="0.01" min="0.01"');
+
+    html += '<div class="btn-row"><button type="button" class="btn btn-ghost" data-action="close-push-modal">Annulla</button><button type="button" class="btn btn-primary" data-action="confirm-push">Carica</button></div>';
+    html += '</div>';
+    overlay.innerHTML = html;
+    overlay.hidden = false;
+  }
+
+  // ==================================================================
+  // MODAL: confirm
+  // ==================================================================
+  function openConfirm(title, message, onConfirm){
+    state.confirmModal = { title: title, message: message, onConfirm: onConfirm };
+    var overlay = document.getElementById('confirmModalOverlay');
+    overlay.innerHTML = '<div class="modal-sheet"><h2 class="modal-title">' + escapeHtml(title) + '</h2><p class="modal-subtitle">' + escapeHtml(message) + '</p>' +
+      '<div class="btn-row"><button type="button" class="btn btn-ghost" data-action="cancel-confirm">Annulla</button><button type="button" class="btn btn-bad" data-action="do-confirm">Conferma</button></div></div>';
+    overlay.hidden = false;
+  }
+  function closeConfirm(){
+    state.confirmModal = null;
+    document.getElementById('confirmModalOverlay').hidden = true;
+    document.getElementById('confirmModalOverlay').innerHTML = '';
+  }
+
+  // ==================================================================
+  // ACTIONS: references
+  // ==================================================================
+  function saveReference(){
+    var m = state.refModal;
+    var d = m.draft;
+    var name = document.getElementById('refName').value.trim();
+    if (!name){ showToast('Inserisci il nome della referenza.'); return; }
+    var unit = d.unit;
+    var density = unit === 'liquido' ? numOrNull(document.getElementById('refDensity').value) : null;
+    var grade = unit === 'liquido' ? numOrNull(document.getElementById('refGrade').value) : null;
+    var notes = document.getElementById('refNotes').value.trim();
+    var id = d.id || uid('ref');
+    var docData = { name: name, unit: unit, density: density, grade: grade, photo: d.photo || null, notes: notes || null };
+    window.__fb.setDoc(REFS_COLL + '/' + id, docData).then(function(){
+      showToast(m.mode === 'edit' ? 'Referenza aggiornata.' : 'Referenza creata.');
+      var returnTo = m.returnTo;
+      closeRefModal();
+      if (returnTo === 'carico'){
+        state.carico.refId = id;
+        render();
+      }
+    }).catch(function(e){
+      console.error(e);
+      showToast('Salvataggio non riuscito. Riprova.');
+    });
+  }
+
+  function deleteReference(id){
+    var lots = lotsForRef(id).filter(function(l){ return (l.qtyLt||0) > 0.0005 || (l.qtyKg||0) > 0.0005; });
+    if (lots.length){
+      showToast('Impossibile eliminare: ci sono ancora giacenze su ' + lots.length + ' lotto/i.');
+      return;
+    }
+    openConfirm('Eliminare referenza?', 'La referenza verrà rimossa definitivamente.', function(){
+      window.__fb.deleteDoc(REFS_COLL + '/' + id).then(function(){
+        showToast('Referenza eliminata.');
+        closeRefModal();
+      }).catch(function(e){ console.error(e); showToast('Eliminazione non riuscita.'); });
+    });
+  }
+
+  // ---------- carico auto-conversion ----------
+  function handleCaricoInput(target){
+    var d = state.carico;
+    var ref = referenceById(d.refId);
+    if (!ref) return;
+    if (target.id === 'caricoLotto') d.lotto = target.value;
+    if (target.id === 'caricoCausale') d.causale = target.value;
+    if (target.id === 'caricoGrade') d.grade = target.value;
+
+    if (ref.unit === 'liquido'){
+      var lt = document.getElementById('caricoLt');
+      var kg = document.getElementById('caricoKg');
+      var dens = document.getElementById('caricoDensity');
+      if (target.id === 'caricoLt'){
+        d.qtyLt = lt.value;
+        var density = numOrNull(dens.value);
+        var ltVal = numOrNull(lt.value);
+        if (density !== null && ltVal !== null){ var k = round(ltVal * density, 3); kg.value = k; d.qtyKg = k; }
+        else {
+          var kgVal0 = numOrNull(kg.value);
+          if (density === null && kgVal0 !== null && ltVal !== null && ltVal > 0){
+            var computedDensity0 = round(kgVal0 / ltVal, 4);
+            dens.value = computedDensity0; d.density = computedDensity0;
+          }
+        }
+      } else if (target.id === 'caricoKg'){
+        d.qtyKg = kg.value;
+        var density2 = numOrNull(dens.value);
+        var kgVal = numOrNull(kg.value);
+        if (density2 !== null && kgVal !== null){ var l = round(kgVal / density2, 3); lt.value = l; d.qtyLt = l; }
+        else {
+          var ltVal2 = numOrNull(lt.value);
+          if (density2 === null && kgVal !== null && ltVal2 !== null && ltVal2 > 0){
+            var computedDensity = round(kgVal / ltVal2, 4);
+            dens.value = computedDensity; d.density = computedDensity;
+          }
+        }
+      } else if (target.id === 'caricoDensity'){
+        d.density = dens.value;
+        var density3 = numOrNull(dens.value);
+        var ltVal3 = numOrNull(lt.value);
+        var kgVal3 = numOrNull(kg.value);
+        if (density3 !== null && ltVal3 !== null){ var k2 = round(ltVal3 * density3, 3); kg.value = k2; d.qtyKg = k2; }
+        else if (density3 !== null && kgVal3 !== null){ var l2 = round(kgVal3 / density3, 3); lt.value = l2; d.qtyLt = l2; }
+      }
+      // update anidri readonly box live
+      var box = document.querySelector('#caricoForm .readonly-box');
+      if (box){
+        var anidri = anidriFor(numOrNull(d.qtyLt), numOrNull(d.grade));
+        box.innerHTML = (anidri===null?'—':fmt(anidri,3)) + '<span class="unit">Lt</span>';
+      }
+    } else {
+      if (target.id === 'caricoKg') d.qtyKg = target.value;
+    }
+  }
+
+  function saveCarico(){
+    var d = state.carico;
+    var ref = referenceById(d.refId);
+    if (!ref) return;
+    var lotto = document.getElementById('caricoLotto').value.trim();
+    if (!lotto){ showToast('Inserisci il numero di lotto.'); return; }
+    var qtyLt = ref.unit === 'liquido' ? numOrNull(document.getElementById('caricoLt').value) : null;
+    var qtyKg = numOrNull(document.getElementById('caricoKg').value);
+    var density = ref.unit === 'liquido' ? numOrNull(document.getElementById('caricoDensity').value) : null;
+    var grade = ref.unit === 'liquido' ? numOrNull(document.getElementById('caricoGrade').value) : null;
+    var causale = document.getElementById('caricoCausale').value.trim();
+
+    if ((!qtyLt || qtyLt <= 0) && (!qtyKg || qtyKg <= 0)){
+      showToast('Inserisci una quantità maggiore di zero.');
+      return;
+    }
+
+    var lotId = lotDocId(ref.id, lotto);
+    var existing = lotById(lotId);
+    var newQtyLt = (existing ? (existing.qtyLt||0) : 0) + (qtyLt || 0);
+    var newQtyKg = (existing ? (existing.qtyKg||0) : 0) + (qtyKg || 0);
+    var docData = {
+      refId: ref.id, refName: ref.name, lotto: lotto, unit: ref.unit,
+      density: density !== null ? density : (existing ? existing.density : null),
+      grade: grade !== null ? grade : (existing ? existing.grade : null),
+      qtyLt: ref.unit === 'liquido' ? round(newQtyLt,3) : null,
+      qtyKg: round(newQtyKg,3),
+      createdAt: existing ? existing.createdAt : new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    window.__fb.setDoc(LOTS_COLL + '/' + lotId, docData).then(function(){
+      logProdMovement({
+        type:'carico', refId: ref.id, refName: ref.name, lotto: lotto,
+        unit: ref.unit === 'liquido' ? 'lt' : 'kg',
+        delta: ref.unit === 'liquido' ? (qtyLt || 0) : (qtyKg || 0),
+        causale: causale || null
+      });
+      showToast('Carico registrato: lotto ' + lotto + '.');
+      state.carico = freshCaricoDraft();
+      state.carico.refId = ref.id;
+      render();
+    }).catch(function(e){
+      console.error(e);
+      showToast('Salvataggio non riuscito. Riprova.', saveCarico);
+    });
+  }
+
+  function saveScarico(){
+    var d = state.scarico;
+    var ref = referenceById(d.refId);
+    var lot = lotById(d.lotId);
+    if (!ref || !lot) return;
+    var qtyLt = ref.unit === 'liquido' ? numOrNull(document.getElementById('scaricoLt') ? document.getElementById('scaricoLt').value : null) : null;
+    var qtyKg = numOrNull(document.getElementById('scaricoKg').value);
+    var causale = document.getElementById('scaricoCausale').value.trim();
+
+    var unit, qty;
+    if (qtyLt && qtyLt > 0){ unit = 'lt'; qty = qtyLt; }
+    else if (qtyKg && qtyKg > 0){ unit = 'kg'; qty = qtyKg; }
+    else { showToast('Inserisci una quantità maggiore di zero.'); return; }
+
+    var avail = availableQty(lot, unit);
+    if (qty > avail + 0.0005){
+      showToast('Disponibili solo ' + fmt(avail,3) + ' ' + (unit==='lt'?'Lt':'Kg') + '.');
+      return;
+    }
+    var updated = consumeFromLot(lot, qty, unit);
+    window.__fb.setDoc(LOTS_COLL + '/' + lot.id, { qtyLt: updated.qtyLt, qtyKg: updated.qtyKg, updatedAt: new Date().toISOString() }, true).then(function(){
+      logProdMovement({ type:'scarico', refId: ref.id, refName: ref.name, lotto: lot.lotto, unit: unit, delta: -qty, causale: causale || null });
+      showToast('Scarico registrato: -' + fmt(qty,3) + ' ' + (unit==='lt'?'Lt':'Kg') + '.');
+      state.scarico = freshScaricoDraft();
+      render();
+    }).catch(function(e){
+      console.error(e);
+      showToast('Salvataggio non riuscito. Riprova.', saveScarico);
+    });
+  }
+
+  // ---------- movements ----------
+  function logProdMovement(entry){
+    entry.ts = new Date().toISOString();
+    entry.id = uid('mv');
+    var updated = state.movements.concat([entry]);
+    if (updated.length > MOVES_CAP) updated = updated.slice(updated.length - MOVES_CAP);
+    state.movements = updated;
+    window.__fb.setDoc(MOVES_DOC, { entries: updated }).catch(function(e){ console.error(e); });
+  }
+
+  function deleteMovement(id){
+    openConfirm('Eliminare movimento?', 'Il movimento verrà rimosso dallo storico (non modifica le giacenze).', function(){
+      var updated = state.movements.filter(function(m){ return m.id !== id; });
+      state.movements = updated;
+      window.__fb.setDoc(MOVES_DOC, { entries: updated }).then(function(){
+        showToast('Movimento eliminato.');
+        closeConfirm();
+        render();
+      }).catch(function(e){ console.error(e); showToast('Eliminazione non riuscita.'); });
+    });
+  }
+
+  // ==================================================================
+  // ACTIONS: produzione
+  // ==================================================================
+  function selectRecipeForProduction(recipeId){
+    var d = state.produzione;
+    d.recipeId = recipeId;
+    if (recipeId){
+      var recipe = recipeById(recipeId);
+      d.components = (recipe.components||[]).map(function(c){
+        return { refId: c.refId, doseLt: c.doseLt, doseKg: c.doseKg, allocations: [{ lotId:'', qty:'' }] };
+      });
+      if (!d.quantity) d.quantity = recipe.baseLt;
+    } else {
+      d.components = [];
+    }
+    render();
+  }
+
+  function prodAddComponent(){
+    state.produzione.components.push({ refId:'', doseLt:null, doseKg:null, allocations:[{lotId:'',qty:''}] });
+    render();
+  }
+  function prodRemoveComponent(idx){
+    state.produzione.components.splice(idx,1);
+    render();
+  }
+  function prodAddAlloc(compIdx){
+    state.produzione.components[compIdx].allocations.push({ lotId:'', qty:'' });
+    render();
+  }
+  function prodRemoveAlloc(compIdx, allocIdx){
+    state.produzione.components[compIdx].allocations.splice(allocIdx,1);
+    if (!state.produzione.components[compIdx].allocations.length) state.produzione.components[compIdx].allocations.push({lotId:'',qty:''});
+    render();
+  }
+
+  function saveProduzione(){
+    var d = state.produzione;
+    var quantity = numOrNull(d.quantity);
+    var finishedLotto = document.getElementById('prodLotto').value.trim();
+    var gradeEffective = numOrNull(document.getElementById('prodGradeEff').value);
+    var note = document.getElementById('prodNote').value.trim();
+
+    if (!finishedLotto){ showToast('Inserisci il lotto del prodotto finito.'); return; }
+    if (!quantity || quantity <= 0){ showToast('Inserisci una quantità da produrre valida.'); return; }
+    if (!d.components.length){ showToast('Aggiungi almeno un componente.'); return; }
+
+    var consumptions = []; // { lot, qty, unit }
+    var componentsSnapshot = [];
+    for (var i = 0; i < d.components.length; i++){
+      var c = d.components[i];
+      var ref = referenceById(c.refId);
+      if (!ref){ showToast('Seleziona una referenza per ogni componente.'); return; }
+      var unit = ref.unit === 'liquido' ? 'lt' : 'kg';
+      for (var j = 0; j < c.allocations.length; j++){
+        var a = c.allocations[j];
+        var q = numOrNull(a.qty);
+        if (!a.lotId || !q || q <= 0) continue;
+        var lot = lotById(a.lotId);
+        if (!lot){ showToast('Lotto non valido per ' + ref.name + '.'); return; }
+        var avail = availableQty(lot, unit);
+        if (q > avail + 0.0005){
+          showToast('Disponibili solo ' + fmt(avail,3) + ' ' + (unit==='lt'?'Lt':'Kg') + ' per il lotto ' + lot.lotto + ' di ' + ref.name + '.');
+          return;
+        }
+        consumptions.push({ lot: lot, qty: q, unit: unit, refName: ref.name });
+      }
+    }
+    if (!consumptions.length){ showToast('Alloca almeno una quantità da un lotto per ogni componente.'); return; }
+
+    var calc = computeProdCalc();
+    var productionId = uid('prod');
+
+    // apply consumptions sequentially
+    var chain = Promise.resolve();
+    consumptions.forEach(function(cons){
+      chain = chain.then(function(){
+        var updated = consumeFromLot(cons.lot, cons.qty, cons.unit);
+        cons.lot.qtyLt = updated.qtyLt;
+        cons.lot.qtyKg = updated.qtyKg;
+        return window.__fb.setDoc(LOTS_COLL + '/' + cons.lot.id, { qtyLt: updated.qtyLt, qtyKg: updated.qtyKg, updatedAt: new Date().toISOString() }, true).then(function(){
+          logProdMovement({ type:'scarico_produzione', refId: cons.lot.refId, refName: cons.refName, lotto: cons.lot.lotto, unit: cons.unit, delta: -cons.qty, causale: 'Produzione lotto ' + finishedLotto });
+          componentsSnapshot.push({ refId: cons.lot.refId, refName: cons.refName, lotto: cons.lot.lotto, qty: cons.qty, unit: cons.unit });
+        });
+      });
+    });
+
+    chain.then(function(){
+      var recipe = d.recipeId ? recipeById(d.recipeId) : null;
+      var prodDoc = {
+        recipeId: d.recipeId || null,
+        recipeName: recipe ? recipe.name : null,
+        quantityLt: quantity,
+        finishedLotto: finishedLotto,
+        gradeTheoretical: calc.gradeTheoretical,
+        gradeEffective: gradeEffective,
+        anhydrousLt: calc.anidri,
+        components: componentsSnapshot,
+        note: note || null,
+        createdAt: new Date().toISOString(),
+        pushes: []
+      };
+      return window.__fb.setDoc(PRODUCTIONS_COLL + '/' + productionId, prodDoc);
+    }).then(function(){
+      showToast('Produzione registrata: lotto ' + finishedLotto + '.');
+      state.produzione = freshProduzioneDraft();
+      render();
+    }).catch(function(e){
+      console.error(e);
+      showToast('Si è verificato un errore durante il salvataggio della produzione. Controlla le giacenze.');
+    });
+  }
+
+  // ==================================================================
+  // ACTIONS: ricette
+  // ==================================================================
+  function newRecipe(){
+    state.ricette.formOpen = true;
+    state.ricette.editingId = null;
+    state.ricette.draft = { name:'', baseLt:'1', components:[{refId:'',doseLt:'',doseKg:''}], liquoriProductId:'' };
+    render();
+  }
+  function editRecipe(id){
+    var r = recipeById(id);
+    if (!r) return;
+    state.ricette.formOpen = true;
+    state.ricette.editingId = id;
+    state.ricette.draft = {
+      name: r.name, baseLt: r.baseLt,
+      components: (r.components||[]).map(function(c){ return { refId:c.refId, doseLt: c.doseLt===null||c.doseLt===undefined?'':c.doseLt, doseKg: c.doseKg===null||c.doseKg===undefined?'':c.doseKg }; }),
+      liquoriProductId: r.liquoriProductId || ''
+    };
+    render();
+  }
+  function cancelRecipeForm(){
+    state.ricette.formOpen = false;
+    state.ricette.editingId = null;
+    state.ricette.draft = null;
+    render();
+  }
+  function recipeAddComponent(){
+    state.ricette.draft.components.push({ refId:'', doseLt:'', doseKg:'' });
+    render();
+  }
+  function recipeRemoveComponent(idx){
+    state.ricette.draft.components.splice(idx,1);
+    render();
+  }
+  function saveRecipe(){
+    var d = state.ricette.draft;
+    var name = document.getElementById('recipeName').value.trim();
+    var baseLt = numOrNull(document.getElementById('recipeBaseLt').value);
+    if (!name){ showToast('Inserisci il nome della ricetta.'); return; }
+    if (!baseLt || baseLt <= 0){ showToast('Inserisci i litri di riferimento.'); return; }
+    var liquoriProductId = document.getElementById('recipeLiquoriProduct').value || null;
+    var components = d.components.filter(function(c){ return c.refId; }).map(function(c){
+      var ref = referenceById(c.refId);
+      return {
+        refId: c.refId,
+        doseLt: ref && ref.unit === 'liquido' ? numOrNull(c.doseLt) : null,
+        doseKg: ref && ref.unit === 'solido' ? numOrNull(c.doseKg) : null
+      };
+    });
+    if (!components.length){ showToast('Aggiungi almeno un componente.'); return; }
+    var id = state.ricette.editingId || uid('recipe');
+    window.__fb.setDoc(RECIPES_COLL + '/' + id, { name: name, baseLt: baseLt, components: components, liquoriProductId: liquoriProductId }).then(function(){
+      showToast('Ricetta salvata.');
+      cancelRecipeForm();
+    }).catch(function(e){ console.error(e); showToast('Salvataggio non riuscito.'); });
+  }
+  function deleteRecipe(id){
+    openConfirm('Eliminare ricetta?', 'La ricetta verrà rimossa definitivamente.', function(){
+      window.__fb.deleteDoc(RECIPES_COLL + '/' + id).then(function(){
+        showToast('Ricetta eliminata.');
+        closeConfirm();
+      }).catch(function(e){ console.error(e); showToast('Eliminazione non riuscita.'); });
+    });
+  }
+
+  // ==================================================================
+  // ACTIONS: push to Liquori
+  // ==================================================================
+  function confirmPush(){
+    var m = state.pushModal;
+    var p = productionById(m.productionId);
+    if (!p) return;
+    var location = document.getElementById('pushLocation').value;
+    var qty = numOrNull(document.getElementById('pushQty').value);
+    if (!qty || qty <= 0){ showToast('Inserisci una quantità maggiore di zero.'); return; }
+
+    var resolveProduct;
+    if (m.mode === 'new'){
+      var newName = document.getElementById('pushNewName').value.trim();
+      if (!newName){ showToast('Inserisci il nome del nuovo prodotto.'); return; }
+      var newId = uid('liqprod');
+      resolveProduct = window.__fb.setDoc(LIQ_PRODUCTS_COLL + '/' + newId, { name: newName, cat: 'Produzione', photo: null, unitVolumeMl: null, sku: null, unitsPerCarton: null }).then(function(){
+        return { id: newId, name: newName };
+      });
+    } else {
+      var productId = document.getElementById('pushProductId').value;
+      var product = liquoriProductById(productId);
+      if (!product){ showToast('Seleziona un prodotto.'); return; }
+      resolveProduct = Promise.resolve({ id: product.id, name: product.name });
+    }
+
+    resolveProduct.then(function(product){
+      var current = (state.liquoriStock[location] && state.liquoriStock[location][product.id]) || 0;
+      var newQty = round(current + qty, 3);
+      var patch = {}; patch[product.id] = newQty;
+      return window.__fb.setDoc('stock_liquori/' + location, patch, true).then(function(){
+        var locLabel = LOCATIONS.filter(function(l){return l.id===location;})[0].label;
+        var movEntry = {
+          type:'carico', location: location, locationLabel: locLabel, productId: product.id, productName: product.name,
+          delta: qty, newQty: newQty, causale: 'Produzione lotto ' + p.finishedLotto,
+          ts: new Date().toISOString(), id: uid('mv')
+        };
+        var updatedMoves = state.liquoriMovements.concat([movEntry]);
+        return window.__fb.setDoc(LIQ_MOVES_DOC, { entries: updatedMoves });
+      }).then(function(){
+        var pushes = (p.pushes||[]).concat([{ productId: product.id, productName: product.name, location: location, locationLabel: LOCATIONS.filter(function(l){return l.id===location;})[0].label, qty: qty, at: new Date().toISOString() }]);
+        return window.__fb.setDoc(PRODUCTIONS_COLL + '/' + p.id, { pushes: pushes }, true);
+      });
+    }).then(function(){
+      showToast('Caricato in Giacenze Liquori.');
+      closePushModal();
+    }).catch(function(e){
+      console.error(e);
+      showToast('Operazione non riuscita. Riprova.');
+    });
+  }
+
+  // ==================================================================
+  // event delegation
+  // ==================================================================
+  function bindGlobalEvents(){
+    document.body.addEventListener('click', function(e){
+      var el = e.target.closest('[data-action]');
+      if (!el) return;
+      var action = el.getAttribute('data-action');
+
+      if (action === 'tab'){ state.view = el.getAttribute('data-tab'); state.expandedRef = null; render(); return; }
+      if (action === 'new-reference'){ openRefModal('new', null, null); return; }
+      if (action === 'edit-reference'){ openRefModal('edit', referenceById(el.getAttribute('data-id')), null); return; }
+      if (action === 'close-ref-modal'){ closeRefModal(); return; }
+      if (action === 'save-reference'){ saveReference(); return; }
+      if (action === 'delete-reference'){ deleteReference(el.getAttribute('data-id')); return; }
+      if (action === 'ref-set-unit'){ state.refModal.draft.unit = el.getAttribute('data-unit'); renderRefModal(); return; }
+      if (action === 'toggle-lots'){ var id = el.getAttribute('data-id'); state.expandedRef = state.expandedRef === id ? null : id; render(); return; }
+      if (action === 'quick-scarico'){ state.scarico = freshScaricoDraft(); state.scarico.refId = el.getAttribute('data-ref'); state.scarico.lotId = el.getAttribute('data-lot'); state.view = 'scarico'; render(); return; }
+
+      if (action === 'save-carico'){ saveCarico(); return; }
+      if (action === 'save-scarico'){ saveScarico(); return; }
+
+      if (action === 'prod-add-component'){ prodAddComponent(); return; }
+      if (action === 'prod-remove-component'){ prodRemoveComponent(parseInt(el.getAttribute('data-idx'),10)); return; }
+      if (action === 'prod-add-alloc'){ prodAddAlloc(parseInt(el.getAttribute('data-comp-idx'),10)); return; }
+      if (action === 'prod-remove-alloc'){ prodRemoveAlloc(parseInt(el.getAttribute('data-comp-idx'),10), parseInt(el.getAttribute('data-alloc-idx'),10)); return; }
+      if (action === 'save-produzione'){ saveProduzione(); return; }
+      if (action === 'open-push'){ openPushModal(el.getAttribute('data-id')); return; }
+      if (action === 'close-push-modal'){ closePushModal(); return; }
+      if (action === 'confirm-push'){ confirmPush(); return; }
+      if (action === 'push-set-mode'){ state.pushModal.mode = el.getAttribute('data-mode'); renderPushModal(); return; }
+
+      if (action === 'new-recipe'){ newRecipe(); return; }
+      if (action === 'edit-recipe'){ editRecipe(el.getAttribute('data-id')); return; }
+      if (action === 'delete-recipe'){ deleteRecipe(el.getAttribute('data-id')); return; }
+      if (action === 'cancel-recipe'){ cancelRecipeForm(); return; }
+      if (action === 'save-recipe'){ saveRecipe(); return; }
+      if (action === 'recipe-add-component'){ recipeAddComponent(); return; }
+      if (action === 'recipe-remove-component'){ recipeRemoveComponent(parseInt(el.getAttribute('data-idx'),10)); return; }
+
+      if (action === 'delete-movement'){ deleteMovement(el.getAttribute('data-id')); return; }
+      if (action === 'cancel-confirm'){ closeConfirm(); return; }
+      if (action === 'do-confirm'){ var fn = state.confirmModal && state.confirmModal.onConfirm; if (fn) fn(); return; }
+
+      if (el.id === 'refPhotoPicker'){ state.pendingPhotoTarget = 'refModal'; document.getElementById('photoInput').click(); return; }
+      if (el.id === 'refPhotoRemove'){ e.stopPropagation(); state.refModal.draft.photo = null; renderRefModal(); return; }
+    });
+
+    document.body.addEventListener('change', function(e){
+      var t = e.target;
+      if (t.id === 'prodRecipe'){ selectRecipeForProduction(t.value); return; }
+      if (t.id === 'prodQuantity'){ state.produzione.quantity = t.value; render(); return; }
+      if (t.id === 'caricoRef'){
+        if (t.value === '__new__'){ openRefModal('new', null, 'carico'); t.value = state.carico.refId; return; }
+        state.carico = freshCaricoDraft(); state.carico.refId = t.value;
+        var ref = referenceById(t.value);
+        if (ref){ state.carico.density = ref.density===null||ref.density===undefined?'':ref.density; state.carico.grade = ref.grade===null||ref.grade===undefined?'':ref.grade; }
+        render(); return;
+      }
+      if (t.id === 'scaricoRef'){ state.scarico = freshScaricoDraft(); state.scarico.refId = t.value; render(); return; }
+      if (t.id === 'scaricoLot'){ state.scarico.lotId = t.value; render(); return; }
+      if (t.getAttribute && t.getAttribute('data-comp-field') === 'refId'){
+        var idx = parseInt(t.getAttribute('data-comp-idx'),10);
+        state.produzione.components[idx].refId = t.value;
+        state.produzione.components[idx].allocations = [{lotId:'',qty:''}];
+        render(); return;
+      }
+      if (t.getAttribute && t.getAttribute('data-alloc-field') === 'lotId'){
+        var ci = parseInt(t.getAttribute('data-comp-idx'),10), ai = parseInt(t.getAttribute('data-alloc-idx'),10);
+        state.produzione.components[ci].allocations[ai].lotId = t.value;
+        var lot = lotById(t.value);
+        var ref = referenceById(state.produzione.components[ci].refId);
+        if (lot && ref){
+          var recipe = state.produzione.recipeId ? recipeById(state.produzione.recipeId) : null;
+          var qtyTot = numOrNull(state.produzione.quantity);
+          var required = null;
+          if (recipe && qtyTot){
+            var factor = qtyTot / recipe.baseLt;
+            var c = state.produzione.components[ci];
+            required = round((ref.unit==='liquido'?c.doseLt:c.doseKg) * factor, 3);
+          }
+          var avail = availableQty(lot, ref.unit==='liquido'?'lt':'kg');
+          state.produzione.components[ci].allocations[ai].qty = required !== null ? Math.min(required, avail) : '';
+        }
+        render(); return;
+      }
+      if (t.getAttribute && t.getAttribute('data-rc-field') === 'refId'){
+        var ridx = parseInt(t.getAttribute('data-rc-idx'),10);
+        state.ricette.draft.components[ridx].refId = t.value;
+        render(); return;
+      }
+      if (t.id === 'recipeLiquoriProduct'){ state.ricette.draft.liquoriProductId = t.value; return; }
+      if (t.id === 'pushProductId'){ state.pushModal.productId = t.value; return; }
+      if (t.id === 'pushLocation'){ state.pushModal.location = t.value; return; }
+      if (t.id === 'photoInput'){
+        var file = t.files && t.files[0];
+        t.value = '';
+        if (!file) return;
+        readAndCompressImage(file).then(function(dataUrl){
+          if (state.pendingPhotoTarget === 'refModal' && state.refModal){ state.refModal.draft.photo = dataUrl; renderRefModal(); }
+        }).catch(function(err){ console.error(err); showToast('Non riesco a leggere questa foto.'); });
+        return;
+      }
+    });
+
+    document.body.addEventListener('input', function(e){
+      var t = e.target;
+      if (t.id === 'materieSearch'){ state.search = t.value; render(); return; }
+      if (['caricoLt','caricoKg','caricoDensity','caricoLotto','caricoCausale','caricoGrade'].indexOf(t.id) !== -1){ handleCaricoInput(t); return; }
+      if (t.id === 'scaricoCausale'){ state.scarico.causale = t.value; return; }
+      if (t.id === 'scaricoLt'){ state.scarico.qtyLt = t.value; return; }
+      if (t.id === 'scaricoKg'){ state.scarico.qtyKg = t.value; return; }
+      if (t.id === 'prodQuantity'){ state.produzione.quantity = t.value; render(); return; }
+      if (t.id === 'prodLotto'){ state.produzione.finishedLotto = t.value; return; }
+      if (t.id === 'prodGradeEff'){ state.produzione.gradeEffective = t.value; return; }
+      if (t.id === 'prodNote'){ state.produzione.note = t.value; return; }
+      if (t.getAttribute && t.getAttribute('data-alloc-field') === 'qty'){
+        var ci = parseInt(t.getAttribute('data-comp-idx'),10), ai = parseInt(t.getAttribute('data-alloc-idx'),10);
+        state.produzione.components[ci].allocations[ai].qty = t.value;
+        var root = document.getElementById('prodComponentsWrap');
+        if (root) root.innerHTML = renderProdComponents();
+        var calc = computeProdCalc();
+        var boxes = document.querySelectorAll('#viewRoot .readonly-box');
+        if (boxes[0]) boxes[0].innerHTML = (calc.anidri===null?'—':fmt(calc.anidri,3)) + '<span class="unit">Lt</span>';
+        if (boxes[1]) boxes[1].innerHTML = (calc.gradeTheoretical===null?'—':fmt(calc.gradeTheoretical,2)) + '<span class="unit">%</span>';
+        return;
+      }
+      if (t.id === 'recipeName'){ state.ricette.draft.name = t.value; return; }
+      if (t.id === 'recipeBaseLt'){ state.ricette.draft.baseLt = t.value; render(); return; }
+      if (t.getAttribute && t.getAttribute('data-rc-field') === 'dose'){
+        var ridx = parseInt(t.getAttribute('data-rc-idx'),10);
+        var ref = referenceById(state.ricette.draft.components[ridx].refId);
+        if (ref && ref.unit === 'liquido') state.ricette.draft.components[ridx].doseLt = t.value;
+        else state.ricette.draft.components[ridx].doseKg = t.value;
+        render(); return;
+      }
+      if (t.id === 'refName'){ state.refModal.draft.name = t.value; return; }
+      if (t.id === 'refDensity'){ state.refModal.draft.density = t.value; return; }
+      if (t.id === 'refGrade'){ state.refModal.draft.grade = t.value; return; }
+      if (t.id === 'refNotes'){ state.refModal.draft.notes = t.value; return; }
+      if (t.id === 'pushNewName'){ state.pushModal.newName = t.value; return; }
+      if (t.id === 'pushQty'){ state.pushModal.qty = t.value; return; }
+    });
+
+    document.getElementById('storicoBtn').innerHTML = iconClock();
+    document.getElementById('storicoBtn').addEventListener('click', function(){
+      state.view = state.view === 'storico' ? 'materie' : 'storico';
+      document.getElementById('storicoBtn').classList.toggle('active', state.view === 'storico');
+      render();
+    });
+  }
+
+  // ==================================================================
+  // auth + sync
+  // ==================================================================
+  function showAuthGate(errorMsg){
+    document.getElementById('authGate').hidden = false;
+    var errEl = document.getElementById('authError');
+    if (errorMsg){ errEl.textContent = errorMsg; errEl.hidden = false; } else { errEl.hidden = true; }
+    document.getElementById('signOutBtn').hidden = true;
+  }
+  function hideAuthGate(){
+    document.getElementById('authGate').hidden = true;
+    document.getElementById('signOutBtn').hidden = false;
+  }
+  function authErrorMessage(err){
+    var code = err && err.code;
+    if (code === 'auth/invalid-email') return 'Email non valida.';
+    if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') return 'Email o password errati.';
+    if (code === 'auth/too-many-requests') return 'Troppi tentativi. Riprova tra qualche minuto.';
+    if (code === 'auth/network-request-failed') return 'Problema di connessione. Riprova.';
+    return 'Accesso non riuscito. Controlla email e password.';
+  }
+  function bindAuthForm(){
+    document.getElementById('authForm').addEventListener('submit', function(e){
+      e.preventDefault();
+      var email = document.getElementById('authEmail').value.trim();
+      var password = document.getElementById('authPassword').value;
+      var btn = document.getElementById('authSubmitBtn');
+      btn.disabled = true; btn.textContent = 'Accesso in corso…';
+      window.__fb.signIn(email, password).catch(function(err){ console.error(err); showAuthGate(authErrorMessage(err)); })
+        .finally(function(){ btn.disabled = false; btn.textContent = 'Accedi'; });
+    });
+    document.getElementById('signOutBtn').innerHTML = iconLogout();
+    document.getElementById('signOutBtn').addEventListener('click', function(){ window.__fb.signOut(); });
+  }
+
+  var syncStarted = false;
+  function initAuth(){
+    window.__fb.onAuthState(function(user){
+      if (user){ hideAuthGate(); if (!syncStarted){ syncStarted = true; startSync(); } }
+      else { showAuthGate(); }
+    });
+  }
+
+  function startSync(){
+    window.__fb.onCollectionSnapshot(REFS_COLL, function(docs, err){
+      if (err){ setSyncStatus('error'); return; }
+      state.references = docs.map(function(d){ var o = { id: d.id }; Object.keys(d.data).forEach(function(k){ o[k]=d.data[k]; }); return o; });
+      setSyncStatus('synced'); render();
+    });
+    window.__fb.onCollectionSnapshot(LOTS_COLL, function(docs, err){
+      if (err) return;
+      state.lots = docs.map(function(d){ var o = { id: d.id }; Object.keys(d.data).forEach(function(k){ o[k]=d.data[k]; }); return o; });
+      render();
+    });
+    window.__fb.onCollectionSnapshot(RECIPES_COLL, function(docs, err){
+      if (err) return;
+      state.recipes = docs.map(function(d){ var o = { id: d.id }; Object.keys(d.data).forEach(function(k){ o[k]=d.data[k]; }); return o; });
+      render();
+    });
+    window.__fb.onCollectionSnapshot(PRODUCTIONS_COLL, function(docs, err){
+      if (err) return;
+      state.productions = docs.map(function(d){ var o = { id: d.id }; Object.keys(d.data).forEach(function(k){ o[k]=d.data[k]; }); return o; });
+      render();
+    });
+    window.__fb.onDocSnapshot(MOVES_DOC, function(data, err){
+      if (err) return;
+      state.movements = (data && data.entries) ? data.entries : [];
+      if (state.view === 'storico') render();
+    });
+    window.__fb.onCollectionSnapshot(LIQ_PRODUCTS_COLL, function(docs, err){
+      if (err) return;
+      state.liquoriProducts = docs.map(function(d){ var o = { id: d.id }; Object.keys(d.data).forEach(function(k){ o[k]=d.data[k]; }); return o; });
+    });
+    window.__fb.onDocSnapshot(LIQ_MOVES_DOC, function(data, err){
+      if (err) return;
+      state.liquoriMovements = (data && data.entries) ? data.entries : [];
+    });
+    LOCATIONS.forEach(function(loc){
+      window.__fb.onDocSnapshot('stock_liquori/' + loc.id, function(data, err){
+        if (err) return;
+        state.liquoriStock[loc.id] = data || {};
+      });
+    });
+  }
+
+  function whenFirebaseReady(cb){
+    if (window.__fb) cb();
+    else window.addEventListener('fb-ready', cb, { once:true });
+  }
+
+  bindGlobalEvents();
+  bindAuthForm();
+  render();
+  whenFirebaseReady(initAuth);
+})();
+</script>
+</body>
+</html>
