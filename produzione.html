@@ -679,6 +679,34 @@
     renderView();
   }
 
+  // Re-rendering replaces the focused input's DOM node, which drops focus
+  // and closes the on-screen keyboard on mobile mid-typing. This re-applies
+  // focus (and cursor position) to the equivalent element after a render.
+  function focusLocator(el){
+    if (!el || el === document.body) return null;
+    if (el.id) return '#' + CSS.escape(el.id);
+    var dataAttrs = Array.prototype.filter.call(el.attributes || [], function(a){ return a.name.indexOf('data-') === 0; });
+    if (!dataAttrs.length) return null;
+    return el.tagName.toLowerCase() + dataAttrs.map(function(a){ return '[' + a.name + '="' + a.value.replace(/"/g,'\\"') + '"]'; }).join('');
+  }
+  function withFocusPreserved(fn){
+    var active = document.activeElement;
+    var locator = focusLocator(active);
+    var selStart, selEnd;
+    if (active && typeof active.selectionStart === 'number'){
+      try { selStart = active.selectionStart; selEnd = active.selectionEnd; } catch(e){}
+    }
+    fn();
+    if (!locator) return;
+    var el;
+    try { el = document.querySelector(locator); } catch(e){ el = null; }
+    if (!el) return;
+    el.focus();
+    if (selStart !== undefined && typeof el.setSelectionRange === 'function'){
+      try { el.setSelectionRange(selStart, selEnd); } catch(e){}
+    }
+  }
+
   function renderTabs(){
     var el = document.getElementById('tabs');
     el.innerHTML = TABS.map(function(t){
@@ -1773,7 +1801,7 @@
     document.body.addEventListener('change', function(e){
       var t = e.target;
       if (t.id === 'prodRecipe'){ selectRecipeForProduction(t.value); return; }
-      if (t.id === 'prodQuantity'){ state.produzione.quantity = t.value; render(); return; }
+      if (t.id === 'prodQuantity'){ state.produzione.quantity = t.value; withFocusPreserved(render); return; }
       if (t.id === 'caricoRef'){
         if (t.value === '__new__'){ openRefModal('new', null, 'carico'); t.value = state.carico.refId; return; }
         state.carico = freshCaricoDraft(); state.carico.refId = t.value;
@@ -1829,34 +1857,36 @@
 
     document.body.addEventListener('input', function(e){
       var t = e.target;
-      if (t.id === 'materieSearch'){ state.search = t.value; render(); return; }
+      if (t.id === 'materieSearch'){ state.search = t.value; withFocusPreserved(render); return; }
       if (['caricoLt','caricoKg','caricoDensity','caricoLotto','caricoCausale','caricoGrade'].indexOf(t.id) !== -1){ handleCaricoInput(t); return; }
       if (t.id === 'scaricoCausale'){ state.scarico.causale = t.value; return; }
       if (t.id === 'scaricoLt'){ state.scarico.qtyLt = t.value; return; }
       if (t.id === 'scaricoKg'){ state.scarico.qtyKg = t.value; return; }
-      if (t.id === 'prodQuantity'){ state.produzione.quantity = t.value; render(); return; }
+      if (t.id === 'prodQuantity'){ state.produzione.quantity = t.value; withFocusPreserved(render); return; }
       if (t.id === 'prodLotto'){ state.produzione.finishedLotto = t.value; return; }
       if (t.id === 'prodGradeEff'){ state.produzione.gradeEffective = t.value; return; }
       if (t.id === 'prodNote'){ state.produzione.note = t.value; return; }
       if (t.getAttribute && t.getAttribute('data-alloc-field') === 'qty'){
         var ci = parseInt(t.getAttribute('data-comp-idx'),10), ai = parseInt(t.getAttribute('data-alloc-idx'),10);
         state.produzione.components[ci].allocations[ai].qty = t.value;
-        var root = document.getElementById('prodComponentsWrap');
-        if (root) root.innerHTML = renderProdComponents();
-        var calc = computeProdCalc();
-        var boxes = document.querySelectorAll('#viewRoot .readonly-box');
-        if (boxes[0]) boxes[0].innerHTML = (calc.anidri===null?'—':fmt(calc.anidri,3)) + '<span class="unit">Lt</span>';
-        if (boxes[1]) boxes[1].innerHTML = (calc.gradeTheoretical===null?'—':fmt(calc.gradeTheoretical,2)) + '<span class="unit">%</span>';
+        withFocusPreserved(function(){
+          var root = document.getElementById('prodComponentsWrap');
+          if (root) root.innerHTML = renderProdComponents();
+          var calc = computeProdCalc();
+          var boxes = document.querySelectorAll('#viewRoot .readonly-box');
+          if (boxes[0]) boxes[0].innerHTML = (calc.anidri===null?'—':fmt(calc.anidri,3)) + '<span class="unit">Lt</span>';
+          if (boxes[1]) boxes[1].innerHTML = (calc.gradeTheoretical===null?'—':fmt(calc.gradeTheoretical,2)) + '<span class="unit">%</span>';
+        });
         return;
       }
       if (t.id === 'recipeName'){ state.ricette.draft.name = t.value; return; }
-      if (t.id === 'recipeBaseLt'){ state.ricette.draft.baseLt = t.value; render(); return; }
+      if (t.id === 'recipeBaseLt'){ state.ricette.draft.baseLt = t.value; withFocusPreserved(render); return; }
       if (t.getAttribute && t.getAttribute('data-rc-field') === 'dose'){
         var ridx = parseInt(t.getAttribute('data-rc-idx'),10);
         var ref = referenceById(state.ricette.draft.components[ridx].refId);
         if (ref && ref.unit === 'liquido') state.ricette.draft.components[ridx].doseLt = t.value;
         else state.ricette.draft.components[ridx].doseKg = t.value;
-        render(); return;
+        withFocusPreserved(render); return;
       }
       if (t.id === 'refName'){ state.refModal.draft.name = t.value; return; }
       if (t.id === 'refDensity'){ state.refModal.draft.density = t.value; return; }
