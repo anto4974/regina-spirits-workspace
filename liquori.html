@@ -685,6 +685,17 @@
   .row.readonly .thumb{ cursor:default; }
 
   .move-list{ padding:0 .75rem; display:flex; flex-direction:column; gap:.4rem; margin-bottom:1.2rem; }
+  .move-del{
+    flex:none;
+    width:1.9rem; height:1.9rem;
+    border-radius:.5rem;
+    border:1px solid var(--line);
+    background:var(--surface-2);
+    color:var(--muted);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+  }
+  .move-del svg{ width:14px; height:14px; }
   .move-row{
     background:var(--surface);
     border:1px solid var(--line);
@@ -898,6 +909,7 @@
   <input type="file" id="rowPhotoInput" accept="image/*" hidden>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <div class="modal-overlay" id="moveModal" hidden></div>
+  <div class="modal-overlay" id="historyModal" hidden></div>
 
   <button type="button" class="scan-fab" id="scanFabBtn" aria-label="Scansiona codice a barre" title="Scansiona codice a barre"></button>
 
@@ -1028,7 +1040,9 @@
     confirmDeleteId: null,
     editingId: null,
     moveModal: null, // { productId, step: 'choose' | 'carico' | 'spostamento' }
-    categoryFilter: '' // '' = tutte le categorie
+    categoryFilter: '', // '' = tutte le categorie
+    historyModal: null, // { productId }
+    confirmDeleteMovementId: null
   };
 
   function sortItems(items, qtyFn){
@@ -2368,7 +2382,7 @@
         }, 0);
         html += '<div class="row readonly">' +
           '<div class="row-body"><div class="row-top">' +
-            '<div class="row-name-wrap"><div class="row-name">' + escapeHtml(p.name) + '</div></div>' +
+            '<div class="row-name-wrap"><button type="button" class="row-name-btn history-trigger" data-id="' + p.id + '"><div class="row-name">' + escapeHtml(p.name) + '</div></button></div>' +
             '<div class="row-qty">' +
               '<span class="qty-line">' + total + '<span class="unit">pz</span></span>' +
               (p.unitVolumeMl ? '<span class="qty-weight">' + escapeHtml(formatWeight(total * p.unitVolumeMl)) + '</span>' : '') +
@@ -2406,14 +2420,51 @@
     });
     var exportBtn = document.getElementById('exportCsvBtn');
     if (exportBtn) exportBtn.addEventListener('click', exportMovementsCsv);
+
+    Array.prototype.forEach.call(el.querySelectorAll('.history-trigger'), function(btn){
+      btn.addEventListener('click', function(){
+        openHistoryModal(btn.getAttribute('data-id'));
+      });
+    });
+    Array.prototype.forEach.call(el.querySelectorAll('[data-action="delete-movement"]'), function(btn){
+      btn.addEventListener('click', function(){
+        state.confirmDeleteMovementId = btn.getAttribute('data-mvid');
+        renderRiepilogo();
+      });
+    });
+    Array.prototype.forEach.call(el.querySelectorAll('[data-action="cancel-delete-movement"]'), function(btn){
+      btn.addEventListener('click', function(){
+        state.confirmDeleteMovementId = null;
+        renderRiepilogo();
+      });
+    });
+    Array.prototype.forEach.call(el.querySelectorAll('[data-action="confirm-delete-movement"]'), function(btn){
+      btn.addEventListener('click', function(){
+        deleteMovementEntry(btn.getAttribute('data-mvid'));
+      });
+    });
   }
 
   function renderMoveRow(m){
+    var key = movementKey(m);
+    if (state.confirmDeleteMovementId === key){
+      return '<div class="move-row">' +
+        '<div class="row-confirm" style="flex:1;">' +
+          '<span class="row-confirm-text">Eliminare questo movimento?</span>' +
+          '<div class="row-confirm-actions">' +
+            '<button type="button" class="row-confirm-cancel" data-action="cancel-delete-movement" data-mvid="' + escapeHtml(key) + '">Annulla</button>' +
+            '<button type="button" class="row-confirm-danger" data-action="confirm-delete-movement" data-mvid="' + escapeHtml(key) + '">Elimina</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    }
     var causaleHtml = m.causale ? '<span class="move-causale">' + escapeHtml(m.causale) + '</span>' : '';
+    var deleteBtn = '<button type="button" class="move-del" data-action="delete-movement" data-mvid="' + escapeHtml(key) + '" aria-label="Elimina movimento">' + iconTrash() + '</button>';
     if (m.type === 'spostamento'){
       return '<div class="move-row">' +
         '<div class="move-main"><span class="move-name">' + escapeHtml(m.productName) + '</span><span class="move-loc">' + escapeHtml(m.fromLocationLabel) + ' → ' + escapeHtml(m.toLocationLabel) + '</span>' + causaleHtml + '</div>' +
         '<div class="move-side"><span class="move-delta plus">' + m.delta + '</span><span class="move-time">' + formatDateTime(m.ts) + '</span></div>' +
+        deleteBtn +
       '</div>';
     }
     var sign = m.delta > 0 ? '+' : '';
@@ -2422,6 +2473,7 @@
     return '<div class="move-row">' +
       '<div class="move-main"><span class="move-name">' + escapeHtml(m.productName) + '</span><span class="move-loc">' + escapeHtml(m.locationLabel) + typeSuffix + '</span>' + causaleHtml + '</div>' +
       '<div class="move-side"><span class="move-delta ' + cls + '">' + sign + m.delta + '</span><span class="move-time">' + formatDateTime(m.ts) + '</span></div>' +
+      deleteBtn +
     '</div>';
   }
 
@@ -2518,11 +2570,73 @@
 
   function logMovementEntry(entry){
     entry.ts = new Date().toISOString();
+    entry.id = 'mv_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
     var updated = state.movements.concat([entry]);
     if (updated.length > MOVEMENTS_CAP) updated = updated.slice(updated.length - MOVEMENTS_CAP);
     state.movements = updated;
     if (state.view === 'riepilogo') renderRiepilogo();
     persistMovements(updated);
+  }
+
+  function movementKey(m){ return m.id || m.ts; }
+
+  function deleteMovementEntry(key){
+    var updated = state.movements.filter(function(m){ return movementKey(m) !== key; });
+    state.movements = updated;
+    state.confirmDeleteMovementId = null;
+    if (state.historyModal) renderHistoryModal();
+    if (state.view === 'riepilogo') renderRiepilogo();
+    persistMovements(updated);
+  }
+
+  // ---------- per-product movement history modal ----------
+
+  function openHistoryModal(productId){
+    state.historyModal = { productId: productId };
+    state.confirmDeleteMovementId = null;
+    renderHistoryModal();
+  }
+
+  function closeHistoryModal(){
+    state.historyModal = null;
+    renderHistoryModal();
+  }
+
+  function renderHistoryModal(){
+    var el = document.getElementById('historyModal');
+    var h = state.historyModal;
+    if (!h){ el.hidden = true; el.innerHTML = ''; return; }
+    var product = productById(h.productId);
+    if (!product){ closeHistoryModal(); return; }
+    el.hidden = false;
+
+    var items = state.movements.filter(function(m){ return m.productId === h.productId; }).slice().reverse();
+    var listHtml = items.length
+      ? '<div class="move-list">' + items.map(renderMoveRow).join('') + '</div>'
+      : '<div class="empty">Nessun movimento per questa referenza.</div>';
+
+    el.innerHTML =
+      '<div class="modal-sheet">' +
+        '<h3 class="modal-title">Storico — ' + escapeHtml(product.name) + '</h3>' +
+        '<p class="modal-subtitle">' + items.length + ' movimento' + (items.length === 1 ? '' : 'i') + ' registrat' + (items.length === 1 ? 'o' : 'i') + '</p>' +
+        listHtml +
+        '<div class="modal-actions"><button type="button" class="modal-cancel" data-modal-action="close-history">Chiudi</button></div>' +
+      '</div>';
+  }
+
+  function bindHistoryModalDelegation(){
+    var el = document.getElementById('historyModal');
+    el.addEventListener('click', function(e){
+      if (e.target === el){ closeHistoryModal(); return; }
+      var actionBtn = e.target.closest('[data-modal-action], [data-action]');
+      if (!actionBtn) return;
+      var modalAction = actionBtn.getAttribute('data-modal-action');
+      if (modalAction === 'close-history'){ closeHistoryModal(); return; }
+      var action = actionBtn.getAttribute('data-action');
+      if (action === 'delete-movement'){ state.confirmDeleteMovementId = actionBtn.getAttribute('data-mvid'); renderHistoryModal(); return; }
+      if (action === 'cancel-delete-movement'){ state.confirmDeleteMovementId = null; renderHistoryModal(); return; }
+      if (action === 'confirm-delete-movement'){ deleteMovementEntry(actionBtn.getAttribute('data-mvid')); return; }
+    });
   }
 
   function persistMovements(entries){
@@ -2692,6 +2806,7 @@
 
   bindListDelegation();
   bindMoveModalDelegation();
+  bindHistoryModalDelegation();
   bindAuthForm();
   render();
   whenFirebaseReady(initAuth);
