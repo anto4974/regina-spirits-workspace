@@ -531,9 +531,9 @@
     cursor:pointer;
   }
   .scan-fab::before{
-    content:''; width:24px; height:24px;
-    -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 5v14M7 5v14M11 5v10M15 5v14M19 5v10'/%3E%3C/svg%3E") center/contain no-repeat;
-    mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 5v14M7 5v14M11 5v10M15 5v14M19 5v10'/%3E%3C/svg%3E") center/contain no-repeat;
+    content:''; width:26px; height:26px;
+    -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E") center/contain no-repeat;
+    mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 5v14M5 12h14'/%3E%3C/svg%3E") center/contain no-repeat;
     background:var(--raspberry-ink);
   }
   .scan-fab[hidden]{ display:none; }
@@ -639,6 +639,21 @@
   .modal-field select:focus, .modal-field input:focus{ outline:2px solid var(--raspberry); outline-offset:1px; }
   .modal-hint{ font-size:.74rem; color:var(--muted); margin:-.5rem 0 .85rem; }
   .modal-hint.modal-hint-warn{ color:var(--cherry); }
+  .qty-unit-toggle{ display:flex; gap:.4rem; margin-bottom:.4rem; }
+  .qty-unit-btn{
+    flex:1;
+    padding:.4rem .5rem;
+    border-radius:.5rem;
+    border:1px solid var(--line);
+    background:var(--surface-2);
+    color:var(--muted);
+    font-family:'Oswald', sans-serif;
+    font-size:.68rem;
+    text-transform:uppercase;
+    letter-spacing:.03em;
+    cursor:pointer;
+  }
+  .qty-unit-btn.active{ background:var(--raspberry); border-color:var(--raspberry); color:var(--raspberry-ink); }
   .modal-actions{ display:flex; gap:.5rem; justify-content:flex-end; margin-top:.3rem; }
   .modal-back, .modal-cancel{
     padding:.6rem 1rem;
@@ -1373,7 +1388,7 @@
 
   function openMoveModal(productId){
     flushAllPending();
-    state.moveModal = { productId: productId, step: 'choose' };
+    state.moveModal = { productId: productId, step: 'choose', qtyUnit: 'pz' };
     renderMoveModal();
   }
 
@@ -1402,10 +1417,7 @@
               return '<option value="' + l.id + '"' + sel + '>' + escapeHtml(l.label) + '</option>';
             }).join('') + '</select>' +
           '</div>' +
-          '<div class="modal-field">' +
-            '<label for="moveQty">Quantità</label>' +
-            '<input type="number" id="moveQty" inputmode="numeric" min="1" step="1" value="1">' +
-          '</div>' +
+          qtyFieldHtml(product) +
           '<div class="modal-field">' +
             '<label for="moveCausale">Causale (facoltativo)</label>' +
             '<input type="text" id="moveCausale" placeholder="Es. Fornitore, reso, rientro…" autocomplete="off">' +
@@ -1415,6 +1427,7 @@
             '<button type="button" class="modal-confirm" data-modal-action="confirm-carico">Conferma carico</button>' +
           '</div>' +
         '</div>';
+      updateQtyCalc();
     } else if (m.step === 'scarico'){
       el.innerHTML =
         '<div class="modal-sheet">' +
@@ -1427,10 +1440,7 @@
               return '<option value="' + l.id + '"' + sel + '>' + escapeHtml(l.label) + '</option>';
             }).join('') + '</select>' +
           '</div>' +
-          '<div class="modal-field">' +
-            '<label for="moveQty">Quantità</label>' +
-            '<input type="number" id="moveQty" inputmode="numeric" min="1" step="1" value="1">' +
-          '</div>' +
+          qtyFieldHtml(product) +
           '<div class="modal-field">' +
             '<label for="moveCausale">Causale (facoltativo)</label>' +
             '<input type="text" id="moveCausale" placeholder="Es. Vendita, reso, rottura…" autocomplete="off">' +
@@ -1442,6 +1452,7 @@
           '</div>' +
         '</div>';
       updateScaricoHint();
+      updateQtyCalc();
       document.getElementById('moveLoc').addEventListener('change', updateScaricoHint);
     } else if (m.step === 'spostamento'){
       var fromDefault = state.active;
@@ -1464,10 +1475,7 @@
               return '<option value="' + l.id + '"' + sel + '>' + escapeHtml(l.label) + '</option>';
             }).join('') + '</select>' +
           '</div>' +
-          '<div class="modal-field">' +
-            '<label for="moveQty">Quantità</label>' +
-            '<input type="number" id="moveQty" inputmode="numeric" min="1" step="1" value="1">' +
-          '</div>' +
+          qtyFieldHtml(product) +
           '<div class="modal-field">' +
             '<label for="moveCausale">Causale (facoltativo)</label>' +
             '<input type="text" id="moveCausale" placeholder="Es. Riassortimento banco, richiesta negozio…" autocomplete="off">' +
@@ -1479,6 +1487,7 @@
           '</div>' +
         '</div>';
       updateSpostamentoHint();
+      updateQtyCalc();
       document.getElementById('moveFrom').addEventListener('change', updateSpostamentoHint);
       document.getElementById('moveTo').addEventListener('change', updateSpostamentoHint);
     } else {
@@ -1500,6 +1509,61 @@
           '<div class="modal-actions"><button type="button" class="modal-cancel" data-modal-action="cancel">Annulla</button></div>' +
         '</div>';
     }
+  }
+
+  function qtyFieldHtml(product){
+    if (!product.unitsPerCarton){
+      return '<div class="modal-field">' +
+        '<label for="moveQty">Quantità (pezzi)</label>' +
+        '<input type="number" id="moveQty" inputmode="numeric" min="1" step="1" value="1">' +
+      '</div>';
+    }
+    return '<div class="modal-field">' +
+      '<label for="moveQty">Quantità</label>' +
+      '<div class="qty-unit-toggle">' +
+        '<button type="button" class="qty-unit-btn active" data-modal-action="qty-unit-pz">Pezzi</button>' +
+        '<button type="button" class="qty-unit-btn" data-modal-action="qty-unit-ct">Cartoni</button>' +
+      '</div>' +
+      '<input type="number" id="moveQty" inputmode="numeric" min="1" step="1" value="1">' +
+      '<p class="modal-hint" id="qtyCalcHint">' + escapeHtml(String(product.unitsPerCarton)) + ' pz/cartone</p>' +
+    '</div>';
+  }
+
+  function updateQtyCalc(){
+    var m = state.moveModal;
+    if (!m) return;
+    var product = productById(m.productId);
+    var hint = document.getElementById('qtyCalcHint');
+    if (!hint || !product || !product.unitsPerCarton) return;
+    var qtyInput = document.getElementById('moveQty');
+    var raw = parseFloat(qtyInput.value);
+    if (m.qtyUnit === 'ct'){
+      var totalPz = (!isNaN(raw) && raw > 0) ? Math.round(raw * product.unitsPerCarton) : 0;
+      hint.textContent = '= ' + totalPz + ' pezzi (' + product.unitsPerCarton + ' pz/cartone)';
+    } else {
+      hint.textContent = product.unitsPerCarton + ' pz/cartone';
+    }
+  }
+
+  function setQtyUnit(unit){
+    var m = state.moveModal;
+    if (!m) return;
+    m.qtyUnit = unit;
+    var pzBtn = document.querySelector('[data-modal-action="qty-unit-pz"]');
+    var ctBtn = document.querySelector('[data-modal-action="qty-unit-ct"]');
+    if (pzBtn) pzBtn.classList.toggle('active', unit === 'pz');
+    if (ctBtn) ctBtn.classList.toggle('active', unit === 'ct');
+    updateQtyCalc();
+  }
+
+  function actualQtyFromInput(product){
+    var raw = parseFloat(document.getElementById('moveQty').value);
+    if (isNaN(raw) || raw <= 0) return 0;
+    var m = state.moveModal;
+    if (m && m.qtyUnit === 'ct' && product.unitsPerCarton){
+      return Math.round(raw * product.unitsPerCarton);
+    }
+    return Math.round(raw);
   }
 
   function updateScaricoHint(){
@@ -1543,15 +1607,20 @@
       if (!m) return;
       if (action === 'cancel'){ closeMoveModal(); return; }
       if (action === 'back'){ m.step = 'choose'; renderMoveModal(); return; }
-      if (action === 'choose-carico'){ m.step = 'carico'; renderMoveModal(); return; }
-      if (action === 'choose-scarico'){ m.step = 'scarico'; renderMoveModal(); return; }
-      if (action === 'choose-spostamento'){ m.step = 'spostamento'; renderMoveModal(); return; }
+      if (action === 'choose-carico'){ m.step = 'carico'; m.qtyUnit = 'pz'; renderMoveModal(); return; }
+      if (action === 'choose-scarico'){ m.step = 'scarico'; m.qtyUnit = 'pz'; renderMoveModal(); return; }
+      if (action === 'choose-spostamento'){ m.step = 'spostamento'; m.qtyUnit = 'pz'; renderMoveModal(); return; }
       if (action === 'confirm-carico'){ confirmCarico(); return; }
       if (action === 'confirm-scarico'){ confirmScarico(); return; }
       if (action === 'confirm-spostamento'){ confirmSpostamento(); return; }
+      if (action === 'qty-unit-pz'){ setQtyUnit('pz'); return; }
+      if (action === 'qty-unit-ct'){ setQtyUnit('ct'); return; }
     });
     el.addEventListener('change', function(e){
       if (e.target.id === 'moveFrom' || e.target.id === 'moveTo') updateSpostamentoHint();
+    });
+    el.addEventListener('input', function(e){
+      if (e.target.id === 'moveQty') updateQtyCalc();
     });
   }
 
@@ -1560,7 +1629,7 @@
     var product = productById(m.productId);
     if (!product){ closeMoveModal(); return; }
     var loc = document.getElementById('moveLoc').value;
-    var qty = Math.round(parseFloat(document.getElementById('moveQty').value));
+    var qty = actualQtyFromInput(product);
     var causale = document.getElementById('moveCausale').value.trim() || null;
     if (!qty || qty <= 0){ showToast('Inserisci una quantità maggiore di zero.'); return; }
 
@@ -1589,7 +1658,7 @@
     var product = productById(m.productId);
     if (!product){ closeMoveModal(); return; }
     var loc = document.getElementById('moveLoc').value;
-    var qty = Math.round(parseFloat(document.getElementById('moveQty').value));
+    var qty = actualQtyFromInput(product);
     var causale = document.getElementById('moveCausale').value.trim() || null;
     if (!qty || qty <= 0){ showToast('Inserisci una quantità maggiore di zero.'); return; }
 
@@ -1623,7 +1692,7 @@
     if (!product){ closeMoveModal(); return; }
     var fromLoc = document.getElementById('moveFrom').value;
     var toLoc = document.getElementById('moveTo').value;
-    var qty = Math.round(parseFloat(document.getElementById('moveQty').value));
+    var qty = actualQtyFromInput(product);
     var causale = document.getElementById('moveCausale').value.trim() || null;
     if (fromLoc === toLoc){ showToast('Scegli due depositi diversi.'); return; }
     if (!qty || qty <= 0){ showToast('Inserisci una quantità maggiore di zero.'); return; }
@@ -1732,6 +1801,45 @@
     openMoveModal(product.id);
   }
 
+  // ---------- external (Bluetooth/USB) barcode scanner ----------
+  // These scanners act like a keyboard: they "type" the code, character by
+  // character, way faster than a human, then send Enter. We listen globally
+  // and only capture when no input/select is focused, so it never interferes
+  // with normal typing — a scanner aimed at a focused field just types into
+  // it natively, no JS needed for that case.
+
+  var HW_SCAN_MIN_LENGTH = 4;
+  var HW_SCAN_CHAR_GAP_MS = 60;
+  var hwScanBuffer = '';
+  var hwScanLastCharTime = 0;
+
+  function bindHardwareScanner(){
+    document.addEventListener('keydown', function(e){
+      var authGate = document.getElementById('authGate');
+      if (!authGate || !authGate.hidden) return; // not logged in yet
+
+      var tag = document.activeElement && document.activeElement.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return; // let it type into the field normally
+
+      var now = Date.now();
+      if (now - hwScanLastCharTime > HW_SCAN_CHAR_GAP_MS) hwScanBuffer = '';
+      hwScanLastCharTime = now;
+
+      if (e.key === 'Enter'){
+        var code = hwScanBuffer;
+        hwScanBuffer = '';
+        if (code.length >= HW_SCAN_MIN_LENGTH){
+          e.preventDefault();
+          onScanSuccess(code);
+        }
+        return;
+      }
+      if (e.key.length === 1){
+        hwScanBuffer += e.key;
+      }
+    });
+  }
+
   // ---------- toast ----------
 
   var toastTimer = null;
@@ -1791,7 +1899,7 @@
   }
 
   function productDocData(p){
-    return { name: p.name, cat: p.cat, photo: p.photo || null, unitVolumeMl: p.unitVolumeMl || null, sku: p.sku || null };
+    return { name: p.name, cat: p.cat, photo: p.photo || null, unitVolumeMl: p.unitVolumeMl || null, sku: p.sku || null, unitsPerCarton: p.unitsPerCarton || null };
   }
 
   function productByBarcode(code){
@@ -1964,6 +2072,12 @@
         '</div>' +
       '</div>';
 
+    var cartonFieldHtml =
+      '<div class="add-field">' +
+        '<label for="newProdCarton">Pezzi per cartone (facoltativo)</label>' +
+        '<input type="number" id="newProdCarton" inputmode="numeric" min="1" step="1" placeholder="Es. 24" value="' + (editing && product.unitsPerCarton ? escapeHtml(String(product.unitsPerCarton)) : '') + '">' +
+      '</div>';
+
     var weightFieldHtml =
       '<div class="add-field">' +
         '<label for="newProdWeight">Volume per pezzo, in ml (facoltativo)</label>' +
@@ -2005,6 +2119,7 @@
           '<input type="text" id="newProdCatNew" placeholder="Es. Gommose" autocomplete="off">' +
         '</div>' +
         skuFieldHtml +
+        cartonFieldHtml +
         weightFieldHtml +
         stockFieldHtml +
         '<div class="add-form-actions">' +
@@ -2078,10 +2193,12 @@
     var weightRaw = parseFloat(weightInput);
     var unitVolumeMl = (!isNaN(weightRaw) && weightRaw > 0) ? weightRaw : null;
     var sku = document.getElementById('newProdSku').value.trim() || null;
+    var cartonRaw = parseInt(document.getElementById('newProdCarton').value, 10);
+    var unitsPerCarton = (!isNaN(cartonRaw) && cartonRaw > 0) ? cartonRaw : null;
 
     if (state.editingId){
       var editedId = state.editingId;
-      updateProduct(editedId, { name: name, cat: catName, unitVolumeMl: unitVolumeMl, sku: sku }, function(){
+      updateProduct(editedId, { name: name, cat: catName, unitVolumeMl: unitVolumeMl, sku: sku, unitsPerCarton: unitsPerCarton }, function(){
         showToast('Referenza aggiornata.');
       });
       closeForm();
@@ -2095,14 +2212,14 @@
     var initialStock = isNaN(stockRaw) ? 0 : Math.max(0, stockRaw);
     var photo = pendingPhoto ? pendingPhoto.dataUrl : null;
 
-    addProduct(name, catName, initialStock, photo, unitVolumeMl, sku);
+    addProduct(name, catName, initialStock, photo, unitVolumeMl, sku, unitsPerCarton);
     closeForm();
     renderList();
   }
 
-  function addProduct(name, catName, initialStock, photo, unitVolumeMl, sku){
+  function addProduct(name, catName, initialStock, photo, unitVolumeMl, sku, unitsPerCarton){
     var id = 'ref_' + slugify(name) + '_' + Math.random().toString(36).slice(2, 7);
-    var newProduct = { id: id, name: name, cat: catName, photo: photo || null, unitVolumeMl: unitVolumeMl || null, sku: sku || null };
+    var newProduct = { id: id, name: name, cat: catName, photo: photo || null, unitVolumeMl: unitVolumeMl || null, sku: sku || null, unitsPerCarton: unitsPerCarton || null };
     state.products = state.products.concat([newProduct]);
     var docData = productDocData(newProduct);
     window.__fb.setDoc('products_liquori/' + id, docData).catch(function(e){
@@ -2571,6 +2688,7 @@
 
   document.getElementById('scanFabBtn').addEventListener('click', openScannerForMovement);
   document.getElementById('scannerCloseBtn').addEventListener('click', stopScannerOverlay);
+  bindHardwareScanner();
 
   bindListDelegation();
   bindMoveModalDelegation();
