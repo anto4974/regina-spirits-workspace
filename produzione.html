@@ -1372,43 +1372,55 @@
     var lt = document.getElementById('caricoLt');
     var kg = document.getElementById('caricoKg');
     var dens = document.getElementById('caricoDensity');
+    var density = numOrNull(dens.value);
     if (target.id === 'caricoLt'){
       d.qtyLt = lt.value;
-      var density = numOrNull(dens.value);
       var ltVal = numOrNull(lt.value);
       if (density !== null && ltVal !== null){ var k = round(ltVal * density, 3); kg.value = k; d.qtyKg = k; }
-      else {
-        var kgVal0 = numOrNull(kg.value);
-        if (density === null && kgVal0 !== null && ltVal !== null && ltVal > 0){
-          var computedDensity0 = round(kgVal0 / ltVal, 4);
-          dens.value = computedDensity0; d.density = computedDensity0;
-        }
-      }
     } else if (target.id === 'caricoKg'){
       d.qtyKg = kg.value;
-      var density2 = numOrNull(dens.value);
       var kgVal = numOrNull(kg.value);
-      if (density2 !== null && kgVal !== null){ var l = round(kgVal / density2, 3); lt.value = l; d.qtyLt = l; }
-      else {
-        var ltVal2 = numOrNull(lt.value);
-        if (density2 === null && kgVal !== null && ltVal2 !== null && ltVal2 > 0){
-          var computedDensity = round(kgVal / ltVal2, 4);
-          dens.value = computedDensity; d.density = computedDensity;
-        }
-      }
+      if (density !== null && kgVal !== null){ var l = round(kgVal / density, 3); lt.value = l; d.qtyLt = l; }
     } else if (target.id === 'caricoDensity'){
       d.density = dens.value;
-      var density3 = numOrNull(dens.value);
       var ltVal3 = numOrNull(lt.value);
       var kgVal3 = numOrNull(kg.value);
-      if (density3 !== null && ltVal3 !== null){ var k2 = round(ltVal3 * density3, 3); kg.value = k2; d.qtyKg = k2; }
-      else if (density3 !== null && kgVal3 !== null){ var l2 = round(kgVal3 / density3, 3); lt.value = l2; d.qtyLt = l2; }
+      if (density !== null && ltVal3 !== null){ var k2 = round(ltVal3 * density, 3); kg.value = k2; d.qtyKg = k2; }
+      else if (density !== null && kgVal3 !== null){ var l2 = round(kgVal3 / density, 3); lt.value = l2; d.qtyLt = l2; }
     }
     // update anidri readonly box live (only present for materie liquide)
     var box = document.querySelector('#caricoForm .readonly-box');
     if (box){
       var anidri = anidriFor(numOrNull(d.qtyLt), numOrNull(d.grade));
       box.innerHTML = (anidri===null?'—':fmt(anidri,3)) + '<span class="unit">Lt</span>';
+    }
+  }
+
+  // Runs once a user finishes editing Lt or Kg (blur/change, not every keystroke):
+  // if density is still unknown and both quantities are now filled in, derive it.
+  // Deriving it live on every keystroke would lock in a wrong value from a
+  // half-typed number (e.g. "9" before the user finishes typing "9.4") and
+  // then start overwriting whichever field the user is still editing.
+  function handleCaricoBlurAutoDensity(){
+    var d = state.carico;
+    var lt = document.getElementById('caricoLt');
+    var kg = document.getElementById('caricoKg');
+    var dens = document.getElementById('caricoDensity');
+    if (!lt || !kg || !dens) return;
+    if (numOrNull(dens.value) !== null) return;
+    var ltVal = numOrNull(lt.value);
+    var kgVal = numOrNull(kg.value);
+    if (ltVal !== null && ltVal > 0 && kgVal !== null){
+      var computed = round(kgVal / ltVal, 4);
+      dens.value = computed;
+      d.density = computed;
+      if (d.grade !== '' && d.grade !== null && d.grade !== undefined){
+        var box = document.querySelector('#caricoForm .readonly-box');
+        if (box){
+          var anidri = anidriFor(ltVal, numOrNull(d.grade));
+          box.innerHTML = (anidri===null?'—':fmt(anidri,3)) + '<span class="unit">Lt</span>';
+        }
+      }
     }
   }
 
@@ -1803,6 +1815,7 @@
         if (ref){ state.carico.density = ref.density===null||ref.density===undefined?'':ref.density; state.carico.grade = ref.grade===null||ref.grade===undefined?'':ref.grade; }
         render(); return;
       }
+      if (t.id === 'caricoLt' || t.id === 'caricoKg'){ handleCaricoBlurAutoDensity(); return; }
       if (t.id === 'scaricoRef'){ state.scarico = freshScaricoDraft(); state.scarico.refId = t.value; render(); return; }
       if (t.id === 'scaricoLot'){ state.scarico.lotId = t.value; render(); return; }
       if (t.getAttribute && t.getAttribute('data-comp-field') === 'refId'){
