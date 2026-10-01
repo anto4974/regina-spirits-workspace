@@ -1366,13 +1366,16 @@
   // — but only lots with no density of their own, never one entered for a
   // specific batch.
   function backfillLotsDensity(refId, density){
+    // A now-fixed earlier bug stored qtyLt as 0 (instead of leaving it empty)
+    // on liquid lots carico'd with Kg only, so an exact 0 is treated the same
+    // as "never recorded" here — never a real, intentionally-tracked zero.
     var toFix = lotsForRef(refId).filter(function(l){ return l.density === null || l.density === undefined; });
     if (!toFix.length) return Promise.resolve();
     return Promise.all(toFix.map(function(l){
       var patch = { density: density };
-      if ((l.qtyKg !== null && l.qtyKg !== undefined) && (l.qtyLt === null || l.qtyLt === undefined)){
+      if (l.qtyKg && !l.qtyLt){
         patch.qtyLt = round(l.qtyKg / density, 3);
-      } else if ((l.qtyLt !== null && l.qtyLt !== undefined) && (l.qtyKg === null || l.qtyKg === undefined)){
+      } else if (l.qtyLt && !l.qtyKg){
         patch.qtyKg = round(l.qtyLt * density, 3);
       }
       Object.keys(patch).forEach(function(k){ l[k] = patch[k]; }); // reflect locally without waiting on the listener
