@@ -176,6 +176,7 @@
     background:var(--surface); color:var(--terra); font-family:'Oswald', sans-serif; font-size:.6rem;
     text-transform:uppercase; cursor:pointer;
   }
+  .lot-actions{ display:flex; flex-direction:column; gap:.3rem; flex:none; }
 
   .thumb{
     flex:none; width:3.6rem; height:3.6rem; border-radius:.6rem; border:1px solid var(--line);
@@ -389,6 +390,7 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <div class="modal-overlay" id="refModalOverlay" hidden></div>
+  <div class="modal-overlay" id="lotModalOverlay" hidden></div>
   <div class="modal-overlay" id="pushModalOverlay" hidden></div>
   <div class="modal-overlay" id="confirmModalOverlay" hidden></div>
   <input type="file" id="photoInput" accept="image/*" hidden>
@@ -505,6 +507,7 @@
     search: '',
     expandedRef: null,
     refModal: null,       // { mode:'new'|'edit', draft:{...}, returnTo:null|'carico' }
+    lotModal: null,        // { lotId, draft:{qtyLt, qtyKg, density, grade} }
     pushModal: null,      // { productionId, mode:'existing'|'new', productId, newName, location, qty }
     confirmModal: null,   // { title, message, onConfirm }
     carico: freshCaricoDraft(),
@@ -777,7 +780,10 @@
             if (l.qtyLt !== null && l.qtyLt !== undefined) qtyParts.push(fmt(l.qtyLt,3) + ' Lt');
             if (l.qtyKg !== null && l.qtyKg !== undefined) qtyParts.push(fmt(l.qtyKg,3) + ' Kg');
             html += '<div class="lot-qty">' + qtyParts.join('<br>') + '</div>';
+            html += '<div class="lot-actions">';
+            html += '<button type="button" class="lot-mini-btn" data-action="edit-lot" data-lot="' + l.id + '">Modifica</button>';
             html += '<button type="button" class="lot-mini-btn" data-action="quick-scarico" data-ref="' + r.id + '" data-lot="' + l.id + '">Scarico</button>';
+            html += '</div>';
             html += '</div>';
           });
           html += '</div>';
@@ -1179,7 +1185,7 @@
     html += '<div class="move-list">';
     moves.forEach(function(m){
       var isPlus = m.delta > 0;
-      var typeLabel = m.type === 'carico' ? 'Carico' : (m.type === 'scarico_produzione' ? 'Scarico produzione' : 'Scarico');
+      var typeLabel = m.type === 'carico' ? 'Carico' : (m.type === 'scarico_produzione' ? 'Scarico produzione' : (m.type === 'correzione' ? 'Correzione' : 'Scarico'));
       html += '<div class="move-row">';
       html += '<div class="move-main"><span class="move-name">' + escapeHtml(m.refName) + '</span><span class="move-sub">' + typeLabel + ' · lotto ' + escapeHtml(m.lotto) + '</span>';
       if (m.causale) html += '<span class="move-causale">' + escapeHtml(m.causale) + '</span>';
@@ -1253,6 +1259,139 @@
 
     overlay.innerHTML = html;
     overlay.hidden = false;
+  }
+
+  // ==================================================================
+  // MODAL: edit lot stock directly (manual correction)
+  // ==================================================================
+  function openLotModal(lotId){
+    var lot = lotById(lotId);
+    if (!lot) return;
+    state.lotModal = {
+      lotId: lotId,
+      draft: {
+        qtyLt: lot.qtyLt === null || lot.qtyLt === undefined ? '' : lot.qtyLt,
+        qtyKg: lot.qtyKg === null || lot.qtyKg === undefined ? '' : lot.qtyKg,
+        density: lot.density === null || lot.density === undefined ? '' : lot.density,
+        grade: lot.grade === null || lot.grade === undefined ? '' : lot.grade
+      }
+    };
+    renderLotModal();
+  }
+  function closeLotModal(){
+    state.lotModal = null;
+    document.getElementById('lotModalOverlay').hidden = true;
+    document.getElementById('lotModalOverlay').innerHTML = '';
+  }
+
+  function renderLotModal(){
+    var overlay = document.getElementById('lotModalOverlay');
+    var m = state.lotModal;
+    if (!m){ overlay.hidden = true; return; }
+    var lot = lotById(m.lotId);
+    if (!lot){ closeLotModal(); return; }
+    var ref = referenceById(lot.refId);
+    var d = m.draft;
+    var html = '<div class="modal-sheet">';
+    html += '<h2 class="modal-title">Modifica giacenza lotto</h2>';
+    html += '<p class="modal-subtitle">' + escapeHtml(lot.refName) + ' — Lotto ' + escapeHtml(lot.lotto) + '</p>';
+    html += '<p class="modal-hint">Corregge direttamente la quantità disponibile di questo lotto, senza registrare un carico o uno scarico.</p>';
+
+    html += '<div class="row-split3">';
+    html += '<div class="modal-field"><label>Quantità (Lt)</label><input type="number" step="0.001" min="0" id="lotQtyLt" value="' + escapeHtml(d.qtyLt) + '"></div>';
+    html += '<div class="modal-field"><label>Quantità (Kg)</label><input type="number" step="0.001" min="0" id="lotQtyKg" value="' + escapeHtml(d.qtyKg) + '"></div>';
+    html += '<div class="modal-field"><label>Densità (kg/Lt)</label><input type="number" step="0.0001" min="0" id="lotDensity" value="' + escapeHtml(d.density) + '"></div>';
+    html += '</div>';
+    if (ref && ref.unit === 'liquido'){
+      html += '<div class="modal-field"><label>Gradazione (%)</label><input type="number" step="0.1" min="0" max="100" id="lotGrade" value="' + escapeHtml(d.grade) + '"></div>';
+    }
+
+    html += '<div class="btn-row"><button type="button" class="btn btn-ghost" data-action="close-lot-modal">Annulla</button><button type="button" class="btn btn-primary" data-action="save-lot">Salva</button></div>';
+    html += '</div>';
+    overlay.innerHTML = html;
+    overlay.hidden = false;
+  }
+
+  function handleLotModalInput(target){
+    var d = state.lotModal.draft;
+    var lt = document.getElementById('lotQtyLt');
+    var kg = document.getElementById('lotQtyKg');
+    var dens = document.getElementById('lotDensity');
+    var density = numOrNull(dens.value);
+    if (target.id === 'lotQtyLt'){
+      d.qtyLt = lt.value;
+      var ltVal = numOrNull(lt.value);
+      if (density !== null && ltVal !== null){ var k = round(ltVal * density, 3); kg.value = k; d.qtyKg = k; }
+    } else if (target.id === 'lotQtyKg'){
+      d.qtyKg = kg.value;
+      var kgVal = numOrNull(kg.value);
+      if (density !== null && kgVal !== null){ var l = round(kgVal / density, 3); lt.value = l; d.qtyLt = l; }
+    } else if (target.id === 'lotDensity'){
+      d.density = dens.value;
+      var ltVal3 = numOrNull(lt.value);
+      var kgVal3 = numOrNull(kg.value);
+      if (density !== null && ltVal3 !== null){ var k2 = round(ltVal3 * density, 3); kg.value = k2; d.qtyKg = k2; }
+      else if (density !== null && kgVal3 !== null){ var l2 = round(kgVal3 / density, 3); lt.value = l2; d.qtyLt = l2; }
+    }
+  }
+
+  // Same reasoning as handleCaricoBlurAutoDensity: only derive density from
+  // Lt+Kg once the user finishes editing one of the two fields, not on every
+  // keystroke, or a half-typed number locks in the wrong value.
+  function handleLotModalBlurAutoDensity(){
+    var d = state.lotModal.draft;
+    var lt = document.getElementById('lotQtyLt');
+    var kg = document.getElementById('lotQtyKg');
+    var dens = document.getElementById('lotDensity');
+    if (!lt || !kg || !dens) return;
+    if (numOrNull(dens.value) !== null) return;
+    var ltVal = numOrNull(lt.value);
+    var kgVal = numOrNull(kg.value);
+    if (ltVal !== null && ltVal > 0 && kgVal !== null){
+      var computed = round(kgVal / ltVal, 4);
+      dens.value = computed;
+      d.density = computed;
+    }
+  }
+
+  function saveLotEdit(){
+    var m = state.lotModal;
+    var lot = lotById(m.lotId);
+    if (!lot) return;
+    var ref = referenceById(lot.refId);
+    var newQtyLt = numOrNull(document.getElementById('lotQtyLt').value);
+    var newQtyKg = numOrNull(document.getElementById('lotQtyKg').value);
+    var newDensity = numOrNull(document.getElementById('lotDensity').value);
+    var gradeInput = document.getElementById('lotGrade');
+    var newGrade = gradeInput ? numOrNull(gradeInput.value) : (lot.grade === undefined ? null : lot.grade);
+
+    var oldPrimary = ref && ref.unit === 'liquido' ? (lot.qtyLt || 0) : (lot.qtyKg || 0);
+    var patch = {
+      qtyLt: newQtyLt === null ? null : round(newQtyLt, 3),
+      qtyKg: newQtyKg === null ? null : round(newQtyKg, 3),
+      density: newDensity,
+      grade: newGrade
+    };
+    var newPrimary = ref && ref.unit === 'liquido' ? (patch.qtyLt || 0) : (patch.qtyKg || 0);
+    var delta = round(newPrimary - oldPrimary, 3);
+
+    window.__fb.setDoc(LOTS_COLL + '/' + lot.id, patch, true).then(function(){
+      Object.keys(patch).forEach(function(k){ lot[k] = patch[k]; });
+      if (delta !== 0){
+        logProdMovement({
+          type:'correzione', refId: lot.refId, refName: lot.refName, lotto: lot.lotto,
+          unit: ref && ref.unit === 'liquido' ? 'lt' : 'kg',
+          delta: delta,
+          causale: 'Correzione manuale giacenza'
+        });
+      }
+      showToast('Giacenza aggiornata.');
+      closeLotModal();
+      render();
+    }).catch(function(e){
+      console.error(e);
+      showToast('Salvataggio non riuscito. Riprova.', saveLotEdit);
+    });
   }
 
   // ==================================================================
@@ -1811,6 +1950,9 @@
       if (action === 'ref-set-unit'){ state.refModal.draft.unit = el.getAttribute('data-unit'); renderRefModal(); return; }
       if (action === 'toggle-lots'){ var id = el.getAttribute('data-id'); state.expandedRef = state.expandedRef === id ? null : id; render(); return; }
       if (action === 'quick-scarico'){ state.scarico = freshScaricoDraft(); state.scarico.refId = el.getAttribute('data-ref'); state.scarico.lotId = el.getAttribute('data-lot'); state.view = 'scarico'; render(); return; }
+      if (action === 'edit-lot'){ openLotModal(el.getAttribute('data-lot')); return; }
+      if (action === 'close-lot-modal'){ closeLotModal(); return; }
+      if (action === 'save-lot'){ saveLotEdit(); return; }
 
       if (action === 'save-carico'){ saveCarico(); return; }
       if (action === 'save-scarico'){ saveScarico(); return; }
@@ -1853,6 +1995,7 @@
         render(); return;
       }
       if (t.id === 'caricoLt' || t.id === 'caricoKg'){ handleCaricoBlurAutoDensity(); return; }
+      if (t.id === 'lotQtyLt' || t.id === 'lotQtyKg'){ handleLotModalBlurAutoDensity(); return; }
       if (t.id === 'scaricoRef'){ state.scarico = freshScaricoDraft(); state.scarico.refId = t.value; render(); return; }
       if (t.id === 'scaricoLot'){ state.scarico.lotId = t.value; render(); return; }
       if (t.getAttribute && t.getAttribute('data-comp-field') === 'refId'){
@@ -1936,6 +2079,8 @@
       if (t.id === 'refDensity'){ state.refModal.draft.density = t.value; return; }
       if (t.id === 'refGrade'){ state.refModal.draft.grade = t.value; return; }
       if (t.id === 'refNotes'){ state.refModal.draft.notes = t.value; return; }
+      if (t.id === 'lotQtyLt' || t.id === 'lotQtyKg' || t.id === 'lotDensity'){ handleLotModalInput(t); return; }
+      if (t.id === 'lotGrade'){ state.lotModal.draft.grade = t.value; return; }
       if (t.id === 'pushNewName'){ state.pushModal.newName = t.value; return; }
       if (t.id === 'pushQty'){ state.pushModal.qty = t.value; return; }
     });
