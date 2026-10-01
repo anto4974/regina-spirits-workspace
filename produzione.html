@@ -816,20 +816,19 @@
       html += '<div class="field"><label for="caricoLotto">Lotto</label><input type="text" id="caricoLotto" placeholder="Es. L2026-001" value="' + escapeHtml(d.lotto) + '" list="caricoLottiList"></div>';
       html += '<datalist id="caricoLottiList">' + lotsForRef(ref.id).map(function(l){ return '<option value="' + escapeHtml(l.lotto) + '">'; }).join('') + '</datalist>';
 
+      html += '<div class="row-split3">';
+      html += fieldInput('caricoLt', 'Quantità (Lt) — opzionale', 'number', d.qtyLt, 'step="0.001" min="0"');
+      html += fieldInput('caricoKg', 'Quantità (Kg)', 'number', d.qtyKg, 'step="0.001" min="0"');
+      html += fieldInput('caricoDensity', 'Densità (kg/Lt) — opzionale', 'number', d.density, 'step="0.0001" min="0"');
+      html += '</div>';
+      html += '<div class="field-hint">Inserisci Lt o Kg: se conosci la densità, l\'altro valore si calcola da solo. Se inserisci sia Lt che Kg senza densità, verrà calcolata automaticamente. Vale anche per i materiali solidi (es. densità in cartoni/sacchi).</div>';
+
       if (ref.unit === 'liquido'){
-        html += '<div class="row-split3">';
-        html += fieldInput('caricoLt', 'Quantità (Lt)', 'number', d.qtyLt, 'step="0.001" min="0"');
-        html += fieldInput('caricoKg', 'Quantità (Kg)', 'number', d.qtyKg, 'step="0.001" min="0"');
-        html += fieldInput('caricoDensity', 'Densità (kg/Lt)', 'number', d.density, 'step="0.0001" min="0"');
-        html += '</div>';
-        html += '<div class="field-hint">Inserisci Lt o Kg: se conosci la densità, l\'altro valore si calcola da solo. Se inserisci sia Lt che Kg senza densità, verrà calcolata automaticamente.</div>';
         html += '<div class="row-split">';
         html += fieldInput('caricoGrade', 'Gradazione (%) — opzionale', 'number', d.grade, 'step="0.1" min="0" max="100"');
         var anidri = anidriFor(numOrNull(d.qtyLt), numOrNull(d.grade));
         html += '<div class="field"><label>Litri anidri</label><div class="readonly-box">' + (anidri===null?'—':fmt(anidri,3)) + '<span class="unit">Lt</span></div></div>';
         html += '</div>';
-      } else {
-        html += fieldInput('caricoKg', 'Quantità (Kg)', 'number', d.qtyKg, 'step="0.001" min="0"');
       }
 
       html += '<div class="field"><label for="caricoCausale">Causale (opzionale)</label><input type="text" id="caricoCausale" placeholder="Es. arrivo fornitore XY" value="' + escapeHtml(d.causale) + '"></div>';
@@ -874,8 +873,10 @@
       var lots = lotsForRef(ref.id).filter(function(l){ return (l.qtyLt||0) > 0.0005 || (l.qtyKg||0) > 0.0005; });
       html += fieldSelect('scaricoLot', 'Lotto', [{value:'', label:'— Seleziona lotto —'}]
         .concat(lots.map(function(l){
-          var av = ref.unit === 'liquido' ? fmt(l.qtyLt,3) + ' Lt' : fmt(l.qtyKg,3) + ' Kg';
-          return { value:l.id, label:'Lotto ' + l.lotto + ' — disp. ' + av };
+          var avParts = [];
+          if (l.qtyLt !== null && l.qtyLt !== undefined) avParts.push(fmt(l.qtyLt,3) + ' Lt');
+          if (l.qtyKg !== null && l.qtyKg !== undefined) avParts.push(fmt(l.qtyKg,3) + ' Kg');
+          return { value:l.id, label:'Lotto ' + l.lotto + ' — disp. ' + avParts.join(' / ') };
         })), d.lotId);
     }
 
@@ -888,14 +889,10 @@
         (lot.qtyKg!==null&&lot.qtyKg!==undefined? fmt(lot.qtyKg,3)+' Kg':'') +
         (meta.length? ' &nbsp;(' + meta.join(', ') + ')':'') + '</div>';
 
-      if (ref.unit === 'liquido'){
-        html += '<div class="row-split">';
-        html += fieldInput('scaricoLt', 'Da scaricare (Lt)', 'number', d.qtyLt, 'step="0.001" min="0"');
-        html += fieldInput('scaricoKg', 'Da scaricare (Kg)', 'number', d.qtyKg, 'step="0.001" min="0"');
-        html += '</div>';
-      } else {
-        html += fieldInput('scaricoKg', 'Da scaricare (Kg)', 'number', d.qtyKg, 'step="0.001" min="0"');
-      }
+      html += '<div class="row-split">';
+      html += fieldInput('scaricoLt', 'Da scaricare (Lt) — opzionale', 'number', d.qtyLt, 'step="0.001" min="0"');
+      html += fieldInput('scaricoKg', 'Da scaricare (Kg)', 'number', d.qtyKg, 'step="0.001" min="0"');
+      html += '</div>';
       html += '<div class="field"><label for="scaricoCausale">Causale (opzionale)</label><input type="text" id="scaricoCausale" placeholder="Es. scarto, campione, rettifica" value="' + escapeHtml(d.causale) + '"></div>';
       html += '<div class="btn-row"><button type="button" class="btn btn-bad" data-action="save-scarico">Registra scarico</button></div>';
     }
@@ -1239,12 +1236,12 @@
     html += '<button type="button" class="seg-btn' + (d.unit==='solido'?' active':'') + '" data-action="ref-set-unit" data-unit="solido">Solido</button>';
     html += '</div></div>';
 
+    html += '<div class="row-split">';
+    html += '<div class="modal-field"><label>Densità (kg/Lt) — opzionale</label><input type="number" step="0.0001" min="0" id="refDensity" value="' + escapeHtml(d.density) + '"></div>';
     if (d.unit === 'liquido'){
-      html += '<div class="row-split">';
-      html += '<div class="modal-field"><label>Densità (kg/Lt) — opzionale</label><input type="number" step="0.0001" min="0" id="refDensity" value="' + escapeHtml(d.density) + '"></div>';
       html += '<div class="modal-field"><label>Gradazione (%) — opzionale</label><input type="number" step="0.1" min="0" max="100" id="refGrade" value="' + escapeHtml(d.grade) + '"></div>';
-      html += '</div>';
     }
+    html += '</div>';
 
     html += '<div class="modal-field"><label>Note (opzionale)</label><input type="text" id="refNotes" value="' + escapeHtml(d.notes) + '"></div>';
 
@@ -1330,7 +1327,7 @@
     var name = document.getElementById('refName').value.trim();
     if (!name){ showToast('Inserisci il nome della referenza.'); return; }
     var unit = d.unit;
-    var density = unit === 'liquido' ? numOrNull(document.getElementById('refDensity').value) : null;
+    var density = numOrNull(document.getElementById('refDensity').value);
     var grade = unit === 'liquido' ? numOrNull(document.getElementById('refGrade').value) : null;
     var notes = document.getElementById('refNotes').value.trim();
     var id = d.id || uid('ref');
@@ -1372,50 +1369,46 @@
     if (target.id === 'caricoCausale') d.causale = target.value;
     if (target.id === 'caricoGrade') d.grade = target.value;
 
-    if (ref.unit === 'liquido'){
-      var lt = document.getElementById('caricoLt');
-      var kg = document.getElementById('caricoKg');
-      var dens = document.getElementById('caricoDensity');
-      if (target.id === 'caricoLt'){
-        d.qtyLt = lt.value;
-        var density = numOrNull(dens.value);
-        var ltVal = numOrNull(lt.value);
-        if (density !== null && ltVal !== null){ var k = round(ltVal * density, 3); kg.value = k; d.qtyKg = k; }
-        else {
-          var kgVal0 = numOrNull(kg.value);
-          if (density === null && kgVal0 !== null && ltVal !== null && ltVal > 0){
-            var computedDensity0 = round(kgVal0 / ltVal, 4);
-            dens.value = computedDensity0; d.density = computedDensity0;
-          }
+    var lt = document.getElementById('caricoLt');
+    var kg = document.getElementById('caricoKg');
+    var dens = document.getElementById('caricoDensity');
+    if (target.id === 'caricoLt'){
+      d.qtyLt = lt.value;
+      var density = numOrNull(dens.value);
+      var ltVal = numOrNull(lt.value);
+      if (density !== null && ltVal !== null){ var k = round(ltVal * density, 3); kg.value = k; d.qtyKg = k; }
+      else {
+        var kgVal0 = numOrNull(kg.value);
+        if (density === null && kgVal0 !== null && ltVal !== null && ltVal > 0){
+          var computedDensity0 = round(kgVal0 / ltVal, 4);
+          dens.value = computedDensity0; d.density = computedDensity0;
         }
-      } else if (target.id === 'caricoKg'){
-        d.qtyKg = kg.value;
-        var density2 = numOrNull(dens.value);
-        var kgVal = numOrNull(kg.value);
-        if (density2 !== null && kgVal !== null){ var l = round(kgVal / density2, 3); lt.value = l; d.qtyLt = l; }
-        else {
-          var ltVal2 = numOrNull(lt.value);
-          if (density2 === null && kgVal !== null && ltVal2 !== null && ltVal2 > 0){
-            var computedDensity = round(kgVal / ltVal2, 4);
-            dens.value = computedDensity; d.density = computedDensity;
-          }
+      }
+    } else if (target.id === 'caricoKg'){
+      d.qtyKg = kg.value;
+      var density2 = numOrNull(dens.value);
+      var kgVal = numOrNull(kg.value);
+      if (density2 !== null && kgVal !== null){ var l = round(kgVal / density2, 3); lt.value = l; d.qtyLt = l; }
+      else {
+        var ltVal2 = numOrNull(lt.value);
+        if (density2 === null && kgVal !== null && ltVal2 !== null && ltVal2 > 0){
+          var computedDensity = round(kgVal / ltVal2, 4);
+          dens.value = computedDensity; d.density = computedDensity;
         }
-      } else if (target.id === 'caricoDensity'){
-        d.density = dens.value;
-        var density3 = numOrNull(dens.value);
-        var ltVal3 = numOrNull(lt.value);
-        var kgVal3 = numOrNull(kg.value);
-        if (density3 !== null && ltVal3 !== null){ var k2 = round(ltVal3 * density3, 3); kg.value = k2; d.qtyKg = k2; }
-        else if (density3 !== null && kgVal3 !== null){ var l2 = round(kgVal3 / density3, 3); lt.value = l2; d.qtyLt = l2; }
       }
-      // update anidri readonly box live
-      var box = document.querySelector('#caricoForm .readonly-box');
-      if (box){
-        var anidri = anidriFor(numOrNull(d.qtyLt), numOrNull(d.grade));
-        box.innerHTML = (anidri===null?'—':fmt(anidri,3)) + '<span class="unit">Lt</span>';
-      }
-    } else {
-      if (target.id === 'caricoKg') d.qtyKg = target.value;
+    } else if (target.id === 'caricoDensity'){
+      d.density = dens.value;
+      var density3 = numOrNull(dens.value);
+      var ltVal3 = numOrNull(lt.value);
+      var kgVal3 = numOrNull(kg.value);
+      if (density3 !== null && ltVal3 !== null){ var k2 = round(ltVal3 * density3, 3); kg.value = k2; d.qtyKg = k2; }
+      else if (density3 !== null && kgVal3 !== null){ var l2 = round(kgVal3 / density3, 3); lt.value = l2; d.qtyLt = l2; }
+    }
+    // update anidri readonly box live (only present for materie liquide)
+    var box = document.querySelector('#caricoForm .readonly-box');
+    if (box){
+      var anidri = anidriFor(numOrNull(d.qtyLt), numOrNull(d.grade));
+      box.innerHTML = (anidri===null?'—':fmt(anidri,3)) + '<span class="unit">Lt</span>';
     }
   }
 
@@ -1425,9 +1418,9 @@
     if (!ref) return;
     var lotto = document.getElementById('caricoLotto').value.trim();
     if (!lotto){ showToast('Inserisci il numero di lotto.'); return; }
-    var qtyLt = ref.unit === 'liquido' ? numOrNull(document.getElementById('caricoLt').value) : null;
+    var qtyLt = numOrNull(document.getElementById('caricoLt').value);
     var qtyKg = numOrNull(document.getElementById('caricoKg').value);
-    var density = ref.unit === 'liquido' ? numOrNull(document.getElementById('caricoDensity').value) : null;
+    var density = numOrNull(document.getElementById('caricoDensity').value);
     var grade = ref.unit === 'liquido' ? numOrNull(document.getElementById('caricoGrade').value) : null;
     var causale = document.getElementById('caricoCausale').value.trim();
 
@@ -1440,11 +1433,12 @@
     var existing = lotById(lotId);
     var newQtyLt = (existing ? (existing.qtyLt||0) : 0) + (qtyLt || 0);
     var newQtyKg = (existing ? (existing.qtyKg||0) : 0) + (qtyKg || 0);
+    var hasLt = qtyLt !== null || (existing && existing.qtyLt !== null && existing.qtyLt !== undefined);
     var docData = {
       refId: ref.id, refName: ref.name, lotto: lotto, unit: ref.unit,
       density: density !== null ? density : (existing ? existing.density : null),
       grade: grade !== null ? grade : (existing ? existing.grade : null),
-      qtyLt: ref.unit === 'liquido' ? round(newQtyLt,3) : null,
+      qtyLt: hasLt ? round(newQtyLt,3) : null,
       qtyKg: round(newQtyKg,3),
       createdAt: existing ? existing.createdAt : new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -1471,7 +1465,7 @@
     var ref = referenceById(d.refId);
     var lot = lotById(d.lotId);
     if (!ref || !lot) return;
-    var qtyLt = ref.unit === 'liquido' ? numOrNull(document.getElementById('scaricoLt') ? document.getElementById('scaricoLt').value : null) : null;
+    var qtyLt = numOrNull(document.getElementById('scaricoLt') ? document.getElementById('scaricoLt').value : null);
     var qtyKg = numOrNull(document.getElementById('scaricoKg').value);
     var causale = document.getElementById('scaricoCausale').value.trim();
 
