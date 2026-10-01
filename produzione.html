@@ -1331,19 +1331,53 @@
     var grade = unit === 'liquido' ? numOrNull(document.getElementById('refGrade').value) : null;
     var notes = document.getElementById('refNotes').value.trim();
     var id = d.id || uid('ref');
+    var wasEdit = m.mode === 'edit';
     var docData = { name: name, unit: unit, density: density, grade: grade, photo: d.photo || null, notes: notes || null };
     window.__fb.setDoc(REFS_COLL + '/' + id, docData).then(function(){
-      showToast(m.mode === 'edit' ? 'Referenza aggiornata.' : 'Referenza creata.');
+      // Apply locally right away instead of waiting for the Firestore listener
+      // to echo it back — otherwise switching straight back to Carico can
+      // momentarily find no matching reference yet.
+      var idx = -1;
+      for (var i = 0; i < state.references.length; i++){ if (state.references[i].id === id){ idx = i; break; } }
+      var refObj = { id: id, name: docData.name, unit: docData.unit, density: docData.density, grade: docData.grade, photo: docData.photo, notes: docData.notes };
+      if (idx === -1) state.references.push(refObj); else state.references[idx] = refObj;
+      var backfill = (wasEdit && density !== null) ? backfillLotsDensity(id, density) : Promise.resolve();
+      return backfill;
+    }).then(function(){
+      showToast(wasEdit ? 'Referenza aggiornata.' : 'Referenza creata.');
       var returnTo = m.returnTo;
       closeRefModal();
       if (returnTo === 'carico'){
+        state.carico = freshCaricoDraft();
         state.carico.refId = id;
+        state.carico.density = density === null ? '' : density;
+        state.carico.grade = grade === null ? '' : grade;
         render();
       }
     }).catch(function(e){
       console.error(e);
       showToast('Salvataggio non riuscito. Riprova.');
     });
+  }
+
+  // When a reference gets a density it didn't have before, lots created while
+  // it was still unknown are stuck showing only one unit (e.g. just Kg, no
+  // Lt). Backfill the missing side for those lots now that density is known
+  // — but only lots with no density of their own, never one entered for a
+  // specific batch.
+  function backfillLotsDensity(refId, density){
+    var toFix = lotsForRef(refId).filter(function(l){ return l.density === null || l.density === undefined; });
+    if (!toFix.length) return Promise.resolve();
+    return Promise.all(toFix.map(function(l){
+      var patch = { density: density };
+      if ((l.qtyKg !== null && l.qtyKg !== undefined) && (l.qtyLt === null || l.qtyLt === undefined)){
+        patch.qtyLt = round(l.qtyKg / density, 3);
+      } else if ((l.qtyLt !== null && l.qtyLt !== undefined) && (l.qtyKg === null || l.qtyKg === undefined)){
+        patch.qtyKg = round(l.qtyLt * density, 3);
+      }
+      Object.keys(patch).forEach(function(k){ l[k] = patch[k]; }); // reflect locally without waiting on the listener
+      return window.__fb.setDoc(LOTS_COLL + '/' + l.id, patch, true);
+    }));
   }
 
   function deleteReference(id){
