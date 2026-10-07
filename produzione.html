@@ -178,6 +178,41 @@
   }
   .lot-actions{ display:flex; flex-direction:column; gap:.3rem; flex:none; }
 
+  .ai-warning{
+    background:color-mix(in srgb, var(--bad) 12%, var(--surface)); border:1px solid var(--bad);
+    color:var(--ink); border-radius:.6rem; padding:.65rem .8rem; font-size:.78rem; line-height:1.5; margin-bottom:.8rem;
+  }
+  .ai-warning a, .ai-warning button.link-btn{
+    color:var(--bad); font-weight:600; text-decoration:underline; background:none; border:none; padding:0;
+    cursor:pointer; font-size:inherit; font-family:inherit;
+  }
+  .file-picker-row{ display:flex; gap:.5rem; flex-wrap:wrap; }
+  .file-picker-btn{
+    flex:1; min-width:9rem; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.3rem;
+    padding:1.1rem .6rem; border-radius:.7rem; border:1.5px dashed var(--line); background:var(--surface-2);
+    color:var(--muted); cursor:pointer; font-family:'Oswald', sans-serif; font-size:.7rem; text-transform:uppercase; letter-spacing:.03em;
+  }
+  .file-picker-btn svg{ width:22px; height:22px; color:var(--terra); }
+  .file-chosen{
+    display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin-top:.7rem;
+    background:var(--surface-2); border:1px solid var(--line); border-radius:.6rem; padding:.55rem .7rem; font-size:.82rem;
+  }
+  .file-chosen-remove{
+    flex:none; width:1.8rem; height:1.8rem; border-radius:.5rem; border:1px solid var(--line); background:var(--surface);
+    color:var(--bad); display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .invoice-line{
+    background:var(--surface-2); border:1px solid var(--line); border-radius:.7rem; padding:.7rem .75rem;
+    display:flex; flex-direction:column; gap:.55rem; margin-bottom:.7rem;
+  }
+  .invoice-line-top{ display:flex; align-items:flex-start; gap:.5rem; justify-content:space-between; }
+  .invoice-line-check{ display:flex; align-items:center; gap:.4rem; font-size:.78rem; color:var(--muted); flex:none; }
+  .invoice-line-check input{ width:1.1rem; height:1.1rem; }
+  .invoice-raw{
+    font-size:.68rem; color:var(--muted); font-style:italic; background:var(--surface); border-radius:.4rem;
+    padding:.35rem .5rem; line-height:1.4;
+  }
+
   .thumb{
     flex:none; width:3.6rem; height:3.6rem; border-radius:.6rem; border:1px solid var(--line);
     background:var(--surface-2); color:var(--muted); display:flex; align-items:center; justify-content:center;
@@ -373,6 +408,7 @@
       </div>
       <div class="top-actions">
         <div class="top-icons">
+          <button type="button" class="icon-btn" id="settingsBtn" title="Impostazioni IA" aria-label="Impostazioni IA"></button>
           <button type="button" class="icon-btn" id="storicoBtn" title="Storico movimenti" aria-label="Storico movimenti"></button>
           <button type="button" class="signout-btn" id="signOutBtn" title="Esci" aria-label="Esci" hidden></button>
         </div>
@@ -393,6 +429,8 @@
   <div class="modal-overlay" id="lotModalOverlay" hidden></div>
   <div class="modal-overlay" id="pushModalOverlay" hidden></div>
   <div class="modal-overlay" id="confirmModalOverlay" hidden></div>
+  <div class="modal-overlay" id="settingsModalOverlay" hidden></div>
+  <div class="modal-overlay" id="invoiceModalOverlay" hidden></div>
   <input type="file" id="photoInput" accept="image/*" hidden>
 </div>
 
@@ -488,10 +526,17 @@
   var TABS = [
     { id:'materie',    label:'Materie Prime', icon: iconBox() },
     { id:'carico',     label:'Carico',        icon: iconPlus() },
+    { id:'fattura',    label:'Fattura',       icon: iconReceipt() },
     { id:'scarico',    label:'Scarico',       icon: iconMinus() },
     { id:'produzione', label:'Produzione',    icon: iconFlask() },
     { id:'ricette',    label:'Ricette',       icon: iconBook() }
   ];
+
+  var AI_KEY_STORAGE = 'regina-produzione-ai-key';
+  var AI_MODEL_STORAGE = 'regina-produzione-ai-model';
+  var AI_MODEL_DEFAULT = 'claude-sonnet-5';
+  var INVOICE_IMAGE_MAX_DIM = 1800;
+  var INVOICE_IMAGE_QUALITY = 0.85;
 
   // ---------- state ----------
   var state = {
@@ -510,12 +555,19 @@
     lotModal: null,        // { lotId, draft:{qtyLt, qtyKg, density, grade} }
     pushModal: null,      // { productionId, mode:'existing'|'new', productId, newName, location, qty }
     confirmModal: null,   // { title, message, onConfirm }
+    settingsModal: null,  // { draft:{apiKey, model} }
+    fattura: freshFatturaDraft(),
+    invoiceReview: null,  // { supplierName, lines:[...] }
     carico: freshCaricoDraft(),
     scarico: freshScaricoDraft(),
     produzione: freshProduzioneDraft(),
     ricette: { editingId: null, formOpen: false, draft: null },
     pendingPhotoTarget: null // 'refModal'
   };
+
+  function freshFatturaDraft(){
+    return { file: null, fileName: '', mediaType: '', base64: '', previewUrl: '', analyzing: false };
+  }
 
   function freshCaricoDraft(){
     return { refId:'', lotto:'', qtyLt:'', qtyKg:'', density:'', grade:'', causale:'' };
@@ -577,6 +629,8 @@
   function iconMinus(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>'; }
   function iconFlask(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6"/><path d="M10 3v6l-6 10a1.5 1.5 0 0 0 1.3 2.2h13.4A1.5 1.5 0 0 0 20 19L14 9V3"/><path d="M7.5 15h9"/></svg>'; }
   function iconBook(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z"/></svg>'; }
+  function iconReceipt(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2Z"/><path d="M9 7h6M9 11h6M9 15h3"/></svg>'; }
+  function iconSettings(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 9 19.35a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.64 15a1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.65 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.64a1.7 1.7 0 0 0 1.04-1.56V3a2 2 0 0 1 4 0v.09a1.7 1.7 0 0 0 1.04 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.36 9a1.7 1.7 0 0 0 1.56 1.04H21a2 2 0 0 1 0 4h-.09a1.7 1.7 0 0 0-1.56 1.04Z"/></svg>'; }
   function iconClock(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>'; }
   function iconLogout(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>'; }
   function iconEdit(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>'; }
@@ -722,6 +776,7 @@
     var html = '';
     if (state.view === 'materie') html = renderMaterieView();
     else if (state.view === 'carico') html = renderCaricoView();
+    else if (state.view === 'fattura') html = renderFatturaView();
     else if (state.view === 'scarico') html = renderScaricoView();
     else if (state.view === 'produzione') html = renderProduzioneView();
     else if (state.view === 'ricette') html = renderRicetteView();
@@ -1600,6 +1655,38 @@
     }
   }
 
+  // Shared by the manual Carico form and the invoice-import flow: upserts a
+  // lot's stock (adding to whatever is already there) and logs the movement.
+  // Keeps state.lots in sync locally so a batch of several commits in a row
+  // (e.g. multiple invoice lines for the same lot) sums correctly without
+  // waiting for Firestore's listener to echo each write back.
+  function commitCarico(ref, lotto, qtyLt, qtyKg, density, grade, causale){
+    var lotId = lotDocId(ref.id, lotto);
+    var existing = lotById(lotId);
+    var newQtyLt = (existing ? (existing.qtyLt||0) : 0) + (qtyLt || 0);
+    var newQtyKg = (existing ? (existing.qtyKg||0) : 0) + (qtyKg || 0);
+    var hasLt = qtyLt !== null || (existing && existing.qtyLt !== null && existing.qtyLt !== undefined);
+    var docData = {
+      refId: ref.id, refName: ref.name, lotto: lotto, unit: ref.unit,
+      density: density !== null ? density : (existing ? existing.density : null),
+      grade: grade !== null ? grade : (existing ? existing.grade : null),
+      qtyLt: hasLt ? round(newQtyLt,3) : null,
+      qtyKg: round(newQtyKg,3),
+      createdAt: existing ? existing.createdAt : new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    return window.__fb.setDoc(LOTS_COLL + '/' + lotId, docData).then(function(){
+      if (existing){ Object.keys(docData).forEach(function(k){ existing[k] = docData[k]; }); }
+      else { state.lots.push(Object.assign({ id: lotId }, docData)); }
+      logProdMovement({
+        type:'carico', refId: ref.id, refName: ref.name, lotto: lotto,
+        unit: ref.unit === 'liquido' ? 'lt' : 'kg',
+        delta: ref.unit === 'liquido' ? (qtyLt || 0) : (qtyKg || 0),
+        causale: causale || null
+      });
+    });
+  }
+
   function saveCarico(){
     var d = state.carico;
     var ref = referenceById(d.refId);
@@ -1617,27 +1704,7 @@
       return;
     }
 
-    var lotId = lotDocId(ref.id, lotto);
-    var existing = lotById(lotId);
-    var newQtyLt = (existing ? (existing.qtyLt||0) : 0) + (qtyLt || 0);
-    var newQtyKg = (existing ? (existing.qtyKg||0) : 0) + (qtyKg || 0);
-    var hasLt = qtyLt !== null || (existing && existing.qtyLt !== null && existing.qtyLt !== undefined);
-    var docData = {
-      refId: ref.id, refName: ref.name, lotto: lotto, unit: ref.unit,
-      density: density !== null ? density : (existing ? existing.density : null),
-      grade: grade !== null ? grade : (existing ? existing.grade : null),
-      qtyLt: hasLt ? round(newQtyLt,3) : null,
-      qtyKg: round(newQtyKg,3),
-      createdAt: existing ? existing.createdAt : new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    window.__fb.setDoc(LOTS_COLL + '/' + lotId, docData).then(function(){
-      logProdMovement({
-        type:'carico', refId: ref.id, refName: ref.name, lotto: lotto,
-        unit: ref.unit === 'liquido' ? 'lt' : 'kg',
-        delta: ref.unit === 'liquido' ? (qtyLt || 0) : (qtyKg || 0),
-        causale: causale || null
-      });
+    commitCarico(ref, lotto, qtyLt, qtyKg, density, grade, causale).then(function(){
       showToast('Carico registrato: lotto ' + lotto + '.');
       state.carico = freshCaricoDraft();
       state.carico.refId = ref.id;
@@ -1933,6 +2000,431 @@
   }
 
   // ==================================================================
+  // AI settings (Anthropic API key, stored only in this browser)
+  // ==================================================================
+  function getAiSettings(){
+    var apiKey = '', model = AI_MODEL_DEFAULT;
+    try { apiKey = localStorage.getItem(AI_KEY_STORAGE) || ''; } catch(e){}
+    try { model = localStorage.getItem(AI_MODEL_STORAGE) || AI_MODEL_DEFAULT; } catch(e){}
+    return { apiKey: apiKey, model: model };
+  }
+  function saveAiSettingsToStorage(apiKey, model){
+    try { localStorage.setItem(AI_KEY_STORAGE, apiKey || ''); } catch(e){}
+    try { localStorage.setItem(AI_MODEL_STORAGE, model || AI_MODEL_DEFAULT); } catch(e){}
+  }
+
+  function openSettingsModal(){
+    var ai = getAiSettings();
+    state.settingsModal = { draft: { apiKey: ai.apiKey, model: ai.model } };
+    renderSettingsModal();
+  }
+  function closeSettingsModal(){
+    state.settingsModal = null;
+    document.getElementById('settingsModalOverlay').hidden = true;
+    document.getElementById('settingsModalOverlay').innerHTML = '';
+  }
+  function renderSettingsModal(){
+    var overlay = document.getElementById('settingsModalOverlay');
+    var m = state.settingsModal;
+    if (!m){ overlay.hidden = true; return; }
+    var d = m.draft;
+    var html = '<div class="modal-sheet">';
+    html += '<h2 class="modal-title">Lettura fatture con IA</h2>';
+    html += '<p class="modal-subtitle">Serve una chiave API Anthropic (Claude). Resta salvata solo su questo dispositivo/browser, non viene mai inviata altrove se non ad Anthropic per leggere la fattura.</p>';
+    html += '<div class="modal-field"><label>Chiave API Anthropic</label><input type="password" id="settingsApiKey" value="' + escapeHtml(d.apiKey) + '" placeholder="sk-ant-..." autocomplete="off"></div>';
+    html += '<div class="modal-field"><label>Modello (avanzato)</label><input type="text" id="settingsModel" value="' + escapeHtml(d.model) + '"></div>';
+    html += '<p class="modal-hint">La chiave si ottiene su console.anthropic.com → API Keys. Ogni fattura analizzata ha un piccolo costo a consumo sul tuo account Anthropic.</p>';
+    html += '<div class="btn-row"><button type="button" class="btn btn-ghost" data-action="close-settings-modal">Annulla</button><button type="button" class="btn btn-primary" data-action="save-settings">Salva</button></div>';
+    html += '</div>';
+    overlay.innerHTML = html;
+    overlay.hidden = false;
+  }
+  function saveSettingsModal(){
+    var apiKey = document.getElementById('settingsApiKey').value.trim();
+    var model = document.getElementById('settingsModel').value.trim() || AI_MODEL_DEFAULT;
+    saveAiSettingsToStorage(apiKey, model);
+    showToast('Impostazioni salvate.');
+    closeSettingsModal();
+    render();
+  }
+
+  // ==================================================================
+  // VIEW: Fattura (carico guidato dalla lettura IA di una fattura)
+  // ==================================================================
+  function renderFatturaView(){
+    var ai = getAiSettings();
+    var d = state.fattura;
+    var html = '';
+    html += '<div class="section-title">Carica fattura fornitore</div>';
+    html += '<div class="section-sub">Carica una foto o un PDF della fattura: l\'IA propone le righe (prodotto, quantità, lotto) da controllare prima di registrare i carichi.</div>';
+
+    if (!ai.apiKey){
+      html += '<div class="ai-warning">Per usare questa funzione serve prima una chiave API. <button type="button" class="link-btn" data-action="open-settings">Impostala qui</button>.</div>';
+    }
+
+    html += '<div class="form-card">';
+    if (!d.base64){
+      html += '<div class="file-picker-row">';
+      html += '<label class="file-picker-btn">' + iconCamera() + '<span>Scatta foto</span><input type="file" accept="image/*" capture="environment" id="fatturaCameraInput" hidden></label>';
+      html += '<label class="file-picker-btn">' + iconUpload() + '<span>Carica file</span><input type="file" accept="image/*,application/pdf" id="fatturaFileInput" hidden></label>';
+      html += '</div>';
+    } else {
+      html += '<div class="file-chosen">';
+      if (d.previewUrl) html += '<img src="' + d.previewUrl + '" alt="" style="width:2.6rem;height:2.6rem;object-fit:cover;border-radius:.4rem;flex:none;">';
+      html += '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(d.fileName) + '</span>';
+      html += '<button type="button" class="file-chosen-remove" data-action="remove-fattura-file">' + iconTrash() + '</button>';
+      html += '</div>';
+      html += '<div class="btn-row" style="margin-top:.8rem;"><button type="button" class="btn btn-primary btn-block" data-action="analyze-fattura"' + ((d.analyzing || !ai.apiKey) ? ' disabled' : '') + '>' + (d.analyzing ? 'Analisi in corso…' : 'Analizza con IA') + '</button></div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function compressImageForInvoice(file){
+    return new Promise(function(resolve, reject){
+      var reader = new FileReader();
+      reader.onerror = function(){ reject(new Error('read_failed')); };
+      reader.onload = function(){
+        var img = new Image();
+        img.onerror = function(){ reject(new Error('decode_failed')); };
+        img.onload = function(){
+          var w = img.width, h = img.height;
+          var scale = Math.min(1, INVOICE_IMAGE_MAX_DIM / Math.max(w, h));
+          var cw = Math.max(1, Math.round(w * scale));
+          var ch = Math.max(1, Math.round(h * scale));
+          var canvas = document.createElement('canvas');
+          canvas.width = cw; canvas.height = ch;
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, cw, ch);
+          try {
+            var dataUrl = canvas.toDataURL('image/jpeg', INVOICE_IMAGE_QUALITY);
+            resolve({ dataUrl: dataUrl, base64: dataUrl.split(',')[1], mediaType: 'image/jpeg' });
+          } catch(e){ reject(e); }
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+  function readFileAsBase64(file){
+    return new Promise(function(resolve, reject){
+      var reader = new FileReader();
+      reader.onerror = function(){ reject(new Error('read_failed')); };
+      reader.onload = function(){
+        var dataUrl = reader.result;
+        resolve({ dataUrl: dataUrl, base64: dataUrl.split(',')[1], mediaType: file.type || 'application/pdf' });
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function handleFatturaFileSelected(file){
+    if (!file) return;
+    var isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+    state.fattura.fileName = file.name || (isPdf ? 'fattura.pdf' : 'fattura.jpg');
+    var task = isPdf ? readFileAsBase64(file) : compressImageForInvoice(file);
+    task.then(function(res){
+      state.fattura.base64 = res.base64;
+      state.fattura.mediaType = res.mediaType;
+      state.fattura.previewUrl = isPdf ? '' : res.dataUrl;
+      render();
+    }).catch(function(err){
+      console.error(err);
+      showToast('Non riesco a leggere questo file. Prova con un\'altra foto o un altro PDF.');
+    });
+  }
+
+  function analyzeFattura(){
+    var d = state.fattura;
+    var ai = getAiSettings();
+    if (!ai.apiKey){ showToast('Imposta prima la chiave API.'); openSettingsModal(); return; }
+    if (!d.base64){ showToast('Carica prima una foto o un PDF della fattura.'); return; }
+    d.analyzing = true;
+    render();
+
+    var contentType = d.mediaType === 'application/pdf' ? 'document' : 'image';
+    var body = {
+      model: ai.model,
+      max_tokens: 4096,
+      tools: [{
+        name: 'registra_righe_fattura',
+        description: 'Registra le righe di materie prime individuate nella fattura',
+        input_schema: {
+          type: 'object',
+          properties: {
+            fornitore: { type: ['string','null'], description: 'Nome del fornitore, se presente' },
+            righe: {
+              type: 'array',
+              description: 'Una voce per ogni prodotto/materia prima in fattura, escludendo totali, IVA, spese di trasporto o sconti',
+              items: {
+                type: 'object',
+                properties: {
+                  descrizione: { type: 'string', description: 'Testo originale della riga così come scritto in fattura' },
+                  nome_prodotto: { type: 'string', description: 'Nome pulito e breve del prodotto' },
+                  quantita: { type: ['number','null'], description: 'Quantità numerica' },
+                  unita: { type: ['string','null'], description: 'Unità di misura come scritta (kg, l, lt, g, ml, pz, ecc.)' },
+                  lotto: { type: ['string','null'], description: 'Numero di lotto del prodotto, se indicato' }
+                },
+                required: ['descrizione','nome_prodotto']
+              }
+            }
+          },
+          required: ['righe']
+        }
+      }],
+      tool_choice: { type: 'tool', name: 'registra_righe_fattura' },
+      messages: [{
+        role: 'user',
+        content: [
+          { type: contentType, source: { type: 'base64', media_type: d.mediaType, data: d.base64 } },
+          { type: 'text', text: 'Questa è una fattura di un fornitore di materie prime per un\'azienda che produce liquori (alcol, zucchero, aromi, frutta, acqua, ecc.). Estrai ogni riga di prodotto con quantità, unità di misura e numero di lotto se presente. Ignora totali, IVA, spese di trasporto, sconti e note generiche. Usa lo strumento fornito per rispondere.' }
+        ]
+      }]
+    };
+
+    fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': ai.apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    }).then(function(res){
+      if (!res.ok){
+        return res.json().catch(function(){ return null; }).then(function(errBody){
+          var msg = errBody && errBody.error && errBody.error.message ? errBody.error.message : ('Errore HTTP ' + res.status);
+          throw new Error(msg);
+        });
+      }
+      return res.json();
+    }).then(function(data){
+      var toolUse = (data.content || []).filter(function(b){ return b.type === 'tool_use'; })[0];
+      if (!toolUse || !toolUse.input){ throw new Error('Risposta IA non valida.'); }
+      openInvoiceReviewModal(toolUse.input);
+    }).catch(function(e){
+      console.error(e);
+      var msg = e.message || 'Analisi non riuscita.';
+      if (/401|invalid.*api.*key|authentication/i.test(msg)) msg = 'Chiave API non valida. Controlla le impostazioni.';
+      else if (/429|rate.?limit/i.test(msg)) msg = 'Limite di richieste raggiunto sul tuo account Anthropic. Riprova tra poco.';
+      showToast(msg);
+    }).finally(function(){
+      d.analyzing = false;
+      render();
+    });
+  }
+
+  // ---------- matching riga fattura -> referenza esistente ----------
+  function normalizeForMatch(s){
+    return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+  function guessReferenceMatch(name){
+    var norm = normalizeForMatch(name);
+    if (!norm) return null;
+    var normTokens = norm.split(' ').filter(Boolean);
+    var best = null, bestScore = 0;
+    state.references.forEach(function(r){
+      var rNorm = normalizeForMatch(r.name);
+      if (!rNorm) return;
+      var score = 0;
+      if (rNorm === norm) score = 100;
+      else if (rNorm.indexOf(norm) !== -1 || norm.indexOf(rNorm) !== -1) score = 70;
+      else {
+        var rTokens = rNorm.split(' ').filter(Boolean);
+        var overlap = normTokens.filter(function(t){ return rTokens.indexOf(t) !== -1; }).length;
+        score = overlap / Math.max(normTokens.length, rTokens.length, 1) * 60;
+      }
+      if (score > bestScore){ bestScore = score; best = r; }
+    });
+    return bestScore >= 40 ? best : null;
+  }
+  function guessQtyFromUnit(unitStr, quantity){
+    var out = { qtyLt: '', qtyKg: '' };
+    if (quantity === null || quantity === undefined || isNaN(quantity)) return out;
+    var u = normalizeForMatch(unitStr);
+    if (/^(kg|chilogramm|chilo)/.test(u)) out.qtyKg = quantity;
+    else if (/^(l|lt|litr)/.test(u)) out.qtyLt = quantity;
+    else if (/^(g|gr|grammi|grammo)/.test(u)) out.qtyKg = round(quantity / 1000, 3);
+    else if (/^(ml|millilitri)/.test(u)) out.qtyLt = round(quantity / 1000, 3);
+    return out;
+  }
+
+  // ==================================================================
+  // MODAL: revisione righe fattura
+  // ==================================================================
+  function openInvoiceReviewModal(result){
+    var righe = result.righe || [];
+    var lines = righe.map(function(r){
+      var match = guessReferenceMatch(r.nome_prodotto || r.descrizione);
+      var qtyGuess = guessQtyFromUnit(r.unita, r.quantita);
+      return {
+        include: true,
+        rawDescription: r.descrizione || '',
+        extractedName: r.nome_prodotto || r.descrizione || '',
+        extractedUnit: r.unita || '',
+        lotto: r.lotto || '',
+        refMode: match ? 'existing' : 'new',
+        refId: match ? match.id : '',
+        newRef: { name: r.nome_prodotto || r.descrizione || '', unit: 'liquido' },
+        qtyLt: qtyGuess.qtyLt,
+        qtyKg: qtyGuess.qtyKg,
+        density: match && match.density !== null && match.density !== undefined ? match.density : '',
+        grade: match && match.grade !== null && match.grade !== undefined ? match.grade : ''
+      };
+    });
+    if (!lines.length){ showToast('Non ho trovato righe di prodotto in questa fattura.'); return; }
+    state.invoiceReview = { supplierName: result.fornitore || null, lines: lines };
+    renderInvoiceReviewModal();
+  }
+  function closeInvoiceReviewModal(){
+    state.invoiceReview = null;
+    document.getElementById('invoiceModalOverlay').hidden = true;
+    document.getElementById('invoiceModalOverlay').innerHTML = '';
+  }
+  function renderInvoiceReviewModal(){
+    var overlay = document.getElementById('invoiceModalOverlay');
+    var rev = state.invoiceReview;
+    if (!rev){ overlay.hidden = true; return; }
+    var html = '<div class="modal-sheet" style="max-width:640px;">';
+    html += '<h2 class="modal-title">Revisione fattura</h2>';
+    html += '<p class="modal-subtitle">' + (rev.supplierName ? 'Fornitore: ' + escapeHtml(rev.supplierName) + ' — ' : '') + 'controlla ogni riga prima di registrare i carichi.</p>';
+    rev.lines.forEach(function(line, idx){ html += renderInvoiceLine(line, idx); });
+    var includedCount = rev.lines.filter(function(l){ return l.include; }).length;
+    html += '<div class="btn-row"><button type="button" class="btn btn-ghost" data-action="close-invoice-modal">Annulla</button><button type="button" class="btn btn-good" data-action="confirm-invoice-import">Conferma e carica (' + includedCount + ')</button></div>';
+    html += '</div>';
+    overlay.innerHTML = html;
+    overlay.hidden = false;
+  }
+  function renderInvoiceLine(line, idx){
+    var ref = line.refMode === 'existing' ? referenceById(line.refId) : null;
+    var unit = line.refMode === 'new' ? line.newRef.unit : (ref ? ref.unit : 'liquido');
+    var html = '<div class="invoice-line" data-line-idx="' + idx + '">';
+    html += '<div class="invoice-line-top">';
+    html += '<label class="invoice-line-check"><input type="checkbox" data-action="inv-toggle-include" data-idx="' + idx + '"' + (line.include ? ' checked' : '') + '> Includi</label>';
+    html += '</div>';
+    html += '<div class="invoice-raw">In fattura: ' + escapeHtml(line.rawDescription) + (line.extractedUnit ? ' · unità: ' + escapeHtml(line.extractedUnit) : '') + '</div>';
+
+    if (!line.include){ html += '</div>'; return html; }
+
+    html += fieldSelect('invRef_' + idx, 'Referenza', [{ value:'__new__', label:'+ Nuova: ' + (line.extractedName || 'referenza') }]
+      .concat(state.references.slice().sort(function(a,b){ return a.name.localeCompare(b.name,'it'); }).map(function(r){ return { value:r.id, label:r.name }; })),
+      line.refMode === 'existing' ? line.refId : '__new__');
+
+    if (line.refMode === 'new'){
+      html += fieldInput('invNewName_' + idx, 'Nome nuova referenza', 'text', line.newRef.name, '');
+      html += '<div class="field"><label>Tipo</label><div class="seg">';
+      html += '<button type="button" class="seg-btn' + (unit==='liquido'?' active':'') + '" data-action="inv-set-unit" data-idx="' + idx + '" data-unit="liquido">Liquido</button>';
+      html += '<button type="button" class="seg-btn' + (unit==='solido'?' active':'') + '" data-action="inv-set-unit" data-idx="' + idx + '" data-unit="solido">Solido</button>';
+      html += '</div></div>';
+    }
+
+    html += '<div class="field"><label for="invLotto_' + idx + '">Lotto</label><input type="text" id="invLotto_' + idx + '" value="' + escapeHtml(line.lotto) + '"></div>';
+
+    html += '<div class="row-split3">';
+    html += fieldInput('invLt_' + idx, 'Quantità (Lt)', 'number', line.qtyLt, 'step="0.001" min="0"');
+    html += fieldInput('invKg_' + idx, 'Quantità (Kg)', 'number', line.qtyKg, 'step="0.001" min="0"');
+    html += fieldInput('invDensity_' + idx, 'Densità (kg/Lt)', 'number', line.density, 'step="0.0001" min="0"');
+    html += '</div>';
+
+    if (unit === 'liquido'){
+      html += fieldInput('invGrade_' + idx, 'Gradazione (%) — opzionale', 'number', line.grade, 'step="0.1" min="0" max="100"');
+    }
+
+    html += '</div>';
+    return html;
+  }
+
+  function handleInvoiceLineQtyInput(idx, fieldKind){
+    var line = state.invoiceReview.lines[idx];
+    if (!line) return;
+    var lt = document.getElementById('invLt_' + idx);
+    var kg = document.getElementById('invKg_' + idx);
+    var dens = document.getElementById('invDensity_' + idx);
+    var density = numOrNull(dens.value);
+    if (fieldKind === 'lt'){
+      line.qtyLt = lt.value;
+      var ltVal = numOrNull(lt.value);
+      if (density !== null && ltVal !== null){ var k = round(ltVal * density, 3); kg.value = k; line.qtyKg = k; }
+    } else if (fieldKind === 'kg'){
+      line.qtyKg = kg.value;
+      var kgVal = numOrNull(kg.value);
+      if (density !== null && kgVal !== null){ var l = round(kgVal / density, 3); lt.value = l; line.qtyLt = l; }
+    } else if (fieldKind === 'density'){
+      line.density = dens.value;
+      var ltVal3 = numOrNull(lt.value);
+      var kgVal3 = numOrNull(kg.value);
+      if (density !== null && ltVal3 !== null){ var k2 = round(ltVal3 * density, 3); kg.value = k2; line.qtyKg = k2; }
+      else if (density !== null && kgVal3 !== null){ var l2 = round(kgVal3 / density, 3); lt.value = l2; line.qtyLt = l2; }
+    }
+  }
+  function handleInvoiceLineBlurAutoDensity(idx){
+    var line = state.invoiceReview.lines[idx];
+    if (!line) return;
+    var lt = document.getElementById('invLt_' + idx);
+    var kg = document.getElementById('invKg_' + idx);
+    var dens = document.getElementById('invDensity_' + idx);
+    if (!lt || !kg || !dens) return;
+    if (numOrNull(dens.value) !== null) return;
+    var ltVal = numOrNull(lt.value);
+    var kgVal = numOrNull(kg.value);
+    if (ltVal !== null && ltVal > 0 && kgVal !== null){
+      var computed = round(kgVal / ltVal, 4);
+      dens.value = computed;
+      line.density = computed;
+    }
+  }
+
+  function confirmInvoiceImport(){
+    var rev = state.invoiceReview;
+    if (!rev) return;
+    var included = rev.lines.filter(function(l){ return l.include; });
+    if (!included.length){ showToast('Nessuna riga selezionata.'); return; }
+    for (var i = 0; i < included.length; i++){
+      var l = included[i];
+      if (!l.lotto || !l.lotto.trim()){ showToast('Inserisci il lotto per tutte le righe incluse.'); return; }
+      var qLt = numOrNull(l.qtyLt), qKg = numOrNull(l.qtyKg);
+      if ((!qLt || qLt <= 0) && (!qKg || qKg <= 0)){ showToast('Inserisci una quantità per tutte le righe incluse.'); return; }
+      if (l.refMode === 'new' && (!l.newRef.name || !l.newRef.name.trim())){ showToast('Inserisci il nome per le nuove referenze.'); return; }
+    }
+
+    var causale = 'Import da fattura' + (rev.supplierName ? ' — ' + rev.supplierName : '');
+    var chain = Promise.resolve();
+    included.forEach(function(l){
+      chain = chain.then(function(){
+        var resolveRef;
+        if (l.refMode === 'new'){
+          var id = uid('ref');
+          // Seed the new reference's defaults from this first lot's own
+          // density/gradazione, since there is no prior default to use.
+          var docData = { name: l.newRef.name.trim(), unit: l.newRef.unit, density: numOrNull(l.density), grade: l.newRef.unit === 'liquido' ? numOrNull(l.grade) : null, photo: null, notes: null };
+          resolveRef = window.__fb.setDoc(REFS_COLL + '/' + id, docData).then(function(){
+            var refObj = { id: id, name: docData.name, unit: docData.unit, density: docData.density, grade: docData.grade, photo: docData.photo, notes: docData.notes };
+            state.references.push(refObj);
+            return refObj;
+          });
+        } else {
+          resolveRef = Promise.resolve(referenceById(l.refId));
+        }
+        return resolveRef.then(function(ref){
+          if (!ref) return;
+          return commitCarico(ref, l.lotto.trim(), numOrNull(l.qtyLt), numOrNull(l.qtyKg), numOrNull(l.density), ref.unit === 'liquido' ? numOrNull(l.grade) : null, causale);
+        });
+      });
+    });
+
+    chain.then(function(){
+      showToast(included.length + (included.length === 1 ? ' carico registrato' : ' carichi registrati') + ' dalla fattura.');
+      closeInvoiceReviewModal();
+      state.fattura = freshFatturaDraft();
+      render();
+    }).catch(function(e){
+      console.error(e);
+      showToast('Si è verificato un errore durante il caricamento. Controlla le righe e riprova.');
+    });
+  }
+
+  // ==================================================================
   // event delegation
   // ==================================================================
   function bindGlobalEvents(){
@@ -1978,6 +2470,20 @@
       if (action === 'delete-movement'){ deleteMovement(el.getAttribute('data-id')); return; }
       if (action === 'cancel-confirm'){ closeConfirm(); return; }
       if (action === 'do-confirm'){ var fn = state.confirmModal && state.confirmModal.onConfirm; if (fn) fn(); return; }
+
+      if (action === 'open-settings'){ openSettingsModal(); return; }
+      if (action === 'close-settings-modal'){ closeSettingsModal(); return; }
+      if (action === 'save-settings'){ saveSettingsModal(); return; }
+      if (action === 'remove-fattura-file'){ state.fattura = freshFatturaDraft(); render(); return; }
+      if (action === 'analyze-fattura'){ analyzeFattura(); return; }
+      if (action === 'close-invoice-modal'){ closeInvoiceReviewModal(); return; }
+      if (action === 'confirm-invoice-import'){ confirmInvoiceImport(); return; }
+      if (action === 'inv-set-unit'){
+        var invIdx = parseInt(el.getAttribute('data-idx'),10);
+        state.invoiceReview.lines[invIdx].newRef.unit = el.getAttribute('data-unit');
+        withFocusPreserved(renderInvoiceReviewModal);
+        return;
+      }
 
       if (el.id === 'refPhotoPicker'){ state.pendingPhotoTarget = 'refModal'; document.getElementById('photoInput').click(); return; }
       if (el.id === 'refPhotoRemove'){ e.stopPropagation(); state.refModal.draft.photo = null; renderRefModal(); return; }
@@ -2031,6 +2537,39 @@
       if (t.id === 'recipeLiquoriProduct'){ state.ricette.draft.liquoriProductId = t.value; return; }
       if (t.id === 'pushProductId'){ state.pushModal.productId = t.value; return; }
       if (t.id === 'pushLocation'){ state.pushModal.location = t.value; return; }
+      if (t.id === 'fatturaCameraInput' || t.id === 'fatturaFileInput'){
+        var fFile = t.files && t.files[0];
+        t.value = '';
+        if (fFile) handleFatturaFileSelected(fFile);
+        return;
+      }
+      if (t.id && t.id.indexOf('invRef_') === 0){
+        var invIdx1 = parseInt(t.id.slice('invRef_'.length),10);
+        var invLine1 = state.invoiceReview.lines[invIdx1];
+        if (t.value === '__new__'){
+          invLine1.refMode = 'new'; invLine1.refId = '';
+        } else {
+          invLine1.refMode = 'existing'; invLine1.refId = t.value;
+          var matchedRef = referenceById(t.value);
+          if (matchedRef){
+            invLine1.density = matchedRef.density===null||matchedRef.density===undefined?'':matchedRef.density;
+            invLine1.grade = matchedRef.grade===null||matchedRef.grade===undefined?'':matchedRef.grade;
+          }
+        }
+        withFocusPreserved(renderInvoiceReviewModal);
+        return;
+      }
+      if (t.id && (t.id.indexOf('invLt_') === 0 || t.id.indexOf('invKg_') === 0)){
+        var invIdx2 = parseInt(t.id.split('_')[1],10);
+        handleInvoiceLineBlurAutoDensity(invIdx2);
+        return;
+      }
+      if (t.getAttribute && t.getAttribute('data-action') === 'inv-toggle-include'){
+        var invIdx3 = parseInt(t.getAttribute('data-idx'),10);
+        state.invoiceReview.lines[invIdx3].include = t.checked;
+        withFocusPreserved(renderInvoiceReviewModal);
+        return;
+      }
       if (t.id === 'photoInput'){
         var file = t.files && t.files[0];
         t.value = '';
@@ -2083,6 +2622,24 @@
       if (t.id === 'lotGrade'){ state.lotModal.draft.grade = t.value; return; }
       if (t.id === 'pushNewName'){ state.pushModal.newName = t.value; return; }
       if (t.id === 'pushQty'){ state.pushModal.qty = t.value; return; }
+      if (t.id && t.id.indexOf('invLotto_') === 0){
+        state.invoiceReview.lines[parseInt(t.id.slice('invLotto_'.length),10)].lotto = t.value; return;
+      }
+      if (t.id && t.id.indexOf('invNewName_') === 0){
+        state.invoiceReview.lines[parseInt(t.id.slice('invNewName_'.length),10)].newRef.name = t.value; return;
+      }
+      if (t.id && t.id.indexOf('invGrade_') === 0){
+        state.invoiceReview.lines[parseInt(t.id.slice('invGrade_'.length),10)].grade = t.value; return;
+      }
+      if (t.id && t.id.indexOf('invLt_') === 0){
+        handleInvoiceLineQtyInput(parseInt(t.id.slice('invLt_'.length),10), 'lt'); return;
+      }
+      if (t.id && t.id.indexOf('invKg_') === 0){
+        handleInvoiceLineQtyInput(parseInt(t.id.slice('invKg_'.length),10), 'kg'); return;
+      }
+      if (t.id && t.id.indexOf('invDensity_') === 0){
+        handleInvoiceLineQtyInput(parseInt(t.id.slice('invDensity_'.length),10), 'density'); return;
+      }
     });
 
     document.getElementById('storicoBtn').innerHTML = iconClock();
@@ -2091,6 +2648,9 @@
       document.getElementById('storicoBtn').classList.toggle('active', state.view === 'storico');
       render();
     });
+
+    document.getElementById('settingsBtn').innerHTML = iconSettings();
+    document.getElementById('settingsBtn').addEventListener('click', openSettingsModal);
   }
 
   // ==================================================================
