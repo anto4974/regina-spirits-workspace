@@ -534,9 +534,14 @@
 
   var AI_KEY_STORAGE = 'regina-produzione-ai-key';
   var AI_MODEL_STORAGE = 'regina-produzione-ai-model';
-  var AI_MODEL_DEFAULT = 'claude-sonnet-5';
-  var INVOICE_IMAGE_MAX_DIM = 1800;
-  var INVOICE_IMAGE_QUALITY = 0.85;
+  // Haiku keeps this cheap: it's a straightforward read-and-fill-the-schema
+  // task, not something that needs Sonnet-level reasoning. The image is the
+  // real cost driver (far more tokens than the extracted text), so it's kept
+  // only as large as printed invoice text needs to stay legible.
+  var AI_MODEL_DEFAULT = 'claude-haiku-4-5';
+  var INVOICE_IMAGE_MAX_DIM = 1280;
+  var INVOICE_IMAGE_QUALITY = 0.75;
+  var INVOICE_MAX_OUTPUT_TOKENS = 2048;
 
   // ---------- state ----------
   var state = {
@@ -2033,7 +2038,7 @@
     html += '<p class="modal-subtitle">Serve una chiave API Anthropic (Claude). Resta salvata solo su questo dispositivo/browser, non viene mai inviata altrove se non ad Anthropic per leggere la fattura.</p>';
     html += '<div class="modal-field"><label>Chiave API Anthropic</label><input type="password" id="settingsApiKey" value="' + escapeHtml(d.apiKey) + '" placeholder="sk-ant-..." autocomplete="off"></div>';
     html += '<div class="modal-field"><label>Modello (avanzato)</label><input type="text" id="settingsModel" value="' + escapeHtml(d.model) + '"></div>';
-    html += '<p class="modal-hint">La chiave si ottiene su console.anthropic.com → API Keys. Ogni fattura analizzata ha un piccolo costo a consumo sul tuo account Anthropic.</p>';
+    html += '<p class="modal-hint">La chiave si ottiene su console.anthropic.com → API Keys. Il modello predefinito (' + escapeHtml(AI_MODEL_DEFAULT) + ') è impostato per consumare il minimo indispensabile — ogni fattura costa in genere una piccola frazione di centesimo. Cambia il modello qui sopra solo se la lettura di fatture particolarmente difficili non fosse abbastanza precisa.</p>';
     html += '<div class="btn-row"><button type="button" class="btn btn-ghost" data-action="close-settings-modal">Annulla</button><button type="button" class="btn btn-primary" data-action="save-settings">Salva</button></div>';
     html += '</div>';
     overlay.innerHTML = html;
@@ -2145,7 +2150,7 @@
     var contentType = d.mediaType === 'application/pdf' ? 'document' : 'image';
     var body = {
       model: ai.model,
-      max_tokens: 4096,
+      max_tokens: INVOICE_MAX_OUTPUT_TOKENS,
       tools: [{
         name: 'registra_righe_fattura',
         description: 'Registra le righe di materie prime individuate nella fattura',
