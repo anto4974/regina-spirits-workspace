@@ -654,6 +654,86 @@
     cursor:pointer;
   }
   .qty-unit-btn.active{ background:var(--raspberry); border-color:var(--raspberry); color:var(--raspberry-ink); }
+
+  .fiera-list{ display:flex; flex-direction:column; gap:.5rem; margin:.3rem 0 1rem; }
+  .fiera-row{
+    display:flex; align-items:center; gap:.6rem;
+    padding:.5rem .6rem;
+    border-radius:.6rem;
+    border:1px solid var(--line);
+    background:var(--surface-2);
+  }
+  .fiera-row-info{ flex:1; min-width:0; display:flex; flex-direction:column; }
+  .fiera-row-name{ font-size:.85rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .fiera-row-current{ font-size:.68rem; color:var(--muted); font-family:'IBM Plex Mono', monospace; }
+  .fiera-row input{
+    width:4.2rem; flex:none; text-align:center;
+    padding:.4rem .3rem;
+    border-radius:.5rem;
+    border:1px solid var(--line);
+    background:var(--surface);
+    color:var(--ink);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:.9rem;
+  }
+  .fiera-row.fiera-row-changed{ border-color:var(--raspberry); }
+
+  .scarichi-header-bar{
+    display:flex; align-items:center; justify-content:space-between; gap:.6rem;
+    padding:1rem .75rem .5rem;
+  }
+  .scarichi-title{
+    margin:0;
+    font-family:'Oswald', sans-serif; font-weight:700; font-size:1.1rem;
+    text-transform:uppercase; letter-spacing:.02em; color:var(--raspberry);
+  }
+  .scarichi-print-btn{
+    display:flex; align-items:center; gap:.4rem; flex:none;
+    padding:.5rem .8rem;
+    border-radius:.5rem;
+    border:none;
+    background:var(--raspberry);
+    color:var(--raspberry-ink);
+    font-family:'Oswald', sans-serif; font-size:.7rem; text-transform:uppercase; letter-spacing:.03em;
+    cursor:pointer;
+  }
+  .scarichi-print-btn svg{ width:15px; height:15px; }
+  .scarichi-list{ display:flex; flex-direction:column; gap:.5rem; padding:0 .75rem 1.5rem; }
+  .scarichi-row{
+    display:flex; align-items:center; gap:.7rem;
+    padding:.6rem .7rem;
+    border-radius:.65rem;
+    border:1px solid var(--line);
+    background:var(--surface);
+    box-shadow:var(--shadow);
+  }
+  .scarichi-photo{
+    flex:none; width:3rem; height:3rem; border-radius:.5rem; object-fit:cover;
+    background:var(--surface-2);
+  }
+  .scarichi-photo-placeholder{
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Oswald', sans-serif; font-weight:700; font-size:1.2rem; color:var(--muted);
+  }
+  .scarichi-info{ flex:1; min-width:0; }
+  .scarichi-name{ font-weight:600; font-size:.88rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .scarichi-meta{ font-size:.68rem; color:var(--muted); text-transform:uppercase; letter-spacing:.02em; font-family:'Oswald', sans-serif; margin-top:.1rem; }
+  .scarichi-causale{ font-size:.74rem; color:var(--ink); font-style:italic; margin-top:.1rem; }
+  .scarichi-causale-empty{ color:var(--muted); font-style:normal; }
+  .scarichi-qty{
+    flex:none;
+    font-family:'IBM Plex Mono', monospace; font-weight:700; font-size:1.1rem;
+    color:var(--cherry);
+  }
+
+  @media print{
+    .auth-gate, .modal-overlay, .scanner-overlay, .scan-fab, header.top, nav.tabs,
+    #stockView, #riepilogoView, #categorieView, .toast{ display:none !important; }
+    body, .app{ background:#fff !important; }
+    .scarichi-print-btn{ display:none !important; }
+    .scarichi-row{ box-shadow:none; break-inside:avoid; }
+    .scarichi-title{ color:#000 !important; }
+  }
   .modal-actions{ display:flex; gap:.5rem; justify-content:flex-end; margin-top:.3rem; }
   .modal-back, .modal-cancel{
     padding:.6rem 1rem;
@@ -896,6 +976,10 @@
       <select class="sort-select" id="categoryFilterSelect" aria-label="Filtra per categoria"></select>
     </div>
 
+    <div style="padding:.4rem .75rem 0;">
+      <button type="button" class="add-toggle" id="fieraBtn">Chiusura conteggio — conta cosa è rimasto e scarica la differenza</button>
+    </div>
+
     <div class="add-wrap" id="addWrap"></div>
 
     <main id="list" class="list-wrap"></main>
@@ -905,11 +989,13 @@
 
   <div id="riepilogoView" hidden></div>
   <div id="categorieView" hidden></div>
+  <div id="scarichiView" hidden></div>
 
   <input type="file" id="rowPhotoInput" accept="image/*" hidden>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <div class="modal-overlay" id="moveModal" hidden></div>
   <div class="modal-overlay" id="historyModal" hidden></div>
+  <div class="modal-overlay" id="fieraModal" hidden></div>
 
   <button type="button" class="scan-fab" id="scanFabBtn" aria-label="Scansiona codice a barre" title="Scansiona codice a barre"></button>
 
@@ -1042,7 +1128,8 @@
     moveModal: null, // { productId, step: 'choose' | 'carico' | 'spostamento' }
     categoryFilter: '', // '' = tutte le categorie
     historyModal: null, // { productId }
-    confirmDeleteMovementId: null
+    confirmDeleteMovementId: null,
+    fieraModal: null // { loc }
   };
 
   function sortItems(items, qtyFn){
@@ -1101,6 +1188,9 @@
   function iconBox(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8l9-5 9 5-9 5-9-5Z"/><path d="M3 8v9l9 5 9-5V8"/><path d="M12 13v9"/></svg>'; }
   function iconLogout(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>'; }
   function iconBarcode(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5v14M7 5v14M11 5v10M15 5v14M19 5v10"/></svg>'; }
+  function iconReceipt(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-2.5-1.5L13 21l-2.5-1.5L8 21l-2-1.5V3Z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg>'; }
+  function iconClipboardCheck(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2.3" width="6" height="3" rx="1"/><path d="m9 13 2 2 4-4"/></svg>'; }
+  function iconPrinter(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="1.5"/><path d="M6 14h12v7H6z"/></svg>'; }
   function iconMinus(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>'; }
   function iconClipboard(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="12" height="17" rx="2"/><rect x="9" y="2.3" width="6" height="3" rx="1"/><path d="M9 11h6M9 15h6"/></svg>'; }
   function iconGrid(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.2"/><rect x="14" y="3" width="7" height="7" rx="1.2"/><rect x="3" y="14" width="7" height="7" rx="1.2"/><rect x="14" y="14" width="7" height="7" rx="1.2"/></svg>'; }
@@ -1191,6 +1281,7 @@
     var defs = [
       { id:'stock', label:'Giacenze', icon: iconGrid() },
       { id:'riepilogo', label:'Riepilogo', icon: iconClipboard() },
+      { id:'scarichi', label:'Scarichi', icon: iconReceipt() },
       { id:'categorie', label:'Categorie', icon: iconTag() }
     ];
     el.innerHTML = defs.map(function(d){
@@ -2353,6 +2444,47 @@
 
   // ---------- riepilogo view ----------
 
+  function renderScarichi(){
+    var el = document.getElementById('scarichiView');
+    var items = state.movements.filter(function(m){ return m.type === 'scarico'; }).slice().reverse();
+
+    var html = '<div class="scarichi-header-bar">' +
+      '<h2 class="scarichi-title">Storico Scarichi</h2>' +
+      '<button type="button" class="scarichi-print-btn" id="printScarichiBtn">' + iconPrinter() + '<span>Stampa</span></button>' +
+    '</div>';
+
+    if (!items.length){
+      html += '<div class="empty">Nessuno scarico registrato.</div>';
+    } else {
+      html += '<div class="scarichi-list">';
+      items.forEach(function(m){
+        var product = productById(m.productId);
+        var photoSrc = product ? photoSrcFor(product) : null;
+        var initial = escapeHtml((m.productName || '?').trim().charAt(0).toUpperCase() || '?');
+        var photoHtml = photoSrc
+          ? '<img class="scarichi-photo" src="' + photoSrc + '" alt="">'
+          : '<span class="scarichi-photo scarichi-photo-placeholder">' + initial + '</span>';
+        var causaleHtml = m.causale
+          ? '<div class="scarichi-causale">' + escapeHtml(m.causale) + '</div>'
+          : '<div class="scarichi-causale scarichi-causale-empty">Nessuna causale</div>';
+        html += '<div class="scarichi-row">' +
+          photoHtml +
+          '<div class="scarichi-info">' +
+            '<div class="scarichi-name">' + escapeHtml(m.productName) + '</div>' +
+            '<div class="scarichi-meta">' + formatDateTime(m.ts) + ' · ' + escapeHtml(m.locationLabel || '') + '</div>' +
+            causaleHtml +
+          '</div>' +
+          '<div class="scarichi-qty">-' + Math.abs(m.delta) + '</div>' +
+        '</div>';
+      });
+      html += '</div>';
+    }
+
+    el.innerHTML = html;
+    var printBtn = document.getElementById('printScarichiBtn');
+    if (printBtn) printBtn.addEventListener('click', function(){ window.print(); });
+  }
+
   function renderRiepilogo(){
     var el = document.getElementById('riepilogoView');
     var sumMode = state.sumMode;
@@ -2518,26 +2650,28 @@
 
   // ---------- top-level render ----------
 
+  var VIEW_ELEMENT_IDS = { stock:'stockView', riepilogo:'riepilogoView', categorie:'categorieView', scarichi:'scarichiView' };
+
   function render(){
     flushAllPending();
-    var isStock = state.view === 'stock';
-    var isRiepilogo = state.view === 'riepilogo';
-    var isCategorie = state.view === 'categorie';
-    document.getElementById('tabs').hidden = !isStock;
-    document.getElementById('stockView').hidden = !isStock;
-    document.getElementById('riepilogoView').hidden = !isRiepilogo;
-    document.getElementById('categorieView').hidden = !isCategorie;
+    var view = state.view;
+    document.getElementById('tabs').hidden = view !== 'stock';
+    Object.keys(VIEW_ELEMENT_IDS).forEach(function(v){
+      document.getElementById(VIEW_ELEMENT_IDS[v]).hidden = v !== view;
+    });
     renderViewSwitch();
-    if (isStock){
+    if (view === 'stock'){
       renderTabs();
       if (!state.addOpen) renderAddForm();
       renderList();
-    } else if (isRiepilogo){
+    } else if (view === 'riepilogo'){
       renderRiepilogo();
+    } else if (view === 'scarichi'){
+      renderScarichi();
     } else {
       renderCategorie();
     }
-    var activeEl = isStock ? document.getElementById('stockView') : isRiepilogo ? document.getElementById('riepilogoView') : document.getElementById('categorieView');
+    var activeEl = document.getElementById(VIEW_ELEMENT_IDS[view] || 'stockView');
     activeEl.classList.remove('view-enter');
     void activeEl.offsetWidth;
     activeEl.classList.add('view-enter');
@@ -2639,6 +2773,127 @@
     });
   }
 
+  // ---------- "chiusura conteggio" bulk discharge (count what's left, discharge the difference) ----------
+
+  function openFieraModal(){
+    var loc = state.active;
+    var locData = state.cache[loc] || {};
+    var hasStock = state.products.some(function(p){ return (locData[p.id] || 0) > 0; });
+    if (!hasStock){
+      showToast('Nessuna referenza con giacenza in ' + labelForLocation(loc) + '.');
+      return;
+    }
+    state.fieraModal = { loc: loc };
+    renderFieraModal();
+  }
+
+  function closeFieraModal(){
+    state.fieraModal = null;
+    renderFieraModal();
+  }
+
+  function renderFieraModal(){
+    var el = document.getElementById('fieraModal');
+    var f = state.fieraModal;
+    if (!f){ el.hidden = true; el.innerHTML = ''; return; }
+    el.hidden = false;
+
+    var locData = state.cache[f.loc] || {};
+    var items = state.products
+      .filter(function(p){ return (locData[p.id] || 0) > 0; })
+      .slice()
+      .sort(function(a, b){ return a.name.localeCompare(b.name, 'it', { sensitivity: 'base' }); });
+
+    var rowsHtml = items.map(function(p){
+      var current = locData[p.id] || 0;
+      return '<div class="fiera-row">' +
+        '<div class="fiera-row-info">' +
+          '<span class="fiera-row-name">' + escapeHtml(p.name) + '</span>' +
+          '<span class="fiera-row-current">in giacenza: ' + current + ' pz</span>' +
+        '</div>' +
+        '<input type="number" inputmode="numeric" min="0" step="1" value="' + current + '" data-fiera-qty="' + p.id + '" aria-label="Rimasti — ' + escapeHtml(p.name) + '">' +
+      '</div>';
+    }).join('');
+
+    el.innerHTML =
+      '<div class="modal-sheet">' +
+        '<h3 class="modal-title">Chiusura conteggio — ' + escapeHtml(labelForLocation(f.loc)) + '</h3>' +
+        '<p class="modal-subtitle">Scrivi quanto è rimasto per ogni referenza: l\'app scarica da sola la differenza. Lascia invariato ciò che non è cambiato.</p>' +
+        '<div class="modal-field">' +
+          '<label for="fieraCausale">Causale (si applica a tutti gli scarichi generati)</label>' +
+          '<input type="text" id="fieraCausale" placeholder="Es. Fiera del 12/10" autocomplete="off">' +
+        '</div>' +
+        '<div class="fiera-list" id="fieraList">' + rowsHtml + '</div>' +
+        '<div class="modal-actions">' +
+          '<button type="button" class="modal-cancel" data-modal-action="cancel">Annulla</button>' +
+          '<button type="button" class="modal-confirm" data-modal-action="confirm-fiera">Conferma chiusura</button>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function applyFieraDischarge(){
+    var f = state.fieraModal;
+    if (!f) return;
+    var loc = f.loc;
+    var causale = document.getElementById('fieraCausale').value.trim() || null;
+    var inputs = document.querySelectorAll('#fieraList [data-fiera-qty]');
+    var stockPatch = {};
+    var newEntries = [];
+
+    Array.prototype.forEach.call(inputs, function(input){
+      var prodId = input.getAttribute('data-fiera-qty');
+      var current = (state.cache[loc] && state.cache[loc][prodId]) || 0;
+      var remaining = parseInt(input.value, 10);
+      if (isNaN(remaining) || remaining < 0 || remaining >= current) return;
+      var diff = current - remaining;
+      var product = productById(prodId);
+      stockPatch[prodId] = remaining;
+      if (!state.cache[loc]) state.cache[loc] = {};
+      state.cache[loc][prodId] = remaining;
+      newEntries.push({
+        type: 'scarico',
+        location: loc,
+        locationLabel: labelForLocation(loc),
+        productId: prodId,
+        productName: product ? product.name : prodId,
+        delta: -diff,
+        newQty: remaining,
+        causale: causale,
+        ts: new Date().toISOString(),
+        id: 'mv_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8) + '_' + newEntries.length
+      });
+    });
+
+    if (!newEntries.length){
+      showToast('Nessuna differenza da scaricare: le quantità inserite sono uguali a quelle attuali.');
+      return;
+    }
+
+    rerenderCurrentView();
+    window.__fb.setDoc('stock_liquori/' + loc, stockPatch, true).catch(function(e){
+      console.error(e);
+      showToast('Salvataggio della chiusura conteggio non riuscito. Riprova.');
+    });
+    var updated = state.movements.concat(newEntries);
+    if (updated.length > MOVEMENTS_CAP) updated = updated.slice(updated.length - MOVEMENTS_CAP);
+    state.movements = updated;
+    persistMovements(updated);
+    showToast(newEntries.length + ' referenze scaricate per la differenza.');
+    closeFieraModal();
+  }
+
+  function bindFieraModalDelegation(){
+    var el = document.getElementById('fieraModal');
+    el.addEventListener('click', function(e){
+      if (e.target === el){ closeFieraModal(); return; }
+      var btn = e.target.closest('[data-modal-action]');
+      if (!btn) return;
+      var action = btn.getAttribute('data-modal-action');
+      if (action === 'cancel'){ closeFieraModal(); return; }
+      if (action === 'confirm-fiera'){ applyFieraDischarge(); return; }
+    });
+  }
+
   function persistMovements(entries){
     window.__fb.setDoc('log/movements_liquori', { entries: entries }).catch(function(e){
       console.error(e);
@@ -2659,17 +2914,18 @@
   // on a timer, so idle periods cost nothing and changes show up right away.
 
   function rerenderCurrentView(){
-    var isStock = state.view === 'stock';
-    var isRiepilogo = state.view === 'riepilogo';
-    if (isStock){
+    var view = state.view;
+    if (view === 'stock'){
       renderTabs();
       // Never rebuild the add/edit form from a live update: it has no live
       // binding to state, so a rebuild here would silently discard whatever
       // the user is mid-typing (name, new category, weight) before Salva.
       if (!state.addOpen) renderAddForm();
       renderList();
-    } else if (isRiepilogo){
+    } else if (view === 'riepilogo'){
       renderRiepilogo();
+    } else if (view === 'scarichi'){
+      renderScarichi();
     } else {
       renderCategorie();
     }
@@ -2807,6 +3063,8 @@
   bindListDelegation();
   bindMoveModalDelegation();
   bindHistoryModalDelegation();
+  bindFieraModalDelegation();
+  document.getElementById('fieraBtn').addEventListener('click', openFieraModal);
   bindAuthForm();
   render();
   whenFirebaseReady(initAuth);
