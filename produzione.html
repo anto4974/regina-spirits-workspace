@@ -2224,6 +2224,15 @@
   function normalizeForMatch(s){
     return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
   }
+  // Two tokens count as "the same word" if identical, or if one is a
+  // (reasonably long) prefix of the other - catches plurals and abbreviated
+  // endings ("etilico" / "etil.") without treating any short common word as
+  // a match on its own.
+  function tokensMatch(a, b){
+    if (a === b) return true;
+    if (a.length >= 4 && b.length >= 4 && (a.indexOf(b) === 0 || b.indexOf(a) === 0)) return true;
+    return false;
+  }
   function guessReferenceMatch(name){
     var norm = normalizeForMatch(name);
     if (!norm) return null;
@@ -2232,17 +2241,29 @@
     state.references.forEach(function(r){
       var rNorm = normalizeForMatch(r.name);
       if (!rNorm) return;
-      var score = 0;
-      if (rNorm === norm) score = 100;
-      else if (rNorm.indexOf(norm) !== -1 || norm.indexOf(rNorm) !== -1) score = 70;
-      else {
-        var rTokens = rNorm.split(' ').filter(Boolean);
-        var overlap = normTokens.filter(function(t){ return rTokens.indexOf(t) !== -1; }).length;
-        score = overlap / Math.max(normTokens.length, rTokens.length, 1) * 60;
+      if (rNorm === norm){
+        if (100 > bestScore){ bestScore = 100; best = r; }
+        return;
       }
-      if (score > bestScore){ bestScore = score; best = r; }
+      var rTokens = rNorm.split(' ').filter(Boolean);
+      var minLen = Math.min(normTokens.length, rTokens.length);
+      // A single shared word (e.g. an existing reference literally called
+      // "Zucchero") is not enough evidence on its own - require at least two
+      // meaningful words on the shorter side before counting partial overlap,
+      // and near-full coverage of it. A wrong auto-match silently mixes two
+      // different products' stock, which is worse than asking the user to
+      // pick manually - so when in doubt, this returns no match ("new").
+      if (minLen < 2) return;
+      var matchedCount = rTokens.filter(function(rt){
+        return normTokens.some(function(nt){ return tokensMatch(nt, rt); });
+      }).length;
+      var overlapRatio = matchedCount / minLen;
+      if (overlapRatio >= 0.8 && matchedCount >= 2){
+        var score = 70 + overlapRatio * 20;
+        if (score > bestScore){ bestScore = score; best = r; }
+      }
     });
-    return bestScore >= 40 ? best : null;
+    return bestScore >= 70 ? best : null;
   }
   function guessQtyFromUnit(unitStr, quantity){
     var out = { qtyLt: '', qtyKg: '' };
@@ -2263,6 +2284,16 @@
     var lines = righe.map(function(r){
       var match = guessReferenceMatch(r.nome_prodotto || r.descrizione);
       var qtyGuess = guessQtyFromUnit(r.unita, r.quantita);
+      var matchDensity = match && match.density !== null && match.density !== undefined ? match.density : null;
+      // The invoice only ever states one unit (e.g. "25 L"); when the
+      // matched product's density is already known, fill in the other side
+      // immediately so the reviewer sees both, not just whichever the
+      // invoice happened to print.
+      var qtyLt = qtyGuess.qtyLt, qtyKg = qtyGuess.qtyKg;
+      if (matchDensity){
+        if (qtyLt !== '' && qtyKg === '') qtyKg = round(qtyLt * matchDensity, 3);
+        else if (qtyKg !== '' && qtyLt === '') qtyLt = round(qtyKg / matchDensity, 3);
+      }
       return {
         include: true,
         rawDescription: r.descrizione || '',
@@ -2272,9 +2303,9 @@
         refMode: match ? 'existing' : 'new',
         refId: match ? match.id : '',
         newRef: { name: r.nome_prodotto || r.descrizione || '', unit: 'liquido' },
-        qtyLt: qtyGuess.qtyLt,
-        qtyKg: qtyGuess.qtyKg,
-        density: match && match.density !== null && match.density !== undefined ? match.density : '',
+        qtyLt: qtyLt,
+        qtyKg: qtyKg,
+        density: matchDensity !== null ? matchDensity : '',
         grade: match && match.grade !== null && match.grade !== undefined ? match.grade : ''
       };
     });
