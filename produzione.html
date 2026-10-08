@@ -819,6 +819,7 @@
         if (tot.kg !== null) stockParts.push(fmt(tot.kg,3) + '<span class="unit">Kg</span>');
         html += '<div class="ref-stock">' + (stockParts.length ? stockParts.join(' &nbsp;·&nbsp; ') : '<span class="unit">Nessuna giacenza</span>') + '</div>';
         var metaParts = [];
+        if (r.codice) metaParts.push('Cod. ' + escapeHtml(r.codice));
         if (r.density !== null && r.density !== undefined) metaParts.push('Densità ' + fmt(r.density,3) + ' kg/Lt');
         if (r.grade !== null && r.grade !== undefined) metaParts.push('Gradazione ' + fmt(r.grade,1) + '%');
         if (metaParts.length) html += '<div class="ref-meta">' + metaParts.join(' · ') + '</div>';
@@ -1267,10 +1268,11 @@
       returnTo: returnTo || null,
       draft: ref ? {
         id: ref.id, name: ref.name, unit: ref.unit,
+        codice: ref.codice || '',
         density: ref.density===null||ref.density===undefined?'':ref.density,
         grade: ref.grade===null||ref.grade===undefined?'':ref.grade,
         photo: ref.photo || null, notes: ref.notes || ''
-      } : { id: null, name:'', unit:'liquido', density:'', grade:'', photo:null, notes:'' }
+      } : { id: null, name:'', unit:'liquido', codice:'', density:'', grade:'', photo:null, notes:'' }
     };
     renderRefModal();
   }
@@ -1296,6 +1298,9 @@
     html += '</div></div>';
 
     html += '<div class="modal-field"><label>Nome referenza</label><input type="text" id="refName" value="' + escapeHtml(d.name) + '" placeholder="Es. Alcool etilico 96%"></div>';
+
+    html += '<div class="modal-field"><label>Codice prodotto (opzionale)</label><input type="text" id="refCodice" value="' + escapeHtml(d.codice) + '" placeholder="Es. il codice articolo del fornitore"></div>';
+    html += '<div class="field-hint" style="margin:-0.6rem 0 .6rem;">Se lo stesso codice compare in fattura, l\'abbinamento sarà certo al 100% anche se il nome scritto in fattura è diverso.</div>';
 
     html += '<div class="modal-field"><label>Tipo</label><div class="seg">';
     html += '<button type="button" class="seg-btn' + (d.unit==='liquido'?' active':'') + '" data-action="ref-set-unit" data-unit="liquido">Liquido</button>';
@@ -1526,19 +1531,20 @@
     var name = document.getElementById('refName').value.trim();
     if (!name){ showToast('Inserisci il nome della referenza.'); return; }
     var unit = d.unit;
+    var codice = document.getElementById('refCodice').value.trim();
     var density = numOrNull(document.getElementById('refDensity').value);
     var grade = unit === 'liquido' ? numOrNull(document.getElementById('refGrade').value) : null;
     var notes = document.getElementById('refNotes').value.trim();
     var id = d.id || uid('ref');
     var wasEdit = m.mode === 'edit';
-    var docData = { name: name, unit: unit, density: density, grade: grade, photo: d.photo || null, notes: notes || null };
+    var docData = { name: name, unit: unit, codice: codice || null, density: density, grade: grade, photo: d.photo || null, notes: notes || null };
     window.__fb.setDoc(REFS_COLL + '/' + id, docData).then(function(){
       // Apply locally right away instead of waiting for the Firestore listener
       // to echo it back — otherwise switching straight back to Carico can
       // momentarily find no matching reference yet.
       var idx = -1;
       for (var i = 0; i < state.references.length; i++){ if (state.references[i].id === id){ idx = i; break; } }
-      var refObj = { id: id, name: docData.name, unit: docData.unit, density: docData.density, grade: docData.grade, photo: docData.photo, notes: docData.notes };
+      var refObj = { id: id, name: docData.name, unit: docData.unit, codice: docData.codice, density: docData.density, grade: docData.grade, photo: docData.photo, notes: docData.notes };
       if (idx === -1) state.references.push(refObj); else state.references[idx] = refObj;
       var backfill = (wasEdit && density !== null) ? backfillLotsDensity(id, density) : Promise.resolve();
       return backfill;
@@ -2166,6 +2172,7 @@
                 properties: {
                   descrizione: { type: 'string', description: 'Testo originale della riga così come scritto in fattura' },
                   nome_prodotto: { type: 'string', description: 'Nome pulito e breve del prodotto' },
+                  codice_prodotto: { type: ['string','null'], description: 'Codice articolo/prodotto del fornitore, se presente in fattura (es. una colonna "Cod." o un codice alfanumerico accanto alla descrizione)' },
                   quantita: { type: ['number','null'], description: 'Quantità numerica' },
                   unita: { type: ['string','null'], description: 'Unità di misura come scritta (kg, l, lt, g, ml, pz, ecc.)' },
                   lotto: { type: ['string','null'], description: 'Numero di lotto del prodotto, se indicato' }
@@ -2182,7 +2189,7 @@
         role: 'user',
         content: [
           { type: contentType, source: { type: 'base64', media_type: d.mediaType, data: d.base64 } },
-          { type: 'text', text: 'Questa è una fattura di un fornitore di materie prime per un\'azienda che produce liquori (alcol, zucchero, aromi, frutta, acqua, ecc.). Estrai ogni riga di prodotto con quantità, unità di misura e numero di lotto se presente. Ignora totali, IVA, spese di trasporto, sconti e note generiche. Usa lo strumento fornito per rispondere.' }
+          { type: 'text', text: 'Questa è una fattura di un fornitore di materie prime per un\'azienda che produce liquori (alcol, zucchero, aromi, frutta, acqua, ecc.). Estrai ogni riga di prodotto con quantità, unità di misura, numero di lotto e codice articolo/prodotto del fornitore, se presenti. Ignora totali, IVA, spese di trasporto, sconti e note generiche. Usa lo strumento fornito per rispondere.' }
         ]
       }]
     };
@@ -2279,10 +2286,22 @@
   // ==================================================================
   // MODAL: revisione righe fattura
   // ==================================================================
+  // A shared product code is unambiguous even when the invoice's wording
+  // doesn't resemble the saved name at all - it always wins over the
+  // name-similarity guess.
+  function guessReferenceMatchByCode(code){
+    var norm = String(code || '').trim().toLowerCase();
+    if (!norm) return null;
+    for (var i = 0; i < state.references.length; i++){
+      var r = state.references[i];
+      if (r.codice && String(r.codice).trim().toLowerCase() === norm) return r;
+    }
+    return null;
+  }
   function openInvoiceReviewModal(result){
     var righe = result.righe || [];
     var lines = righe.map(function(r){
-      var match = guessReferenceMatch(r.nome_prodotto || r.descrizione);
+      var match = guessReferenceMatchByCode(r.codice_prodotto) || guessReferenceMatch(r.nome_prodotto || r.descrizione);
       var qtyGuess = guessQtyFromUnit(r.unita, r.quantita);
       var matchDensity = match && match.density !== null && match.density !== undefined ? match.density : null;
       // The invoice only ever states one unit (e.g. "25 L"); when the
@@ -2299,10 +2318,11 @@
         rawDescription: r.descrizione || '',
         extractedName: r.nome_prodotto || r.descrizione || '',
         extractedUnit: r.unita || '',
+        extractedCode: r.codice_prodotto || '',
         lotto: r.lotto || '',
         refMode: match ? 'existing' : 'new',
         refId: match ? match.id : '',
-        newRef: { name: r.nome_prodotto || r.descrizione || '', unit: 'liquido' },
+        newRef: { name: r.nome_prodotto || r.descrizione || '', unit: 'liquido', codice: r.codice_prodotto || '' },
         qtyLt: qtyLt,
         qtyKg: qtyKg,
         density: matchDensity !== null ? matchDensity : '',
@@ -2339,7 +2359,7 @@
     html += '<div class="invoice-line-top">';
     html += '<label class="invoice-line-check"><input type="checkbox" data-action="inv-toggle-include" data-idx="' + idx + '"' + (line.include ? ' checked' : '') + '> Includi</label>';
     html += '</div>';
-    html += '<div class="invoice-raw">In fattura: ' + escapeHtml(line.rawDescription) + (line.extractedUnit ? ' · unità: ' + escapeHtml(line.extractedUnit) : '') + '</div>';
+    html += '<div class="invoice-raw">In fattura: ' + escapeHtml(line.rawDescription) + (line.extractedUnit ? ' · unità: ' + escapeHtml(line.extractedUnit) : '') + (line.extractedCode ? ' · codice: ' + escapeHtml(line.extractedCode) : '') + '</div>';
 
     if (!line.include){ html += '</div>'; return html; }
 
@@ -2349,6 +2369,7 @@
 
     if (line.refMode === 'new'){
       html += fieldInput('invNewName_' + idx, 'Nome nuova referenza', 'text', line.newRef.name, '');
+      html += fieldInput('invNewCodice_' + idx, 'Codice prodotto (opzionale)', 'text', line.newRef.codice, '');
       html += '<div class="field"><label>Tipo</label><div class="seg">';
       html += '<button type="button" class="seg-btn' + (unit==='liquido'?' active':'') + '" data-action="inv-set-unit" data-idx="' + idx + '" data-unit="liquido">Liquido</button>';
       html += '<button type="button" class="seg-btn' + (unit==='solido'?' active':'') + '" data-action="inv-set-unit" data-idx="' + idx + '" data-unit="solido">Solido</button>';
@@ -2433,9 +2454,9 @@
           var id = uid('ref');
           // Seed the new reference's defaults from this first lot's own
           // density/gradazione, since there is no prior default to use.
-          var docData = { name: l.newRef.name.trim(), unit: l.newRef.unit, density: numOrNull(l.density), grade: l.newRef.unit === 'liquido' ? numOrNull(l.grade) : null, photo: null, notes: null };
+          var docData = { name: l.newRef.name.trim(), unit: l.newRef.unit, codice: (l.newRef.codice || '').trim() || null, density: numOrNull(l.density), grade: l.newRef.unit === 'liquido' ? numOrNull(l.grade) : null, photo: null, notes: null };
           resolveRef = window.__fb.setDoc(REFS_COLL + '/' + id, docData).then(function(){
-            var refObj = { id: id, name: docData.name, unit: docData.unit, density: docData.density, grade: docData.grade, photo: docData.photo, notes: docData.notes };
+            var refObj = { id: id, name: docData.name, unit: docData.unit, codice: docData.codice, density: docData.density, grade: docData.grade, photo: docData.photo, notes: docData.notes };
             state.references.push(refObj);
             return refObj;
           });
@@ -2651,6 +2672,7 @@
         withFocusPreserved(render); return;
       }
       if (t.id === 'refName'){ state.refModal.draft.name = t.value; return; }
+      if (t.id === 'refCodice'){ state.refModal.draft.codice = t.value; return; }
       if (t.id === 'refDensity'){ state.refModal.draft.density = t.value; return; }
       if (t.id === 'refGrade'){ state.refModal.draft.grade = t.value; return; }
       if (t.id === 'refNotes'){ state.refModal.draft.notes = t.value; return; }
@@ -2663,6 +2685,9 @@
       }
       if (t.id && t.id.indexOf('invNewName_') === 0){
         state.invoiceReview.lines[parseInt(t.id.slice('invNewName_'.length),10)].newRef.name = t.value; return;
+      }
+      if (t.id && t.id.indexOf('invNewCodice_') === 0){
+        state.invoiceReview.lines[parseInt(t.id.slice('invNewCodice_'.length),10)].newRef.codice = t.value; return;
       }
       if (t.id && t.id.indexOf('invGrade_') === 0){
         state.invoiceReview.lines[parseInt(t.id.slice('invGrade_'.length),10)].grade = t.value; return;
