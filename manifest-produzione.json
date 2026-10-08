@@ -1,0 +1,12 @@
+{
+  "name": "Produzione Materie Prime",
+  "short_name": "Produzione",
+  "start_url": "produzione.html",
+  "display": "standalone",
+  "background_color": "#f6ede1",
+  "theme_color": "#a85a2a",
+  "icons": [
+    { "src": "icons/produzione-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "icons/produzione-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
