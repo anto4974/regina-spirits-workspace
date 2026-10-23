@@ -69,6 +69,12 @@
   }
   input, textarea, select{ -webkit-user-select:text; user-select:text; }
   .app{ max-width:560px; margin:0 auto; min-height:100vh; background:var(--bg); padding-bottom:3rem; }
+  @media (min-width:860px){
+    .app{ max-width:1200px; }
+    main.view{ padding-left:1.5rem; padding-right:1.5rem; }
+    .form-card{ padding:1.2rem 1.4rem; gap:.95rem; }
+    .row-split, .row-split3{ gap:1rem; }
+  }
 
   header.top{
     position:sticky; top:0; z-index:20;
@@ -136,47 +142,17 @@
   .list{ display:flex; flex-direction:column; gap:.55rem; margin-bottom:1rem; }
   .empty{ text-align:center; color:var(--muted); font-size:.85rem; padding:2rem 1rem; line-height:1.5; }
 
-  .card{
-    background:var(--surface); border:1px solid var(--line); border-radius:.75rem;
-    padding:.7rem .8rem; box-shadow:var(--shadow);
-  }
-  .ref-card{ display:flex; gap:.75rem; align-items:flex-start; }
-  .ref-main{ flex:1; min-width:0; }
-  .ref-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:.5rem; }
-  .ref-name{ font-weight:600; font-size:.95rem; line-height:1.25; }
   .ref-badge{
     font-family:'Oswald', sans-serif; font-size:.6rem; text-transform:uppercase; letter-spacing:.04em;
     padding:.12rem .45rem; border-radius:1rem; white-space:nowrap; flex:none;
   }
   .ref-badge.liquido{ background:var(--good); color:var(--good-ink); }
   .ref-badge.solido{ background:var(--warn); color:var(--warn-ink); }
-  .ref-stock{ font-family:'IBM Plex Mono', monospace; font-weight:700; font-size:1.05rem; color:var(--terra); margin-top:.3rem; }
-  .ref-stock .unit{ font-size:.62rem; font-weight:600; color:var(--muted); margin-left:.15rem; text-transform:uppercase; font-family:'Work Sans', sans-serif; }
-  .ref-meta{ font-size:.72rem; color:var(--muted); margin-top:.2rem; }
-  .ref-actions{ display:flex; gap:.4rem; margin-top:.55rem; }
-  .ref-actions button{
-    flex:none; padding:.35rem .6rem; border-radius:.5rem; border:1px solid var(--line);
-    background:var(--surface-2); color:var(--muted); font-family:'Oswald', sans-serif; font-size:.65rem;
-    text-transform:uppercase; letter-spacing:.03em; cursor:pointer; display:flex; align-items:center; gap:.3rem;
-  }
-  .ref-actions button svg{ width:13px; height:13px; }
-  .ref-actions button.expand.open{ background:var(--terra); border-color:var(--terra); color:var(--terra-ink); }
-
-  .lot-table{ margin-top:.6rem; border-top:1px dashed var(--line); padding-top:.55rem; display:flex; flex-direction:column; gap:.45rem; }
-  .lot-row{
-    display:flex; align-items:center; justify-content:space-between; gap:.5rem;
-    background:var(--surface-2); border-radius:.55rem; padding:.5rem .6rem; font-size:.78rem;
-  }
-  .lot-row-main{ min-width:0; }
-  .lot-num{ font-weight:600; font-family:'IBM Plex Mono', monospace; font-size:.78rem; }
-  .lot-detail{ color:var(--muted); font-size:.68rem; margin-top:.1rem; }
-  .lot-qty{ font-family:'IBM Plex Mono', monospace; font-weight:700; font-size:.85rem; text-align:right; white-space:nowrap; }
   .lot-mini-btn{
     flex:none; padding:.3rem .5rem; border-radius:.4rem; border:1px solid var(--line);
     background:var(--surface); color:var(--terra); font-family:'Oswald', sans-serif; font-size:.6rem;
     text-transform:uppercase; cursor:pointer;
   }
-  .lot-actions{ display:flex; flex-direction:column; gap:.3rem; flex:none; }
 
   .ai-warning{
     background:color-mix(in srgb, var(--bad) 12%, var(--surface)); border:1px solid var(--bad);
@@ -212,14 +188,6 @@
     font-size:.68rem; color:var(--muted); font-style:italic; background:var(--surface); border-radius:.4rem;
     padding:.35rem .5rem; line-height:1.4;
   }
-
-  .thumb{
-    flex:none; width:3.6rem; height:3.6rem; border-radius:.6rem; border:1px solid var(--line);
-    background:var(--surface-2); color:var(--muted); display:flex; align-items:center; justify-content:center;
-    overflow:hidden; position:relative;
-  }
-  .thumb-img{ width:100%; height:100%; object-fit:cover; display:block; }
-  .thumb-placeholder{ font-family:'Oswald', sans-serif; font-weight:700; font-size:1.3rem; color:var(--terra); }
 
   .form-card{ background:var(--surface); border:1px solid var(--line); border-radius:.75rem; padding:.85rem; display:flex; flex-direction:column; gap:.7rem; margin-bottom:1rem; }
   .field label{
@@ -274,20 +242,33 @@
   }
   .add-toggle:hover{ border-color:var(--terra); color:var(--terra); }
 
-  .photo-field{ display:flex; align-items:center; gap:.75rem; }
-  .photo-picker{
-    flex:none; width:4.6rem; height:4.6rem; padding:0; border-radius:.65rem; border:1.5px dashed var(--line);
-    background:var(--surface-2); color:var(--muted); display:flex; flex-direction:column; align-items:center;
-    justify-content:center; gap:.15rem; cursor:pointer; position:relative; overflow:hidden;
+  /* Dense, row-based data tables (Materie Prime, Storico, Produzioni) —
+     no photos, just columns, comfortable on a wide desktop screen and still
+     easy to tap on a phone (horizontal scroll rather than a cramped fit). */
+  .table-scroll{ overflow-x:auto; -webkit-overflow-scrolling:touch; margin-bottom:1rem; border:1px solid var(--line); border-radius:.6rem; }
+  table.data-table{ width:100%; border-collapse:collapse; background:var(--surface); font-size:.84rem; }
+  table.data-table th, table.data-table td{
+    padding:.6rem .7rem; text-align:left; white-space:nowrap; border-bottom:1px solid var(--line);
   }
-  .photo-picker svg{ width:18px; height:18px; }
-  .photo-picker-text{ font-size:.55rem; text-transform:uppercase; letter-spacing:.03em; font-family:'Oswald', sans-serif; }
-  .photo-preview{ width:100%; height:100%; object-fit:cover; display:block; }
-  .photo-remove{
-    position:absolute; top:.2rem; right:.2rem; width:1.25rem; height:1.25rem; border-radius:50%; border:none;
-    background:rgba(20,12,6,.6); color:#fff; font-size:.65rem; line-height:1; cursor:pointer; display:flex;
-    align-items:center; justify-content:center;
+  table.data-table th{
+    font-family:'Oswald', sans-serif; font-size:.64rem; text-transform:uppercase; letter-spacing:.05em;
+    color:var(--muted); background:var(--surface-2); position:sticky; top:0;
   }
+  table.data-table tbody tr:last-child td{ border-bottom:none; }
+  table.data-table tbody tr:hover{ background:color-mix(in srgb, var(--terra) 6%, var(--surface)); }
+  table.data-table td.num{ font-family:'IBM Plex Mono', monospace; text-align:right; }
+  table.data-table td.wrap{ white-space:normal; min-width:10rem; }
+  table.data-table tr.sub-row td{ background:var(--surface-2); }
+  table.data-table tr.sub-row.expired td{ background:color-mix(in srgb, var(--bad) 10%, var(--surface-2)); }
+  table.data-table .row-actions{ display:flex; gap:.35rem; flex-wrap:nowrap; }
+  table.data-table .row-actions button{
+    flex:none; padding:.3rem .55rem; border-radius:.4rem; border:1px solid var(--line);
+    background:var(--surface); color:var(--terra); font-family:'Oswald', sans-serif; font-size:.62rem;
+    text-transform:uppercase; cursor:pointer; white-space:nowrap;
+  }
+  .expiry-tag{ font-size:.68rem; }
+  .expiry-tag.expired{ color:var(--bad); font-weight:700; }
+  .expiry-tag.soon{ color:var(--warn); font-weight:700; }
 
   .component-row{
     background:var(--surface-2); border:1px solid var(--line); border-radius:.6rem; padding:.55rem .6rem;
@@ -322,25 +303,6 @@
   .prod-push-row{ display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin-top:.55rem; }
   .prod-push-status{ font-size:.7rem; color:var(--muted); }
 
-  .move-list{ display:flex; flex-direction:column; gap:.4rem; margin-bottom:1.2rem; }
-  .move-row{
-    background:var(--surface); border:1px solid var(--line); border-radius:.6rem; padding:.55rem .7rem;
-    display:flex; align-items:center; justify-content:space-between; gap:.6rem; box-shadow:var(--shadow);
-  }
-  .move-main{ display:flex; flex-direction:column; gap:.15rem; min-width:0; }
-  .move-name{ font-weight:600; font-size:.85rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .move-sub{ font-size:.66rem; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; font-family:'Oswald', sans-serif; }
-  .move-causale{ font-size:.7rem; color:var(--ink); font-style:italic; }
-  .move-side{ display:flex; flex-direction:column; align-items:flex-end; gap:.15rem; flex:none; }
-  .move-delta{ font-family:'IBM Plex Mono', monospace; font-weight:700; font-size:.9rem; }
-  .move-delta.plus{ color:var(--good); }
-  .move-delta.minus{ color:var(--bad); }
-  .move-time{ font-size:.63rem; color:var(--muted); font-family:'IBM Plex Mono', monospace; white-space:nowrap; }
-  .move-del{
-    flex:none; width:1.8rem; height:1.8rem; border-radius:.5rem; border:1px solid var(--line); background:var(--surface-2);
-    color:var(--muted); display:flex; align-items:center; justify-content:center; cursor:pointer;
-  }
-  .move-del svg{ width:13px; height:13px; }
 
   .modal-overlay[hidden]{ display:none; }
   .modal-overlay{ position:fixed; inset:0; z-index:50; background:rgba(20,12,6,.45); display:flex; align-items:flex-end; justify-content:center; }
@@ -376,6 +338,24 @@
     font-family:'Oswald', sans-serif; text-transform:uppercase; letter-spacing:.03em; white-space:nowrap;
   }
   @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  /* Scheda di Produzione — printable production sheet */
+  .scheda-sheet{ background:#fff; color:#111; padding:1.2rem; border-radius:.6rem; border:1px solid var(--line); }
+  .scheda-header{ display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; border-bottom:2px solid #111; padding-bottom:.7rem; margin-bottom:.9rem; }
+  .scheda-header h2{ margin:0; font-family:'Oswald', sans-serif; text-transform:uppercase; letter-spacing:.03em; font-size:1.2rem; }
+  .scheda-header p{ margin:.2rem 0 0; font-size:.78rem; color:#555; }
+  .scheda-meta-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(10rem,1fr)); gap:.6rem 1.2rem; margin-bottom:1rem; font-size:.84rem; }
+  .scheda-meta-grid .k{ font-family:'Oswald', sans-serif; font-size:.62rem; text-transform:uppercase; letter-spacing:.04em; color:#777; display:block; }
+  .scheda-meta-grid .v{ font-weight:600; }
+  .scheda-sheet table.data-table{ font-size:.8rem; }
+  .scheda-sheet table.data-table th{ background:#eee; color:#333; }
+  .scheda-print-btn{ margin-bottom:1rem; }
+  @media print{
+    body *{ visibility:hidden; }
+    .scheda-sheet, .scheda-sheet *{ visibility:visible; }
+    .scheda-sheet{ position:absolute; left:0; top:0; width:100%; border:none; }
+    .scheda-print-btn, header.top, nav.tabs, .toast{ display:none !important; }
+  }
 </style>
 </head>
 <body>
@@ -431,7 +411,6 @@
   <div class="modal-overlay" id="confirmModalOverlay" hidden></div>
   <div class="modal-overlay" id="settingsModalOverlay" hidden></div>
   <div class="modal-overlay" id="invoiceModalOverlay" hidden></div>
-  <input type="file" id="photoInput" accept="image/*" hidden>
 </div>
 
 <script type="module">
@@ -519,8 +498,6 @@
     { id:'garage',    label:'Garage' }
   ];
 
-  var PHOTO_MAX_DIM = 480;
-  var PHOTO_QUALITY = 0.72;
   var MOVES_CAP = 3000;
 
   var TABS = [
@@ -563,11 +540,11 @@
     settingsModal: null,  // { draft:{apiKey, model} }
     fattura: freshFatturaDraft(),
     invoiceReview: null,  // { supplierName, lines:[...] }
+    schedaProductionId: null,
     carico: freshCaricoDraft(),
     scarico: freshScaricoDraft(),
     produzione: freshProduzioneDraft(),
-    ricette: { editingId: null, formOpen: false, draft: null },
-    pendingPhotoTarget: null // 'refModal'
+    ricette: { editingId: null, formOpen: false, draft: null }
   };
 
   function freshFatturaDraft(){
@@ -575,7 +552,7 @@
   }
 
   function freshCaricoDraft(){
-    return { refId:'', lotto:'', qtyLt:'', qtyKg:'', density:'', grade:'', causale:'' };
+    return { refId:'', lotto:'', qtyLt:'', qtyKg:'', density:'', grade:'', scadenza:'', causale:'' };
   }
   function freshScaricoDraft(){
     return { refId:'', lotId:'', qtyLt:'', qtyKg:'', causale:'' };
@@ -637,6 +614,7 @@
   function iconReceipt(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2Z"/><path d="M9 7h6M9 11h6M9 15h3"/></svg>'; }
   function iconSettings(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 9 19.35a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.64 15a1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.65 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.64a1.7 1.7 0 0 0 1.04-1.56V3a2 2 0 0 1 4 0v.09a1.7 1.7 0 0 0 1.04 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.36 9a1.7 1.7 0 0 0 1.56 1.04H21a2 2 0 0 1 0 4h-.09a1.7 1.7 0 0 0-1.56 1.04Z"/></svg>'; }
   function iconClock(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>'; }
+  function iconPrinter(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="4" y="9" width="16" height="8" rx="1.5"/><path d="M6 17v4h12v-4"/></svg>'; }
   function iconLogout(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>'; }
   function iconEdit(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>'; }
   function iconTrash(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4.8A1.8 1.8 0 0 1 10.8 3h2.4A1.8 1.8 0 0 1 15 4.8V7"/><path d="M6 7l1 13a2 2 0 0 0 2 1.9h6a2 2 0 0 0 2-1.9l1-13"/><path d="M10 11v6M14 11v6"/></svg>'; }
@@ -708,31 +686,6 @@
     else label.textContent = 'Connessione…';
   }
 
-  // ---------- photo compression ----------
-  function readAndCompressImage(file){
-    return new Promise(function(resolve, reject){
-      var reader = new FileReader();
-      reader.onerror = function(){ reject(new Error('read_failed')); };
-      reader.onload = function(){
-        var img = new Image();
-        img.onerror = function(){ reject(new Error('decode_failed')); };
-        img.onload = function(){
-          var w = img.width, h = img.height;
-          var scale = Math.min(1, PHOTO_MAX_DIM / Math.max(w, h));
-          var cw = Math.max(1, Math.round(w * scale));
-          var ch = Math.max(1, Math.round(h * scale));
-          var canvas = document.createElement('canvas');
-          canvas.width = cw; canvas.height = ch;
-          var ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, cw, ch);
-          try { resolve(canvas.toDataURL('image/jpeg', PHOTO_QUALITY)); } catch(e){ reject(e); }
-        };
-        img.src = reader.result;
-      };
-      reader.readAsDataURL(file);
-    });
-  }
-
   // ==================================================================
   // RENDER: top-level
   // ==================================================================
@@ -786,6 +739,7 @@
     else if (state.view === 'produzione') html = renderProduzioneView();
     else if (state.view === 'ricette') html = renderRicetteView();
     else if (state.view === 'storico') html = renderStoricoView();
+    else if (state.view === 'scheda') html = renderSchedaView();
     root.innerHTML = html;
   }
 
@@ -795,73 +749,73 @@
   function renderMaterieView(){
     var search = state.search.trim().toLowerCase();
     var refs = state.references.slice().sort(function(a,b){ return a.name.localeCompare(b.name, 'it', {sensitivity:'base'}); });
-    if (search) refs = refs.filter(function(r){ return r.name.toLowerCase().indexOf(search) !== -1; });
+    if (search) refs = refs.filter(function(r){ return r.name.toLowerCase().indexOf(search) !== -1 || (r.codice && r.codice.toLowerCase().indexOf(search) !== -1); });
 
     var html = '';
-    html += '<div class="search-wrap"><input type="text" id="materieSearch" placeholder="Cerca una referenza…" value="' + escapeHtml(state.search) + '"></div>';
+    html += '<div class="search-wrap"><input type="text" id="materieSearch" placeholder="Cerca per nome o codice…" value="' + escapeHtml(state.search) + '"></div>';
     html += '<button type="button" class="add-toggle" data-action="new-reference">+ Nuova referenza materia prima</button>';
 
     if (!refs.length){
       html += '<p class="empty">Nessuna referenza trovata.<br>Aggiungine una per iniziare a registrare i carichi.</p>';
-    } else {
-      html += '<div class="list">';
-      refs.forEach(function(r){
-        var tot = totalStock(r.id);
-        var lots = lotsForRef(r.id).filter(function(l){ return (l.qtyLt||0) > 0.0005 || (l.qtyKg||0) > 0.0005; });
-        var isOpen = state.expandedRef === r.id;
-        html += '<div class="card ref-card">';
-        html += renderThumb(r);
-        html += '<div class="ref-main">';
-        html += '<div class="ref-top"><span class="ref-name">' + escapeHtml(r.name) + '</span>' +
-          '<span class="ref-badge ' + r.unit + '">' + (r.unit === 'liquido' ? 'Liquido' : 'Solido') + '</span></div>';
-        var stockParts = [];
-        if (tot.lt !== null) stockParts.push(fmt(tot.lt,3) + '<span class="unit">Lt</span>');
-        if (tot.kg !== null) stockParts.push(fmt(tot.kg,3) + '<span class="unit">Kg</span>');
-        html += '<div class="ref-stock">' + (stockParts.length ? stockParts.join(' &nbsp;·&nbsp; ') : '<span class="unit">Nessuna giacenza</span>') + '</div>';
-        var metaParts = [];
-        if (r.codice) metaParts.push('Cod. ' + escapeHtml(r.codice));
-        if (r.density !== null && r.density !== undefined) metaParts.push('Densità ' + fmt(r.density,3) + ' kg/Lt');
-        if (r.grade !== null && r.grade !== undefined) metaParts.push('Gradazione ' + fmt(r.grade,1) + '%');
-        if (metaParts.length) html += '<div class="ref-meta">' + metaParts.join(' · ') + '</div>';
-        html += '<div class="ref-actions">';
-        html += '<button type="button" data-action="edit-reference" data-id="' + r.id + '">' + iconEdit() + ' Modifica</button>';
-        if (lots.length) html += '<button type="button" class="expand' + (isOpen ? ' open' : '') + '" data-action="toggle-lots" data-id="' + r.id + '">' + iconChevron() + ' Lotti (' + lots.length + ')</button>';
-        html += '</div>';
-        if (isOpen && lots.length){
-          html += '<div class="lot-table">';
-          lots.forEach(function(l){
-            html += '<div class="lot-row">';
-            html += '<div class="lot-row-main"><div class="lot-num">Lotto ' + escapeHtml(l.lotto) + '</div>';
-            var det = [];
-            if (l.density !== null && l.density !== undefined) det.push('densità ' + fmt(l.density,3));
-            if (l.grade !== null && l.grade !== undefined) det.push('grad. ' + fmt(l.grade,1) + '%');
-            if (det.length) html += '<div class="lot-detail">' + det.join(' · ') + '</div>';
-            html += '</div>';
-            var qtyParts = [];
-            if (l.qtyLt !== null && l.qtyLt !== undefined) qtyParts.push(fmt(l.qtyLt,3) + ' Lt');
-            if (l.qtyKg !== null && l.qtyKg !== undefined) qtyParts.push(fmt(l.qtyKg,3) + ' Kg');
-            html += '<div class="lot-qty">' + qtyParts.join('<br>') + '</div>';
-            html += '<div class="lot-actions">';
-            html += '<button type="button" class="lot-mini-btn" data-action="edit-lot" data-lot="' + l.id + '">Modifica</button>';
-            html += '<button type="button" class="lot-mini-btn" data-action="quick-scarico" data-ref="' + r.id + '" data-lot="' + l.id + '">Scarico</button>';
-            html += '</div>';
-            html += '</div>';
-          });
-          html += '</div>';
-        }
-        html += '</div></div>';
-      });
-      html += '</div>';
+      return html;
     }
+
+    html += '<div class="table-scroll"><table class="data-table"><thead><tr>';
+    html += '<th>Referenza</th><th>Codice</th><th>Tipo</th><th>Giacenza Lt</th><th>Giacenza Kg</th><th>Densità</th><th>Gradazione</th><th>Lotti</th><th>Azioni</th>';
+    html += '</tr></thead><tbody>';
+
+    refs.forEach(function(r){
+      var tot = totalStock(r.id);
+      var lots = lotsForRef(r.id).filter(function(l){ return (l.qtyLt||0) > 0.0005 || (l.qtyKg||0) > 0.0005; });
+      var isOpen = state.expandedRef === r.id;
+      html += '<tr>';
+      html += '<td class="wrap"><strong>' + escapeHtml(r.name) + '</strong></td>';
+      html += '<td>' + (r.codice ? escapeHtml(r.codice) : '—') + '</td>';
+      html += '<td><span class="ref-badge ' + r.unit + '">' + (r.unit === 'liquido' ? 'Liquido' : 'Solido') + '</span></td>';
+      html += '<td class="num">' + (tot.lt !== null ? fmt(tot.lt,3) : '—') + '</td>';
+      html += '<td class="num">' + (tot.kg !== null ? fmt(tot.kg,3) : '—') + '</td>';
+      html += '<td class="num">' + (r.density !== null && r.density !== undefined ? fmt(r.density,3) : '—') + '</td>';
+      html += '<td class="num">' + (r.grade !== null && r.grade !== undefined ? fmt(r.grade,1)+'%' : '—') + '</td>';
+      html += '<td>' + (lots.length ? '<button type="button" class="lot-mini-btn" data-action="toggle-lots" data-id="' + r.id + '">' + (isOpen?'Nascondi':'Mostra') + ' (' + lots.length + ')</button>' : '—') + '</td>';
+      html += '<td><div class="row-actions"><button type="button" data-action="edit-reference" data-id="' + r.id + '">Modifica</button></div></td>';
+      html += '</tr>';
+
+      if (isOpen && lots.length){
+        lots.forEach(function(l){
+          var exp = expiryStatus(l.scadenza);
+          html += '<tr class="sub-row' + (exp.cls ? ' ' + exp.cls : '') + '">';
+          html += '<td colspan="2">↳ Lotto <strong>' + escapeHtml(l.lotto) + '</strong></td>';
+          html += '<td>' + (exp.label ? '<span class="expiry-tag ' + exp.cls + '">' + exp.label + '</span>' : '—') + '</td>';
+          html += '<td class="num">' + (l.qtyLt !== null && l.qtyLt !== undefined ? fmt(l.qtyLt,3) : '—') + '</td>';
+          html += '<td class="num">' + (l.qtyKg !== null && l.qtyKg !== undefined ? fmt(l.qtyKg,3) : '—') + '</td>';
+          html += '<td class="num">' + (l.density !== null && l.density !== undefined ? fmt(l.density,3) : '—') + '</td>';
+          html += '<td class="num">' + (l.grade !== null && l.grade !== undefined ? fmt(l.grade,1)+'%' : '—') + '</td>';
+          html += '<td></td>';
+          html += '<td><div class="row-actions">';
+          html += '<button type="button" data-action="edit-lot" data-lot="' + l.id + '">Modifica</button>';
+          html += '<button type="button" data-action="quick-scarico" data-ref="' + r.id + '" data-lot="' + l.id + '">Scarico</button>';
+          html += '</div></td>';
+          html += '</tr>';
+        });
+      }
+    });
+
+    html += '</tbody></table></div>';
     return html;
   }
 
-  function renderThumb(r){
-    if (r.photo){
-      return '<div class="thumb"><img class="thumb-img" src="' + r.photo + '" alt=""></div>';
-    }
-    var initial = (r.name || '?').trim().charAt(0).toUpperCase();
-    return '<div class="thumb"><span class="thumb-placeholder">' + escapeHtml(initial) + '</span></div>';
+  // Human-readable expiry status: how a lot's scadenza should read and be
+  // colored (overdue vs. due soon vs. fine), independent of where it's shown.
+  function expiryStatus(scadenza){
+    if (!scadenza) return { label: '', cls: '' };
+    var d = new Date(scadenza + 'T00:00:00');
+    if (isNaN(d.getTime())) return { label: scadenza, cls: '' };
+    var today = new Date(); today.setHours(0,0,0,0);
+    var diffDays = Math.round((d - today) / 86400000);
+    var label = d.toLocaleDateString('it-IT');
+    if (diffDays < 0) return { label: label + ' (scaduto)', cls: 'expired' };
+    if (diffDays <= 30) return { label: label + ' (' + diffDays + 'g)', cls: 'soon' };
+    return { label: label, cls: '' };
   }
 
   // ==================================================================
@@ -898,7 +852,10 @@
         html += '</div>';
       }
 
+      html += '<div class="row-split">';
+      html += fieldInput('caricoScadenza', 'Scadenza (opzionale)', 'date', d.scadenza, '');
       html += '<div class="field"><label for="caricoCausale">Causale (opzionale)</label><input type="text" id="caricoCausale" placeholder="Es. arrivo fornitore XY" value="' + escapeHtml(d.causale) + '"></div>';
+      html += '</div>';
       html += '<div class="btn-row"><button type="button" class="btn btn-good" data-action="save-carico">Registra carico</button></div>';
     }
     html += '</div>';
@@ -1048,6 +1005,14 @@
 
   function renderAllocations(c, ref, required, compIdx){
     var lots = lotsForRef(ref.id).filter(function(l){ return (ref.unit==='liquido'? (l.qtyLt||0) : (l.qtyKg||0)) > 0.0005; });
+    // Soonest-expiring first, so the picker nudges toward using up stock
+    // that's closer to its scadenza before a later lot with more shelf life.
+    lots.sort(function(a,b){
+      if (a.scadenza && b.scadenza) return a.scadenza.localeCompare(b.scadenza);
+      if (a.scadenza) return -1;
+      if (b.scadenza) return 1;
+      return 0;
+    });
     var html = '<div class="alloc-list">';
     var total = 0;
     c.allocations.forEach(function(a, aIdx){
@@ -1057,7 +1022,8 @@
       html += '<option value="">— Seleziona lotto —</option>';
       lots.forEach(function(l){
         var av = ref.unit==='liquido' ? l.qtyLt : l.qtyKg;
-        html += '<option value="' + l.id + '"' + (l.id===a.lotId?' selected':'') + '>Lotto ' + escapeHtml(l.lotto) + ' — disp. ' + fmt(av,3) + '</option>';
+        var exp = expiryStatus(l.scadenza);
+        html += '<option value="' + l.id + '"' + (l.id===a.lotId?' selected':'') + '>Lotto ' + escapeHtml(l.lotto) + ' — disp. ' + fmt(av,3) + (exp.label ? ' — scad. ' + exp.label : '') + '</option>';
       });
       html += '</select></div>';
       html += '<div class="field"><label>Quantità (' + (ref.unit==='liquido'?'Lt':'Kg') + ')</label><input type="number" step="0.001" min="0" value="' + escapeHtml(a.qty) + '" data-alloc-field="qty" data-comp-idx="' + compIdx + '" data-alloc-idx="' + aIdx + '"></div>';
@@ -1125,9 +1091,53 @@
       } else {
         html += '<span class="prod-push-status">✓ Tutto caricato in Giacenze Liquori</span>';
       }
+      html += '<button type="button" class="btn btn-ghost" data-action="view-scheda" data-id="' + p.id + '">Scheda produzione</button>';
       html += '</div>';
       html += '</div>';
     });
+    return html;
+  }
+
+  // ==================================================================
+  // VIEW: Scheda di Produzione (riepilogo stampabile)
+  // ==================================================================
+  function renderSchedaView(){
+    var p = productionById(state.schedaProductionId);
+    if (!p){
+      return '<p class="empty">Produzione non trovata.</p><div class="btn-row"><button type="button" class="btn btn-ghost" data-action="back-to-produzione">Torna alla Produzione</button></div>';
+    }
+    var html = '';
+    html += '<div class="btn-row scheda-print-btn"><button type="button" class="btn btn-ghost" data-action="back-to-produzione">← Torna alla Produzione</button><button type="button" class="btn btn-primary" data-action="print-scheda">' + iconPrinter() + ' Stampa</button></div>';
+
+    html += '<div class="scheda-sheet">';
+    html += '<div class="scheda-header"><div><h2>Scheda di Produzione</h2><p>Regina Spirits</p></div><p>' + (p.createdAt ? formatDateTime(p.createdAt) : '') + '</p></div>';
+
+    html += '<div class="scheda-meta-grid">';
+    html += '<div><span class="k">Lotto prodotto finito</span><span class="v">' + escapeHtml(p.finishedLotto) + '</span></div>';
+    html += '<div><span class="k">Ricetta</span><span class="v">' + (p.recipeName ? escapeHtml(p.recipeName) : 'Produzione libera') + '</span></div>';
+    html += '<div><span class="k">Quantità prodotta</span><span class="v">' + fmt(p.quantityLt,2) + ' Lt</span></div>';
+    html += '<div><span class="k">Litri anidri</span><span class="v">' + (p.anhydrousLt!==null&&p.anhydrousLt!==undefined ? fmt(p.anhydrousLt,3)+' Lt' : '—') + '</span></div>';
+    html += '<div><span class="k">Gradazione teorica</span><span class="v">' + (p.gradeTheoretical!==null&&p.gradeTheoretical!==undefined ? fmt(p.gradeTheoretical,2)+'%' : '—') + '</span></div>';
+    html += '<div><span class="k">Gradazione effettiva</span><span class="v">' + (p.gradeEffective!==null&&p.gradeEffective!==undefined ? fmt(p.gradeEffective,2)+'%' : '—') + '</span></div>';
+    html += '</div>';
+    if (p.note) html += '<p style="font-size:.84rem;"><strong>Note:</strong> ' + escapeHtml(p.note) + '</p>';
+
+    html += '<div class="section-title" style="margin-top:.8rem;">Materie prime utilizzate</div>';
+    html += '<div class="table-scroll"><table class="data-table"><thead><tr>';
+    html += '<th>Referenza</th><th>Codice</th><th>Lotto</th><th>Scadenza</th><th>Quantità</th>';
+    html += '</tr></thead><tbody>';
+    (p.components||[]).forEach(function(c){
+      var exp = expiryStatus(c.scadenza);
+      html += '<tr>';
+      html += '<td class="wrap">' + escapeHtml(c.refName) + '</td>';
+      html += '<td>' + (c.refCodice ? escapeHtml(c.refCodice) : '—') + '</td>';
+      html += '<td>' + escapeHtml(c.lotto) + '</td>';
+      html += '<td>' + (exp.label ? '<span class="expiry-tag ' + exp.cls + '">' + exp.label + '</span>' : '—') + '</td>';
+      html += '<td class="num">' + fmt(c.qty,3) + ' ' + (c.unit==='lt'?'Lt':'Kg') + '</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+    html += '</div>';
     return html;
   }
 
@@ -1149,19 +1159,24 @@
     if (!recipes.length && !state.ricette.formOpen){
       html += '<p class="empty">Nessuna ricetta salvata.</p>';
     } else if (recipes.length) {
-      html += '<div class="list">';
+      html += '<div class="table-scroll"><table class="data-table"><thead><tr>';
+      html += '<th>Ricetta</th><th>Per</th><th>Componenti</th><th>Litri anidri</th><th>Gradazione teorica</th><th>Azioni</th>';
+      html += '</tr></thead><tbody>';
       recipes.forEach(function(r){
         var calc = recipeCalc(r);
-        html += '<div class="card">';
-        html += '<div class="ref-top"><span class="ref-name">' + escapeHtml(r.name) + '</span></div>';
-        html += '<div class="ref-meta">Per ' + fmt(r.baseLt,2) + ' Lt · ' + (r.components||[]).length + ' componenti</div>';
-        html += '<div class="ref-meta">Litri anidri: ' + (calc.anidri===null?'—':fmt(calc.anidri,3)) + ' Lt · Gradazione teorica: ' + (calc.gradeTheoretical===null?'—':fmt(calc.gradeTheoretical,2)) + '%</div>';
-        html += '<div class="ref-actions">';
-        html += '<button type="button" data-action="edit-recipe" data-id="' + r.id + '">' + iconEdit() + ' Modifica</button>';
-        html += '<button type="button" data-action="delete-recipe" data-id="' + r.id + '">' + iconTrash() + ' Elimina</button>';
-        html += '</div></div>';
+        html += '<tr>';
+        html += '<td class="wrap"><strong>' + escapeHtml(r.name) + '</strong></td>';
+        html += '<td class="num">' + fmt(r.baseLt,2) + ' Lt</td>';
+        html += '<td class="num">' + (r.components||[]).length + '</td>';
+        html += '<td class="num">' + (calc.anidri===null?'—':fmt(calc.anidri,3)) + '</td>';
+        html += '<td class="num">' + (calc.gradeTheoretical===null?'—':fmt(calc.gradeTheoretical,2)+'%') + '</td>';
+        html += '<td><div class="row-actions">';
+        html += '<button type="button" data-action="edit-recipe" data-id="' + r.id + '">Modifica</button>';
+        html += '<button type="button" data-action="delete-recipe" data-id="' + r.id + '">Elimina</button>';
+        html += '</div></td>';
+        html += '</tr>';
       });
-      html += '</div>';
+      html += '</tbody></table></div>';
     }
     return html;
   }
@@ -1243,19 +1258,23 @@
       html += '<p class="empty">Nessun movimento registrato.</p>';
       return html;
     }
-    html += '<div class="move-list">';
+    html += '<div class="table-scroll"><table class="data-table"><thead><tr>';
+    html += '<th>Data</th><th>Tipo</th><th>Referenza</th><th>Lotto</th><th>Quantità</th><th>Causale</th><th></th>';
+    html += '</tr></thead><tbody>';
     moves.forEach(function(m){
       var isPlus = m.delta > 0;
       var typeLabel = m.type === 'carico' ? 'Carico' : (m.type === 'scarico_produzione' ? 'Scarico produzione' : (m.type === 'correzione' ? 'Correzione' : 'Scarico'));
-      html += '<div class="move-row">';
-      html += '<div class="move-main"><span class="move-name">' + escapeHtml(m.refName) + '</span><span class="move-sub">' + typeLabel + ' · lotto ' + escapeHtml(m.lotto) + '</span>';
-      if (m.causale) html += '<span class="move-causale">' + escapeHtml(m.causale) + '</span>';
-      html += '</div>';
-      html += '<div class="move-side"><span class="move-delta ' + (isPlus?'plus':'minus') + '">' + (isPlus?'+':'') + fmt(m.delta,3) + ' ' + (m.unit==='lt'?'Lt':'Kg') + '</span><span class="move-time">' + formatDateTime(m.ts) + '</span></div>';
-      html += '<button type="button" class="move-del" data-action="delete-movement" data-id="' + m.id + '">' + iconTrash() + '</button>';
-      html += '</div>';
+      html += '<tr>';
+      html += '<td>' + formatDateTime(m.ts) + '</td>';
+      html += '<td>' + typeLabel + '</td>';
+      html += '<td class="wrap">' + escapeHtml(m.refName) + '</td>';
+      html += '<td>' + escapeHtml(m.lotto) + '</td>';
+      html += '<td class="num" style="color:' + (isPlus?'var(--good)':'var(--bad)') + ';">' + (isPlus?'+':'') + fmt(m.delta,3) + ' ' + (m.unit==='lt'?'Lt':'Kg') + '</td>';
+      html += '<td class="wrap">' + (m.causale ? escapeHtml(m.causale) : '—') + '</td>';
+      html += '<td><button type="button" class="lot-mini-btn" data-action="delete-movement" data-id="' + m.id + '">Elimina</button></td>';
+      html += '</tr>';
     });
-    html += '</div>';
+    html += '</tbody></table></div>';
     return html;
   }
 
@@ -1271,8 +1290,8 @@
         codice: ref.codice || '',
         density: ref.density===null||ref.density===undefined?'':ref.density,
         grade: ref.grade===null||ref.grade===undefined?'':ref.grade,
-        photo: ref.photo || null, notes: ref.notes || ''
-      } : { id: null, name:'', unit:'liquido', codice:'', density:'', grade:'', photo:null, notes:'' }
+        notes: ref.notes || ''
+      } : { id: null, name:'', unit:'liquido', codice:'', density:'', grade:'', notes:'' }
     };
     renderRefModal();
   }
@@ -1291,11 +1310,6 @@
     var html = '<div class="modal-sheet">';
     html += '<h2 class="modal-title">' + (isEdit ? 'Modifica referenza' : 'Nuova referenza') + '</h2>';
     html += '<p class="modal-subtitle">Materia prima</p>';
-
-    html += '<div class="modal-field"><label>Foto</label><div class="photo-field">';
-    html += '<button type="button" class="photo-picker" id="refPhotoPicker">' + (d.photo ? '<img class="photo-preview" src="' + d.photo + '">' : (iconCamera() + '<span class="photo-picker-text">Aggiungi</span>')) + (d.photo ? '<button type="button" class="photo-remove" id="refPhotoRemove">✕</button>' : '') + '</button>';
-    html += '<div class="field-hint">Una foto aiuta a riconoscere la referenza al volo.</div>';
-    html += '</div></div>';
 
     html += '<div class="modal-field"><label>Nome referenza</label><input type="text" id="refName" value="' + escapeHtml(d.name) + '" placeholder="Es. Alcool etilico 96%"></div>';
 
@@ -1338,7 +1352,8 @@
         qtyLt: lot.qtyLt === null || lot.qtyLt === undefined ? '' : lot.qtyLt,
         qtyKg: lot.qtyKg === null || lot.qtyKg === undefined ? '' : lot.qtyKg,
         density: lot.density === null || lot.density === undefined ? '' : lot.density,
-        grade: lot.grade === null || lot.grade === undefined ? '' : lot.grade
+        grade: lot.grade === null || lot.grade === undefined ? '' : lot.grade,
+        scadenza: lot.scadenza || ''
       }
     };
     renderLotModal();
@@ -1370,6 +1385,7 @@
     if (ref && ref.unit === 'liquido'){
       html += '<div class="modal-field"><label>Gradazione (%)</label><input type="number" step="0.1" min="0" max="100" id="lotGrade" value="' + escapeHtml(d.grade) + '"></div>';
     }
+    html += '<div class="modal-field"><label>Scadenza (opzionale)</label><input type="date" id="lotScadenza" value="' + escapeHtml(d.scadenza) + '"></div>';
 
     html += '<div class="btn-row"><button type="button" class="btn btn-ghost" data-action="close-lot-modal">Annulla</button><button type="button" class="btn btn-primary" data-action="save-lot">Salva</button></div>';
     html += '</div>';
@@ -1429,13 +1445,15 @@
     var newDensity = numOrNull(document.getElementById('lotDensity').value);
     var gradeInput = document.getElementById('lotGrade');
     var newGrade = gradeInput ? numOrNull(gradeInput.value) : (lot.grade === undefined ? null : lot.grade);
+    var newScadenza = document.getElementById('lotScadenza').value || null;
 
     var oldPrimary = ref && ref.unit === 'liquido' ? (lot.qtyLt || 0) : (lot.qtyKg || 0);
     var patch = {
       qtyLt: newQtyLt === null ? null : round(newQtyLt, 3),
       qtyKg: newQtyKg === null ? null : round(newQtyKg, 3),
       density: newDensity,
-      grade: newGrade
+      grade: newGrade,
+      scadenza: newScadenza
     };
     var newPrimary = ref && ref.unit === 'liquido' ? (patch.qtyLt || 0) : (patch.qtyKg || 0);
     var delta = round(newPrimary - oldPrimary, 3);
@@ -1537,14 +1555,14 @@
     var notes = document.getElementById('refNotes').value.trim();
     var id = d.id || uid('ref');
     var wasEdit = m.mode === 'edit';
-    var docData = { name: name, unit: unit, codice: codice || null, density: density, grade: grade, photo: d.photo || null, notes: notes || null };
+    var docData = { name: name, unit: unit, codice: codice || null, density: density, grade: grade, notes: notes || null };
     window.__fb.setDoc(REFS_COLL + '/' + id, docData).then(function(){
       // Apply locally right away instead of waiting for the Firestore listener
       // to echo it back — otherwise switching straight back to Carico can
       // momentarily find no matching reference yet.
       var idx = -1;
       for (var i = 0; i < state.references.length; i++){ if (state.references[i].id === id){ idx = i; break; } }
-      var refObj = { id: id, name: docData.name, unit: docData.unit, codice: docData.codice, density: docData.density, grade: docData.grade, photo: docData.photo, notes: docData.notes };
+      var refObj = { id: id, name: docData.name, unit: docData.unit, codice: docData.codice, density: docData.density, grade: docData.grade, notes: docData.notes };
       if (idx === -1) state.references.push(refObj); else state.references[idx] = refObj;
       var backfill = (wasEdit && density !== null) ? backfillLotsDensity(id, density) : Promise.resolve();
       return backfill;
@@ -1610,6 +1628,7 @@
     if (target.id === 'caricoLotto') d.lotto = target.value;
     if (target.id === 'caricoCausale') d.causale = target.value;
     if (target.id === 'caricoGrade') d.grade = target.value;
+    if (target.id === 'caricoScadenza') d.scadenza = target.value;
 
     var lt = document.getElementById('caricoLt');
     var kg = document.getElementById('caricoKg');
@@ -1671,7 +1690,7 @@
   // Keeps state.lots in sync locally so a batch of several commits in a row
   // (e.g. multiple invoice lines for the same lot) sums correctly without
   // waiting for Firestore's listener to echo each write back.
-  function commitCarico(ref, lotto, qtyLt, qtyKg, density, grade, causale){
+  function commitCarico(ref, lotto, qtyLt, qtyKg, density, grade, causale, scadenza){
     var lotId = lotDocId(ref.id, lotto);
     var existing = lotById(lotId);
     var newQtyLt = (existing ? (existing.qtyLt||0) : 0) + (qtyLt || 0);
@@ -1681,6 +1700,7 @@
       refId: ref.id, refName: ref.name, lotto: lotto, unit: ref.unit,
       density: density !== null ? density : (existing ? existing.density : null),
       grade: grade !== null ? grade : (existing ? existing.grade : null),
+      scadenza: scadenza ? scadenza : (existing ? (existing.scadenza || null) : null),
       qtyLt: hasLt ? round(newQtyLt,3) : null,
       qtyKg: round(newQtyKg,3),
       createdAt: existing ? existing.createdAt : new Date().toISOString(),
@@ -1708,6 +1728,7 @@
     var qtyKg = numOrNull(document.getElementById('caricoKg').value);
     var density = numOrNull(document.getElementById('caricoDensity').value);
     var grade = ref.unit === 'liquido' ? numOrNull(document.getElementById('caricoGrade').value) : null;
+    var scadenza = document.getElementById('caricoScadenza').value || null;
     var causale = document.getElementById('caricoCausale').value.trim();
 
     if ((!qtyLt || qtyLt <= 0) && (!qtyKg || qtyKg <= 0)){
@@ -1715,7 +1736,7 @@
       return;
     }
 
-    commitCarico(ref, lotto, qtyLt, qtyKg, density, grade, causale).then(function(){
+    commitCarico(ref, lotto, qtyLt, qtyKg, density, grade, causale, scadenza).then(function(){
       showToast('Carico registrato: lotto ' + lotto + '.');
       state.carico = freshCaricoDraft();
       state.carico.refId = ref.id;
@@ -1844,7 +1865,7 @@
           showToast('Disponibili solo ' + fmt(avail,3) + ' ' + (unit==='lt'?'Lt':'Kg') + ' per il lotto ' + lot.lotto + ' di ' + ref.name + '.');
           return;
         }
-        consumptions.push({ lot: lot, qty: q, unit: unit, refName: ref.name });
+        consumptions.push({ lot: lot, qty: q, unit: unit, refName: ref.name, refCodice: ref.codice || null });
       }
     }
     if (!consumptions.length){ showToast('Alloca almeno una quantità da un lotto per ogni componente.'); return; }
@@ -1861,7 +1882,7 @@
         cons.lot.qtyKg = updated.qtyKg;
         return window.__fb.setDoc(LOTS_COLL + '/' + cons.lot.id, { qtyLt: updated.qtyLt, qtyKg: updated.qtyKg, updatedAt: new Date().toISOString() }, true).then(function(){
           logProdMovement({ type:'scarico_produzione', refId: cons.lot.refId, refName: cons.refName, lotto: cons.lot.lotto, unit: cons.unit, delta: -cons.qty, causale: 'Produzione lotto ' + finishedLotto });
-          componentsSnapshot.push({ refId: cons.lot.refId, refName: cons.refName, lotto: cons.lot.lotto, qty: cons.qty, unit: cons.unit });
+          componentsSnapshot.push({ refId: cons.lot.refId, refName: cons.refName, refCodice: cons.refCodice, lotto: cons.lot.lotto, scadenza: cons.lot.scadenza || null, qty: cons.qty, unit: cons.unit });
         });
       });
     });
@@ -1881,10 +1902,14 @@
         createdAt: new Date().toISOString(),
         pushes: []
       };
-      return window.__fb.setDoc(PRODUCTIONS_COLL + '/' + productionId, prodDoc);
+      return window.__fb.setDoc(PRODUCTIONS_COLL + '/' + productionId, prodDoc).then(function(){
+        state.productions.push(Object.assign({ id: productionId }, prodDoc));
+      });
     }).then(function(){
       showToast('Produzione registrata: lotto ' + finishedLotto + '.');
       state.produzione = freshProduzioneDraft();
+      state.view = 'scheda';
+      state.schedaProductionId = productionId;
       render();
     }).catch(function(e){
       console.error(e);
@@ -2175,7 +2200,8 @@
                   codice_prodotto: { type: ['string','null'], description: 'Codice articolo/prodotto del fornitore, se presente in fattura (es. una colonna "Cod." o un codice alfanumerico accanto alla descrizione)' },
                   quantita: { type: ['number','null'], description: 'Quantità numerica' },
                   unita: { type: ['string','null'], description: 'Unità di misura come scritta (kg, l, lt, g, ml, pz, ecc.)' },
-                  lotto: { type: ['string','null'], description: 'Numero di lotto del prodotto, se indicato' }
+                  lotto: { type: ['string','null'], description: 'Numero di lotto del prodotto, se indicato' },
+                  scadenza: { type: ['string','null'], description: 'Data di scadenza del prodotto, se indicata, in formato AAAA-MM-GG' }
                 },
                 required: ['descrizione','nome_prodotto']
               }
@@ -2189,7 +2215,7 @@
         role: 'user',
         content: [
           { type: contentType, source: { type: 'base64', media_type: d.mediaType, data: d.base64 } },
-          { type: 'text', text: 'Questa è una fattura di un fornitore di materie prime per un\'azienda che produce liquori (alcol, zucchero, aromi, frutta, acqua, ecc.). Estrai ogni riga di prodotto con quantità, unità di misura, numero di lotto e codice articolo/prodotto del fornitore, se presenti. Ignora totali, IVA, spese di trasporto, sconti e note generiche. Usa lo strumento fornito per rispondere.' }
+          { type: 'text', text: 'Questa è una fattura di un fornitore di materie prime per un\'azienda che produce liquori (alcol, zucchero, aromi, frutta, acqua, ecc.). Estrai ogni riga di prodotto con quantità, unità di misura, numero di lotto, data di scadenza e codice articolo/prodotto del fornitore, se presenti. Ignora totali, IVA, spese di trasporto, sconti e note generiche. Usa lo strumento fornito per rispondere.' }
         ]
       }]
     };
@@ -2320,6 +2346,7 @@
         extractedUnit: r.unita || '',
         extractedCode: r.codice_prodotto || '',
         lotto: r.lotto || '',
+        scadenza: /^\d{4}-\d{2}-\d{2}$/.test(r.scadenza || '') ? r.scadenza : '',
         refMode: match ? 'existing' : 'new',
         refId: match ? match.id : '',
         newRef: { name: r.nome_prodotto || r.descrizione || '', unit: 'liquido', codice: r.codice_prodotto || '' },
@@ -2376,7 +2403,10 @@
       html += '</div></div>';
     }
 
+    html += '<div class="row-split">';
     html += '<div class="field"><label for="invLotto_' + idx + '">Lotto</label><input type="text" id="invLotto_' + idx + '" value="' + escapeHtml(line.lotto) + '"></div>';
+    html += '<div class="field"><label for="invScadenza_' + idx + '">Scadenza (opzionale)</label><input type="date" id="invScadenza_' + idx + '" value="' + escapeHtml(line.scadenza) + '"></div>';
+    html += '</div>';
 
     html += '<div class="row-split3">';
     html += fieldInput('invLt_' + idx, 'Quantità (Lt)', 'number', line.qtyLt, 'step="0.001" min="0"');
@@ -2454,9 +2484,9 @@
           var id = uid('ref');
           // Seed the new reference's defaults from this first lot's own
           // density/gradazione, since there is no prior default to use.
-          var docData = { name: l.newRef.name.trim(), unit: l.newRef.unit, codice: (l.newRef.codice || '').trim() || null, density: numOrNull(l.density), grade: l.newRef.unit === 'liquido' ? numOrNull(l.grade) : null, photo: null, notes: null };
+          var docData = { name: l.newRef.name.trim(), unit: l.newRef.unit, codice: (l.newRef.codice || '').trim() || null, density: numOrNull(l.density), grade: l.newRef.unit === 'liquido' ? numOrNull(l.grade) : null, notes: null };
           resolveRef = window.__fb.setDoc(REFS_COLL + '/' + id, docData).then(function(){
-            var refObj = { id: id, name: docData.name, unit: docData.unit, codice: docData.codice, density: docData.density, grade: docData.grade, photo: docData.photo, notes: docData.notes };
+            var refObj = { id: id, name: docData.name, unit: docData.unit, codice: docData.codice, density: docData.density, grade: docData.grade, notes: docData.notes };
             state.references.push(refObj);
             return refObj;
           });
@@ -2465,7 +2495,7 @@
         }
         return resolveRef.then(function(ref){
           if (!ref) return;
-          return commitCarico(ref, l.lotto.trim(), numOrNull(l.qtyLt), numOrNull(l.qtyKg), numOrNull(l.density), ref.unit === 'liquido' ? numOrNull(l.grade) : null, causale);
+          return commitCarico(ref, l.lotto.trim(), numOrNull(l.qtyLt), numOrNull(l.qtyKg), numOrNull(l.density), ref.unit === 'liquido' ? numOrNull(l.grade) : null, causale, l.scadenza || null);
         });
       });
     });
@@ -2512,6 +2542,9 @@
       if (action === 'prod-remove-alloc'){ prodRemoveAlloc(parseInt(el.getAttribute('data-comp-idx'),10), parseInt(el.getAttribute('data-alloc-idx'),10)); return; }
       if (action === 'save-produzione'){ saveProduzione(); return; }
       if (action === 'open-push'){ openPushModal(el.getAttribute('data-id')); return; }
+      if (action === 'view-scheda'){ state.view = 'scheda'; state.schedaProductionId = el.getAttribute('data-id'); render(); return; }
+      if (action === 'back-to-produzione'){ state.view = 'produzione'; state.schedaProductionId = null; render(); return; }
+      if (action === 'print-scheda'){ window.print(); return; }
       if (action === 'close-push-modal'){ closePushModal(); return; }
       if (action === 'confirm-push'){ confirmPush(); return; }
       if (action === 'push-set-mode'){ state.pushModal.mode = el.getAttribute('data-mode'); renderPushModal(); return; }
@@ -2542,8 +2575,6 @@
         return;
       }
 
-      if (el.id === 'refPhotoPicker'){ state.pendingPhotoTarget = 'refModal'; document.getElementById('photoInput').click(); return; }
-      if (el.id === 'refPhotoRemove'){ e.stopPropagation(); state.refModal.draft.photo = null; renderRefModal(); return; }
     });
 
     document.body.addEventListener('change', function(e){
@@ -2627,21 +2658,12 @@
         withFocusPreserved(renderInvoiceReviewModal);
         return;
       }
-      if (t.id === 'photoInput'){
-        var file = t.files && t.files[0];
-        t.value = '';
-        if (!file) return;
-        readAndCompressImage(file).then(function(dataUrl){
-          if (state.pendingPhotoTarget === 'refModal' && state.refModal){ state.refModal.draft.photo = dataUrl; renderRefModal(); }
-        }).catch(function(err){ console.error(err); showToast('Non riesco a leggere questa foto.'); });
-        return;
-      }
     });
 
     document.body.addEventListener('input', function(e){
       var t = e.target;
       if (t.id === 'materieSearch'){ state.search = t.value; withFocusPreserved(render); return; }
-      if (['caricoLt','caricoKg','caricoDensity','caricoLotto','caricoCausale','caricoGrade'].indexOf(t.id) !== -1){ handleCaricoInput(t); return; }
+      if (['caricoLt','caricoKg','caricoDensity','caricoLotto','caricoCausale','caricoGrade','caricoScadenza'].indexOf(t.id) !== -1){ handleCaricoInput(t); return; }
       if (t.id === 'scaricoCausale'){ state.scarico.causale = t.value; return; }
       if (t.id === 'scaricoLt'){ state.scarico.qtyLt = t.value; return; }
       if (t.id === 'scaricoKg'){ state.scarico.qtyKg = t.value; return; }
@@ -2678,8 +2700,12 @@
       if (t.id === 'refNotes'){ state.refModal.draft.notes = t.value; return; }
       if (t.id === 'lotQtyLt' || t.id === 'lotQtyKg' || t.id === 'lotDensity'){ handleLotModalInput(t); return; }
       if (t.id === 'lotGrade'){ state.lotModal.draft.grade = t.value; return; }
+      if (t.id === 'lotScadenza'){ state.lotModal.draft.scadenza = t.value; return; }
       if (t.id === 'pushNewName'){ state.pushModal.newName = t.value; return; }
       if (t.id === 'pushQty'){ state.pushModal.qty = t.value; return; }
+      if (t.id && t.id.indexOf('invScadenza_') === 0){
+        state.invoiceReview.lines[parseInt(t.id.slice('invScadenza_'.length),10)].scadenza = t.value; return;
+      }
       if (t.id && t.id.indexOf('invLotto_') === 0){
         state.invoiceReview.lines[parseInt(t.id.slice('invLotto_'.length),10)].lotto = t.value; return;
       }
