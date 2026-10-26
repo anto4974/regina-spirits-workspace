@@ -6,9 +6,10 @@ var CATALOG = {
   "logo": "logo.png",
   "chiImage": "chi.jpg",
   "chiText": [
-    "Regina Spirits nasce a Mantova dalla passione per la distillazione artigianale e dal desiderio di raccontare il territorio attraverso i suoi liquori.",
-    "Ogni referenza — dagli aperitivi agli amari, dai gin alle creme liquorose — nasce da ricette sviluppate internamente, con infusioni e lavorazioni fatte a mano in piccoli lotti, senza aromi artificiali.",
-    "Lavoriamo anche a fianco di bar, ristoranti e aziende per creare liquori, amari e gin personalizzati: dalla ricetta all'etichetta, fino al prodotto finito pronto per il banco."
+    "Regina Spirits nasce dall'esperienza di Regina Liquirizia e rappresenta oggi l'evoluzione di un progetto artigianale costruito con passione, ricerca e dedizione.",
+    "Nel nostro laboratorio di Pomponesco, in provincia di Mantova, realizziamo aperitivi, liquori, amari, gin e specialità botaniche artigianali, sviluppati attraverso anni di studio, prove e perfezionamento delle ricette.",
+    "Siamo una realtà a conduzione familiare che ha scelto di crescere senza rinunciare ai propri valori: qualità delle materie prime, controllo diretto delle lavorazioni e cura personale di ogni fase produttiva.",
+    "Laboratorio e showroom: Via Sant'Antonio 16, Pomponesco (MN) — reginaspirits.com"
   ],
   "categories": [
     {
@@ -109,7 +110,7 @@ var CATALOG = {
       "products": [
         {
           "name": "Amaro di Pomponesco",
-          "grade": "21%",
+          "grade": "23%",
           "note": null,
           "img": "amaro-di-pomponesco.jpg"
         },
