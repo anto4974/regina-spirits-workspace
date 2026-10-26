@@ -1,0 +1,18 @@
+{
+  "hosting": {
+    "public": "catalogo",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "headers": [
+      {
+        "source": "**/*.@(jpg|jpeg|png|svg|webp)",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=604800, immutable" }
+        ]
+      }
+    ]
+  }
+}
