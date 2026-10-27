@@ -277,13 +277,58 @@
     document.body.style.overflow = 'hidden';
   }
 
-  function showNextProduct(){ openLightbox(galleryProductIndex + 1, 0); }
-  function showPrevProduct(){ openLightbox(galleryProductIndex - 1, 0); }
+  function prefersReducedMotion(){
+    return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+
+  var SLIDE_MS = 260;
+  var SLIDE_DIST = 36;
+  var sliding = false;
+
+  function slideToProduct(direction, newIndex){
+    if (sliding) return;
+    if (prefersReducedMotion()){
+      openLightbox(newIndex, 0);
+      return;
+    }
+    sliding = true;
+    var outX = direction === 'next' ? -SLIDE_DIST : SLIDE_DIST;
+    var inX = direction === 'next' ? SLIDE_DIST : -SLIDE_DIST;
+
+    lightboxImg.style.transition = 'transform ' + SLIDE_MS + 'ms ease, opacity ' + SLIDE_MS + 'ms ease';
+    lightboxImg.style.transform = 'translateX(' + outX + 'px)';
+    lightboxImg.style.opacity = '0';
+
+    setTimeout(function(){
+      openLightbox(newIndex, 0);
+      lightboxImg.style.transition = 'none';
+      lightboxImg.style.transform = 'translateX(' + inX + 'px)';
+      lightboxImg.style.opacity = '0';
+      // force reflow so the next transition actually animates
+      void lightboxImg.offsetWidth;
+      lightboxImg.style.transition = 'transform ' + SLIDE_MS + 'ms ease, opacity ' + SLIDE_MS + 'ms ease';
+      lightboxImg.style.transform = 'translateX(0)';
+      lightboxImg.style.opacity = '1';
+      setTimeout(function(){
+        sliding = false;
+        lightboxImg.style.transition = '';
+        lightboxImg.style.transform = '';
+        lightboxImg.style.opacity = '';
+      }, SLIDE_MS);
+    }, SLIDE_MS);
+  }
+
+  function showNextProduct(){ slideToProduct('next', galleryProductIndex + 1); }
+  function showPrevProduct(){ slideToProduct('prev', galleryProductIndex - 1); }
 
   function closeLightbox(){
     lightbox.classList.remove('is-open');
     lightbox.setAttribute('aria-hidden', 'true');
     document.body.style.overflow = '';
+    sliding = false;
+    lightboxImg.style.transition = '';
+    lightboxImg.style.transform = '';
+    lightboxImg.style.opacity = '';
   }
 
   lightbox.addEventListener('click', function(e){
