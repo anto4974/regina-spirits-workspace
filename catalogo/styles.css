@@ -125,6 +125,9 @@ main{ max-width: 1200px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
   margin: 0 auto 2.4rem;
 }
 .award-card{
+  display: block;
+  text-decoration: none;
+  cursor: pointer;
   background: var(--card);
   border: 1px solid var(--card-border);
   border-radius: var(--radius);
@@ -132,6 +135,12 @@ main{ max-width: 1200px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
   opacity: 0;
   transform: translateY(14px);
   animation: cardIn var(--dur) var(--ease) forwards;
+  transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.award-card:hover{
+  transform: translateY(-3px);
+  box-shadow: 0 14px 30px -14px rgba(0,0,0,0.6), 0 0 0 1px var(--gold-soft);
+  border-color: var(--gold-soft);
 }
 .award-card img{
   width: 100%;
@@ -395,16 +404,8 @@ main{ max-width: 1200px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
 }
 
 /* ---------- Chi siamo page ---------- */
-.chi-wrap{
-  display:grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-  align-items:center;
-}
-.chi-wrap img{
-  border-radius: var(--radius);
-  border: 1px solid var(--card-border);
-  width:100%;
+.chi-text-only{
+  max-width: 68ch;
 }
 .chi-text h1{
   font-family: var(--serif-display);
@@ -418,8 +419,24 @@ main{ max-width: 1200px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
   line-height: 1.7;
 }
 
-@media (max-width: 760px){
-  .chi-wrap{ grid-template-columns: 1fr; }
+/* ---------- Award detail page ---------- */
+.award-page{
+  max-width: 70ch;
+}
+.award-page img{
+  width: 100%;
+  max-width: 480px;
+  display: block;
+  margin: 0 auto 1.6rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--card-border);
+  background: #fff;
+  padding: .6rem;
+}
+.award-page p{
+  color: var(--text-muted);
+  font-size: 1.08rem;
+  line-height: 1.75;
 }
 
 /* ---------- Lightbox ---------- */
@@ -448,6 +465,28 @@ main{ max-width: 1200px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
   color: var(--text-muted);
   font-size: .95rem;
   letter-spacing:.02em;
+}
+.lightbox-sizes{
+  position:absolute; bottom: 7.4vh; left:0; right:0;
+  display:flex; justify-content:center; gap:.6rem;
+}
+.lightbox-size-btn{
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--card-border);
+  color: var(--text-muted);
+  font-family: var(--serif);
+  font-size: .82rem;
+  padding: .32rem .9rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.lightbox-size-btn:hover{ border-color: var(--gold-soft); color: var(--text); }
+.lightbox-size-btn.is-active{
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #141210;
+  font-weight: 600;
 }
 .lightbox-close{
   position:absolute; top: 1.3rem; right: 1.5rem;

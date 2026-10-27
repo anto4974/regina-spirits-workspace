@@ -4,28 +4,36 @@ var CATALOG = {
   "tagline": "Liquorificio artigianale · Mantova",
   "heroCover": "cover.jpg",
   "logo": "logo.png",
-  "chiImage": "chi.jpg",
   "chiText": [
-    "Regina Spirits nasce dall'esperienza di Regina Liquirizia e rappresenta oggi l'evoluzione di un progetto artigianale costruito con passione, ricerca e dedizione.",
-    "Nel nostro laboratorio di Pomponesco, in provincia di Mantova, realizziamo aperitivi, liquori, amari, gin e specialità botaniche artigianali, sviluppati attraverso anni di studio, prove e perfezionamento delle ricette.",
-    "Siamo una realtà a conduzione familiare che ha scelto di crescere senza rinunciare ai propri valori: qualità delle materie prime, controllo diretto delle lavorazioni e cura personale di ogni fase produttiva.",
+    "Regina Spirits è un liquorificio artigianale a conduzione familiare con sede a Pomponesco, in provincia di Mantova. \"Mantova da gustare\", come recita il nostro claim.",
+    "Tutto è nato nel 2004 con Regina Liquirizia: nel tempo l'attività è cresciuta fino a diventare Regina Spirits, con una gamma che oggi comprende gin, amari, liquori, creme, aperitivi e specialità botaniche, sviluppati internamente attraverso anni di prove e perfezionamento.",
+    "Il nostro obiettivo è tradurre l'identità del territorio mantovano in profumi e sapori, con attenzione alla scelta delle materie prime, alla precisione produttiva e alla costanza qualitativa, lotto dopo lotto. Non produciamo semplicemente liquori.",
+    "Pomponesco fa parte dell'associazione \"I Borghi più Belli d'Italia\": il paesaggio, la storia e le tradizioni locali sono una fonte costante di ispirazione per il nostro laboratorio.",
+    "Dietro Regina Spirits ci sono Mariano Caliendo, fondatore e responsabile dello sviluppo prodotti, Gianna Do Valle, che segue il laboratorio, il controllo qualità e accoglie i visitatori nel nostro showroom, e Antonio Di Natale, che cura marketing e relazioni commerciali in Italia e all'estero.",
+    "Il nostro showroom a Pomponesco è aperto per la vendita diretta e accoglie anche professionisti del settore — ristoratori, distributori e partner — oltre a offrire produzione conto terzi e private label.",
     "Laboratorio e showroom: Via Sant'Antonio 16, Pomponesco (MN) — reginaspirits.com"
   ],
   "awards": [
     {
+      "slug": "qualita-artigiana",
+      "title": "Qualità Artigiana 2026",
       "img": "premio-qualita-artigiana.jpg",
-      "caption": "Regina Spirits è iscritta nell'elenco \"Qualità Artigiana\" di Regione Lombardia 2026, riconoscimento autentico del territorio lombardo."
+      "caption": "Regina Spirits è iscritta nell'elenco \"Qualità Artigiana\" di Regione Lombardia 2026, riconoscimento autentico del territorio lombardo.",
+      "description": "Regina Spirits è stata ammessa nell'elenco Qualità Artigiana di Regione Lombardia, il riconoscimento che valorizza le produzioni artigianali autentiche del territorio lombardo. Numero di iscrizione 15429, data di ammissione 6 agosto 2026, secondo la determinazione di Unioncamere Lombardia n. 12 del 14 ottobre 2026. Un riconoscimento che conferma la qualità del lavoro svolto nel laboratorio di Pomponesco."
     },
     {
+      "slug": "bancofiera",
+      "title": "1° posto al Concorso \"Il BancoFiera\"",
       "img": "premio-bancofiera.jpg",
-      "caption": "1° classificato al XXIX Concorso \"Il BancoFiera\" — categoria Alimentari, Antichissima Fiera delle Grazie di Mantova."
+      "caption": "1° classificato al XXIX Concorso \"Il BancoFiera\" — categoria Alimentari, Antichissima Fiera delle Grazie di Mantova.",
+      "description": "Al XXIX Concorso \"Il BancoFiera\", nell'ambito dell'Antichissima Fiera delle Grazie di Mantova (14–16 agosto 2026) organizzata dalla Città di Curtatone, Regina Spirits si è classificata al 1° posto nella categoria Alimentari, presentando i propri gin e liquori al pubblico e alla giuria del concorso."
     }
   ],
   "featured": [
-    "crema-sbrisolona.jpg",
+    "crema-sbrisolona-50.jpg",
     "46100-premium.jpg",
     "mantua-london-dry.jpg",
-    "melone.jpg",
+    "melone-50.jpg",
     "mincio.jpg",
     "lotus.jpg"
   ],
@@ -232,36 +240,46 @@ var CATALOG = {
           "name": "Mantuà",
           "grade": "17%",
           "note": "crema al whisky",
-          "sizes": "50 cl · 70 cl",
-          "img": "mantua.jpg"
+          "images": [
+            { "src": "mantua-50.jpg", "label": "50 cl" },
+            { "src": "mantua-70.jpg", "label": "70 cl" }
+          ]
         },
         {
           "name": "Ciocò",
           "grade": "17%",
           "note": "crema al cioccolato",
-          "sizes": "50 cl · 70 cl",
-          "img": "cioco.jpg"
+          "images": [
+            { "src": "cioco-50.jpg", "label": "50 cl" },
+            { "src": "cioco-70.jpg", "label": "70 cl" }
+          ]
         },
         {
           "name": "Pistà",
           "grade": "17%",
           "note": "crema al pistacchio",
-          "sizes": "50 cl · 70 cl",
-          "img": "pista.jpg"
+          "images": [
+            { "src": "pista-50.jpg", "label": "50 cl" },
+            { "src": "pista-70.jpg", "label": "70 cl" }
+          ]
         },
         {
           "name": "Melone",
           "grade": "17%",
           "note": "crema al melone",
-          "sizes": "50 cl · 70 cl",
-          "img": "melone.jpg"
+          "images": [
+            { "src": "melone-50.jpg", "label": "50 cl" },
+            { "src": "melone-70.jpg", "label": "70 cl" }
+          ]
         },
         {
           "name": "Crema Sbrisolona",
           "grade": "17%",
           "note": null,
-          "sizes": "50 cl · 70 cl",
-          "img": "crema-sbrisolona.jpg"
+          "images": [
+            { "src": "crema-sbrisolona-50.jpg", "label": "50 cl" },
+            { "src": "crema-sbrisolona-70.jpg", "label": "70 cl" }
+          ]
         }
       ]
     },

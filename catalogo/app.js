@@ -5,6 +5,7 @@
   var lightbox = document.getElementById('lightbox');
   var lightboxImg = document.getElementById('lightboxImg');
   var lightboxCaption = document.getElementById('lightboxCaption');
+  var lightboxSizes = document.getElementById('lightboxSizes');
   var lightboxClose = document.getElementById('lightboxClose');
 
   document.getElementById('headerTag').textContent = CATALOG.tagline;
@@ -25,27 +26,44 @@
     return null;
   }
 
+  function productImages(p){
+    if (p.images && p.images.length) return p.images;
+    return [{ src: p.img, label: null }];
+  }
+
   function findProductByImg(img){
     for (var i = 0; i < CATALOG.categories.length; i++){
       var cat = CATALOG.categories[i];
       for (var j = 0; j < cat.products.length; j++){
-        if (cat.products[j].img === img) return cat.products[j];
+        var p = cat.products[j];
+        if (p.img === img) return p;
+        if (p.images){
+          for (var k = 0; k < p.images.length; k++){
+            if (p.images[k].src === img) return p;
+          }
+        }
       }
     }
     return null;
   }
 
   function productCardHtml(p, i, step){
+    var images = productImages(p);
+    var thumb = images[0].src;
     var html = '';
     html += '<div class="product-card" style="' + staggerStyle(i, step) + '">';
-    html += '<button type="button" class="product-photo-btn" data-img="img/' + p.img + '" data-name="' + escapeHtml(p.name) + '" data-grade="' + escapeHtml(p.grade || '') + '">';
-    html += '<img src="img/' + p.img + '" alt="' + escapeHtml(p.name) + '" loading="lazy">';
+    html += '<button type="button" class="product-photo-btn" data-images="' + escapeHtml(JSON.stringify(images)) + '" data-name="' + escapeHtml(p.name) + '" data-grade="' + escapeHtml(p.grade || '') + '">';
+    html += '<img src="img/' + thumb + '" alt="' + escapeHtml(p.name) + '" loading="lazy">';
     html += '</button>';
     html += '<div class="product-info">';
     html += '<h3 class="product-name">' + escapeHtml(p.name) + '</h3>';
     if (p.grade) html += '<div class="product-grade">' + escapeHtml(p.grade) + '</div>';
     if (p.note) html += '<div class="product-note">' + escapeHtml(p.note) + '</div>';
-    if (p.sizes) html += '<div class="product-sizes">' + escapeHtml(p.sizes) + '</div>';
+    if (images.length > 1){
+      html += '<div class="product-sizes">' + images.map(function(im){ return escapeHtml(im.label); }).join(' · ') + '</div>';
+    } else if (p.sizes) {
+      html += '<div class="product-sizes">' + escapeHtml(p.sizes) + '</div>';
+    }
     html += '</div>';
     html += '</div>';
     return html;
@@ -55,7 +73,8 @@
     var photoBtns = viewEl.querySelectorAll('.product-photo-btn');
     photoBtns.forEach(function(btn){
       btn.addEventListener('click', function(){
-        openLightbox(btn.getAttribute('data-img'), btn.getAttribute('data-name'), btn.getAttribute('data-grade'));
+        var images = JSON.parse(btn.getAttribute('data-images'));
+        openLightbox(images, 0, btn.getAttribute('data-name'), btn.getAttribute('data-grade'));
       });
     });
   }
@@ -80,10 +99,10 @@
     if (CATALOG.awards && CATALOG.awards.length){
       html += '<div class="awards-row">';
       CATALOG.awards.forEach(function(a, i){
-        html += '<div class="award-card" style="' + staggerStyle(i, 70) + '">';
+        html += '<a class="award-card" href="#/premio/' + a.slug + '" style="' + staggerStyle(i, 70) + '">';
         html += '<img src="img/' + a.img + '" alt="">';
         html += '<p>' + escapeHtml(a.caption) + '</p>';
-        html += '</div>';
+        html += '</a>';
       });
       html += '</div>';
     }
@@ -164,14 +183,38 @@
   function renderChiSiamo(){
     var html = '';
     html += '<button type="button" class="breadcrumb" data-back>&larr; Torna al catalogo</button>';
-    html += '<div class="chi-wrap">';
-    html += '<img src="img/' + CATALOG.chiImage + '" alt="Regina Spirits">';
-    html += '<div class="chi-text">';
+    html += '<div class="chi-text chi-text-only">';
     html += '<h1>Chi siamo</h1>';
     (CATALOG.chiText || []).forEach(function(p){
       html += '<p>' + escapeHtml(p) + '</p>';
     });
     html += '</div>';
+    viewEl.innerHTML = html;
+    bindBack();
+  }
+
+  function awardBySlug(slug){
+    var list = CATALOG.awards || [];
+    for (var i = 0; i < list.length; i++){
+      if (list[i].slug === slug) return list[i];
+    }
+    return null;
+  }
+
+  function renderAward(slug){
+    var a = awardBySlug(slug);
+    if (!a){
+      viewEl.innerHTML = '<button type="button" class="breadcrumb" data-back>&larr; Torna al catalogo</button>' +
+        '<p>Riconoscimento non trovato.</p>';
+      bindBack();
+      return;
+    }
+    var html = '';
+    html += '<button type="button" class="breadcrumb" data-back>&larr; Torna al catalogo</button>';
+    html += '<div class="award-page">';
+    html += '<img src="img/' + a.img + '" alt="' + escapeHtml(a.title) + '">';
+    html += '<h1 class="page-title">' + escapeHtml(a.title) + '</h1>';
+    html += '<p>' + escapeHtml(a.description || a.caption) + '</p>';
     html += '</div>';
     viewEl.innerHTML = html;
     bindBack();
@@ -188,12 +231,29 @@
 
   // ---------- Lightbox ----------
 
-  function openLightbox(src, name, grade){
-    lightboxImg.src = src;
+  function openLightbox(images, index, name, grade){
+    var current = images[index] || images[0];
+    lightboxImg.src = 'img/' + current.src;
     lightboxImg.alt = name || '';
     var caption = name || '';
     if (grade) caption += ' — ' + grade;
     lightboxCaption.textContent = caption;
+
+    lightboxSizes.innerHTML = '';
+    if (images.length > 1){
+      images.forEach(function(im, i){
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'lightbox-size-btn' + (i === index ? ' is-active' : '');
+        btn.textContent = im.label || (i + 1);
+        btn.addEventListener('click', function(e){
+          e.stopPropagation();
+          openLightbox(images, i, name, grade);
+        });
+        lightboxSizes.appendChild(btn);
+      });
+    }
+
     lightbox.classList.add('is-open');
     lightbox.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
@@ -220,10 +280,13 @@
     closeLightbox();
     var hash = location.hash || '#/';
     var m = hash.match(/^#\/categoria\/([^/]+)$/);
+    var mAward = hash.match(/^#\/premio\/([^/]+)$/);
     if (hash === '#/' || hash === ''){
       renderHome();
     } else if (m){
       renderCategory(decodeURIComponent(m[1]));
+    } else if (mAward){
+      renderAward(decodeURIComponent(mAward[1]));
     } else if (hash === '#/chi-siamo'){
       renderChiSiamo();
     } else {
