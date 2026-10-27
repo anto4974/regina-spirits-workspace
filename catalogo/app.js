@@ -45,6 +45,7 @@
     html += '<h3 class="product-name">' + escapeHtml(p.name) + '</h3>';
     if (p.grade) html += '<div class="product-grade">' + escapeHtml(p.grade) + '</div>';
     if (p.note) html += '<div class="product-note">' + escapeHtml(p.note) + '</div>';
+    if (p.sizes) html += '<div class="product-sizes">' + escapeHtml(p.sizes) + '</div>';
     html += '</div>';
     html += '</div>';
     return html;
@@ -75,6 +76,17 @@
     html += '<h1 class="hero-title">Il nostro catalogo</h1>';
     html += '</div>';
     html += '</section>';
+
+    if (CATALOG.awards && CATALOG.awards.length){
+      html += '<div class="awards-row">';
+      CATALOG.awards.forEach(function(a, i){
+        html += '<div class="award-card" style="' + staggerStyle(i, 70) + '">';
+        html += '<img src="img/' + a.img + '" alt="">';
+        html += '<p>' + escapeHtml(a.caption) + '</p>';
+        html += '</div>';
+      });
+      html += '</div>';
+    }
 
     if (CATALOG.featured && CATALOG.featured.length){
       html += '<h2 class="section-heading">Più richiesti</h2>';

@@ -116,6 +116,45 @@ main{ max-width: 1200px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
   to{ transform: scale(1); }
 }
 
+/* ---------- Awards ---------- */
+.awards-row{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  max-width: 50%;
+  margin: 0 auto 2.4rem;
+}
+.award-card{
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(14px);
+  animation: cardIn var(--dur) var(--ease) forwards;
+}
+.award-card img{
+  width: 100%;
+  height: 90px;
+  object-fit: contain;
+  background: #fff;
+  padding: .5rem;
+}
+.award-card p{
+  margin: 0;
+  padding: .55rem .7rem .75rem;
+  font-size: .76rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+@media (max-width: 760px){
+  .awards-row{ max-width: 100%; grid-template-columns: 1fr 1fr; }
+  .award-card img{ height: 70px; }
+  .award-card p{ font-size: .72rem; }
+}
+
 /* ---------- Category grid ---------- */
 .section-heading{
   font-family: var(--serif-display);
@@ -310,6 +349,13 @@ main{ max-width: 1200px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
   font-size: .78rem;
   font-style: italic;
   margin-top: .15rem;
+}
+
+.product-sizes{
+  color: var(--gold-soft);
+  font-size: .74rem;
+  letter-spacing: .03em;
+  margin-top: .3rem;
 }
 
 @keyframes cardIn{

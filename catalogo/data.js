@@ -11,6 +11,16 @@ var CATALOG = {
     "Siamo una realtà a conduzione familiare che ha scelto di crescere senza rinunciare ai propri valori: qualità delle materie prime, controllo diretto delle lavorazioni e cura personale di ogni fase produttiva.",
     "Laboratorio e showroom: Via Sant'Antonio 16, Pomponesco (MN) — reginaspirits.com"
   ],
+  "awards": [
+    {
+      "img": "premio-qualita-artigiana.jpg",
+      "caption": "Regina Spirits è iscritta nell'elenco \"Qualità Artigiana\" di Regione Lombardia 2026, riconoscimento autentico del territorio lombardo."
+    },
+    {
+      "img": "premio-bancofiera.jpg",
+      "caption": "1° classificato al XXIX Concorso \"Il BancoFiera\" — categoria Alimentari, Antichissima Fiera delle Grazie di Mantova."
+    }
+  ],
   "featured": [
     "crema-sbrisolona.jpg",
     "46100-premium.jpg",
@@ -222,30 +232,35 @@ var CATALOG = {
           "name": "Mantuà",
           "grade": "17%",
           "note": "crema al whisky",
+          "sizes": "50 cl · 70 cl",
           "img": "mantua.jpg"
         },
         {
           "name": "Ciocò",
           "grade": "17%",
           "note": "crema al cioccolato",
+          "sizes": "50 cl · 70 cl",
           "img": "cioco.jpg"
         },
         {
           "name": "Pistà",
           "grade": "17%",
           "note": "crema al pistacchio",
+          "sizes": "50 cl · 70 cl",
           "img": "pista.jpg"
         },
         {
           "name": "Melone",
           "grade": "17%",
           "note": "crema al melone",
+          "sizes": "50 cl · 70 cl",
           "img": "melone.jpg"
         },
         {
           "name": "Crema Sbrisolona",
           "grade": "17%",
           "note": null,
+          "sizes": "50 cl · 70 cl",
           "img": "crema-sbrisolona.jpg"
         }
       ]
