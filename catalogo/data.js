@@ -11,11 +11,20 @@ var CATALOG = {
     "Siamo una realtà a conduzione familiare che ha scelto di crescere senza rinunciare ai propri valori: qualità delle materie prime, controllo diretto delle lavorazioni e cura personale di ogni fase produttiva.",
     "Laboratorio e showroom: Via Sant'Antonio 16, Pomponesco (MN) — reginaspirits.com"
   ],
+  "featured": [
+    "crema-sbrisolona.jpg",
+    "46100-premium.jpg",
+    "mantua-london-dry.jpg",
+    "melone.jpg",
+    "mincio.jpg",
+    "lotus.jpg"
+  ],
   "categories": [
     {
       "slug": "aperitivi",
       "name": "Aperitivi e Cocktail",
       "cover": "aperitivi_ov.jpg",
+      "intro": "A Pomponesco, nel Mantovano, creiamo aperitivi e liquori per cocktail dal gusto equilibrato. Freschi da gustare insieme, esprimono il loro carattere anche nella miscelazione.",
       "products": [
         {
           "name": "Regina Aperitivo",
@@ -107,6 +116,7 @@ var CATALOG = {
       "slug": "amari",
       "name": "Amari artigianali",
       "cover": "amari_ov.jpg",
+      "intro": "Gli amari artigianali Regina Spirits nascono a Pomponesco, nel Mantovano, dall'infusione di erbe, radici, scorze e spezie selezionate. Ogni ricetta ha una personalità distinta: dalle note balsamiche e intense ai profili agrumati e più morbidi, da gustare dopo cena o in compagnia.",
       "products": [
         {
           "name": "Amaro di Pomponesco",
@@ -150,6 +160,7 @@ var CATALOG = {
       "slug": "digestivi",
       "name": "Digestivi",
       "cover": "digestivi_ov.jpg",
+      "intro": "Liquori artigianali Regina Spirits pensati per il fine pasto: dall'anice della sambuca al prugnolo del bargnolino, dalle noci verdi del nocino agli agrumi del limoncello, fino alle creme di liquirizia e al caffè.",
       "products": [
         {
           "name": "Sambuca",
@@ -205,6 +216,7 @@ var CATALOG = {
       "slug": "creme",
       "name": "Creme liquorose",
       "cover": "creme_ov.jpg",
+      "intro": "Le creme liquorose Regina Spirits nascono a Pomponesco, nel Mantovano, per unire gusto, morbidezza e artigianalità. Melone, whisky, cioccolato e pistacchio danno vita a ricette vellutate, ideali da servire fredde dopo cena o da abbinare a gelati e dessert.",
       "products": [
         {
           "name": "Mantuà",
@@ -242,6 +254,7 @@ var CATALOG = {
       "slug": "gin",
       "name": "Gin artigianali",
       "cover": "gin_ov.jpg",
+      "intro": "I gin artigianali Regina Spirits nascono nel laboratorio di Pomponesco, in provincia di Mantova. Ginepro, agrumi, botaniche e note fruttate danno vita a ricette dal carattere distinto, da scoprire in purezza o nella miscelazione.",
       "products": [
         {
           "name": "Mantua London Dry",
@@ -306,7 +319,8 @@ var CATALOG = {
       "products": [],
       "info": {
         "title": "Produzione conto terzi",
-        "intro": "Realizziamo liquori, amari e gin personalizzati per aziende e Ho.Re.Ca., dalla ricetta all'etichetta.",
+        "heroImage": "contoterzi_ov.jpg",
+        "intro": "Regina Spirits affianca aziende, attività commerciali, locali, strutture ricettive e professionisti nella realizzazione di aperitivi, liquori, amari e gin personalizzati. Seguiamo ogni progetto direttamente nel nostro laboratorio di Pomponesco, con un servizio completo che comprende sviluppo della ricetta, campionatura, produzione, imbottigliamento ed etichettatura: il nostro obiettivo è trasformare un'idea in un progetto pronto per il mercato.",
         "items": [
           "Lotto minimo di produzione: 50 litri",
           "Campione personalizzato entro 15 giorni",

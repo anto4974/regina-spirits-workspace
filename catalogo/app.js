@@ -25,6 +25,40 @@
     return null;
   }
 
+  function findProductByImg(img){
+    for (var i = 0; i < CATALOG.categories.length; i++){
+      var cat = CATALOG.categories[i];
+      for (var j = 0; j < cat.products.length; j++){
+        if (cat.products[j].img === img) return cat.products[j];
+      }
+    }
+    return null;
+  }
+
+  function productCardHtml(p, i, step){
+    var html = '';
+    html += '<div class="product-card" style="' + staggerStyle(i, step) + '">';
+    html += '<button type="button" class="product-photo-btn" data-img="img/' + p.img + '" data-name="' + escapeHtml(p.name) + '" data-grade="' + escapeHtml(p.grade || '') + '">';
+    html += '<img src="img/' + p.img + '" alt="' + escapeHtml(p.name) + '" loading="lazy">';
+    html += '</button>';
+    html += '<div class="product-info">';
+    html += '<h3 class="product-name">' + escapeHtml(p.name) + '</h3>';
+    if (p.grade) html += '<div class="product-grade">' + escapeHtml(p.grade) + '</div>';
+    if (p.note) html += '<div class="product-note">' + escapeHtml(p.note) + '</div>';
+    html += '</div>';
+    html += '</div>';
+    return html;
+  }
+
+  function bindProductPhotos(){
+    var photoBtns = viewEl.querySelectorAll('.product-photo-btn');
+    photoBtns.forEach(function(btn){
+      btn.addEventListener('click', function(){
+        openLightbox(btn.getAttribute('data-img'), btn.getAttribute('data-name'), btn.getAttribute('data-grade'));
+      });
+    });
+  }
+
   function staggerStyle(index, step){
     step = step || 60;
     return 'animation-delay:' + (index * step) + 'ms';
@@ -41,6 +75,16 @@
     html += '<h1 class="hero-title">Il nostro catalogo</h1>';
     html += '</div>';
     html += '</section>';
+
+    if (CATALOG.featured && CATALOG.featured.length){
+      html += '<h2 class="section-heading">Più richiesti</h2>';
+      html += '<div class="product-grid featured-grid">';
+      CATALOG.featured.forEach(function(img, i){
+        var p = findProductByImg(img);
+        if (p) html += productCardHtml(p, i, 45);
+      });
+      html += '</div>';
+    }
 
     html += '<h2 class="section-heading">Categorie</h2>';
     html += '<div class="cat-grid">';
@@ -60,6 +104,7 @@
     html += '<div class="chi-cta-wrap"><button type="button" class="btn-gold" id="chiBtn">Chi siamo</button></div>';
 
     viewEl.innerHTML = html;
+    bindProductPhotos();
     document.getElementById('chiBtn').addEventListener('click', function(){
       location.hash = '#/chi-siamo';
     });
@@ -79,6 +124,9 @@
     html += '<h1 class="page-title">' + escapeHtml(cat.name) + '</h1>';
 
     if (cat.info){
+      if (cat.info.heroImage){
+        html += '<div class="info-hero"><img src="img/' + cat.info.heroImage + '" alt="' + escapeHtml(cat.info.title || cat.name) + '"></div>';
+      }
       html += '<div class="info-box">';
       html += '<p class="intro">' + escapeHtml(cat.info.intro) + '</p>';
       html += '<ul>';
@@ -88,31 +136,17 @@
       html += '</ul>';
       html += '</div>';
     } else {
+      if (cat.intro) html += '<p class="cat-intro">' + escapeHtml(cat.intro) + '</p>';
       html += '<div class="product-grid">';
       cat.products.forEach(function(p, i){
-        html += '<div class="product-card" style="' + staggerStyle(i, 45) + '">';
-        html += '<button type="button" class="product-photo-btn" data-img="img/' + p.img + '" data-name="' + escapeHtml(p.name) + '" data-grade="' + escapeHtml(p.grade || '') + '">';
-        html += '<img src="img/' + p.img + '" alt="' + escapeHtml(p.name) + '" loading="lazy">';
-        html += '</button>';
-        html += '<div class="product-info">';
-        html += '<h3 class="product-name">' + escapeHtml(p.name) + '</h3>';
-        if (p.grade) html += '<div class="product-grade">' + escapeHtml(p.grade) + '</div>';
-        if (p.note) html += '<div class="product-note">' + escapeHtml(p.note) + '</div>';
-        html += '</div>';
-        html += '</div>';
+        html += productCardHtml(p, i, 45);
       });
       html += '</div>';
     }
 
     viewEl.innerHTML = html;
     bindBack();
-
-    var photoBtns = viewEl.querySelectorAll('.product-photo-btn');
-    photoBtns.forEach(function(btn){
-      btn.addEventListener('click', function(){
-        openLightbox(btn.getAttribute('data-img'), btn.getAttribute('data-name'), btn.getAttribute('data-grade'));
-      });
-    });
+    bindProductPhotos();
   }
 
   function renderChiSiamo(){
