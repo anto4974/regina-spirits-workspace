@@ -282,11 +282,17 @@
       html += '</div>';
     }
 
+    var galleryProducts = [];
     if (cg.gallery && cg.gallery.length){
+      galleryProducts = cg.gallery.map(function(img){ return { name: cg.title, grade: null, img: img }; });
       html += '<h2 class="section-heading">Dal nostro laboratorio</h2>';
       html += '<div class="gifts-gallery">';
       cg.gallery.forEach(function(img, i){
-        html += '<div class="gifts-gallery-item" style="' + staggerStyle(i, 50) + '"><img src="img/' + img + '" alt="" loading="lazy"></div>';
+        html += '<div class="gifts-gallery-item" style="' + staggerStyle(i, 50) + '">';
+        html += '<button type="button" class="product-photo-btn" data-index="' + i + '">';
+        html += '<img src="img/' + img + '" alt="" loading="lazy">';
+        html += '</button>';
+        html += '</div>';
       });
       html += '</div>';
     }
@@ -325,6 +331,7 @@
 
     viewEl.innerHTML = html;
     bindBack();
+    bindProductPhotos(galleryProducts);
   }
 
   function bindBack(){
