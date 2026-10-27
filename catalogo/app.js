@@ -7,6 +7,12 @@
   var lightboxCaption = document.getElementById('lightboxCaption');
   var lightboxSizes = document.getElementById('lightboxSizes');
   var lightboxClose = document.getElementById('lightboxClose');
+  var lightboxPrev = document.getElementById('lightboxPrev');
+  var lightboxNext = document.getElementById('lightboxNext');
+
+  var galleryProducts = [];
+  var galleryProductIndex = 0;
+  var galleryImageIndex = 0;
 
   document.getElementById('headerTag').textContent = CATALOG.tagline;
   document.getElementById('headerLogo').alt = 'Regina Spirits';
@@ -52,7 +58,7 @@
     var thumb = images[0].src;
     var html = '';
     html += '<div class="product-card" style="' + staggerStyle(i, step) + '">';
-    html += '<button type="button" class="product-photo-btn" data-images="' + escapeHtml(JSON.stringify(images)) + '" data-name="' + escapeHtml(p.name) + '" data-grade="' + escapeHtml(p.grade || '') + '">';
+    html += '<button type="button" class="product-photo-btn" data-index="' + i + '">';
     html += '<img src="img/' + thumb + '" alt="' + escapeHtml(p.name) + '" loading="lazy">';
     html += '</button>';
     html += '<div class="product-info">';
@@ -69,12 +75,13 @@
     return html;
   }
 
-  function bindProductPhotos(){
+  function bindProductPhotos(products){
+    galleryProducts = products;
     var photoBtns = viewEl.querySelectorAll('.product-photo-btn');
     photoBtns.forEach(function(btn){
       btn.addEventListener('click', function(){
-        var images = JSON.parse(btn.getAttribute('data-images'));
-        openLightbox(images, 0, btn.getAttribute('data-name'), btn.getAttribute('data-grade'));
+        var idx = parseInt(btn.getAttribute('data-index'), 10);
+        openLightbox(idx, 0);
       });
     });
   }
@@ -107,12 +114,13 @@
       html += '</div>';
     }
 
+    var featuredProducts = [];
     if (CATALOG.featured && CATALOG.featured.length){
+      featuredProducts = CATALOG.featured.map(findProductByImg).filter(Boolean);
       html += '<h2 class="section-heading">Più richiesti</h2>';
       html += '<div class="featured-carousel">';
-      CATALOG.featured.forEach(function(img, i){
-        var p = findProductByImg(img);
-        if (p) html += productCardHtml(p, i, 45);
+      featuredProducts.forEach(function(p, i){
+        html += productCardHtml(p, i, 45);
       });
       html += '</div>';
     }
@@ -135,7 +143,7 @@
     html += '<div class="chi-cta-wrap"><button type="button" class="btn-gold" id="chiBtn">Chi siamo</button></div>';
 
     viewEl.innerHTML = html;
-    bindProductPhotos();
+    bindProductPhotos(featuredProducts);
     document.getElementById('chiBtn').addEventListener('click', function(){
       location.hash = '#/chi-siamo';
     });
@@ -177,7 +185,7 @@
 
     viewEl.innerHTML = html;
     bindBack();
-    bindProductPhotos();
+    bindProductPhotos(cat.products);
   }
 
   function renderChiSiamo(){
@@ -231,12 +239,18 @@
 
   // ---------- Lightbox ----------
 
-  function openLightbox(images, index, name, grade){
-    var current = images[index] || images[0];
+  function openLightbox(productIndex, imageIndex){
+    if (!galleryProducts.length) return;
+    galleryProductIndex = (productIndex + galleryProducts.length) % galleryProducts.length;
+    var p = galleryProducts[galleryProductIndex];
+    var images = productImages(p);
+    galleryImageIndex = (imageIndex + images.length) % images.length;
+    var current = images[galleryImageIndex];
+
     lightboxImg.src = 'img/' + current.src;
-    lightboxImg.alt = name || '';
-    var caption = name || '';
-    if (grade) caption += ' — ' + grade;
+    lightboxImg.alt = p.name || '';
+    var caption = p.name || '';
+    if (p.grade) caption += ' — ' + p.grade;
     lightboxCaption.textContent = caption;
 
     lightboxSizes.innerHTML = '';
@@ -244,20 +258,27 @@
       images.forEach(function(im, i){
         var btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = 'lightbox-size-btn' + (i === index ? ' is-active' : '');
+        btn.className = 'lightbox-size-btn' + (i === galleryImageIndex ? ' is-active' : '');
         btn.textContent = im.label || (i + 1);
         btn.addEventListener('click', function(e){
           e.stopPropagation();
-          openLightbox(images, i, name, grade);
+          openLightbox(galleryProductIndex, i);
         });
         lightboxSizes.appendChild(btn);
       });
     }
 
+    var multi = galleryProducts.length > 1;
+    lightboxPrev.style.display = multi ? '' : 'none';
+    lightboxNext.style.display = multi ? '' : 'none';
+
     lightbox.classList.add('is-open');
     lightbox.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
   }
+
+  function showNextProduct(){ openLightbox(galleryProductIndex + 1, 0); }
+  function showPrevProduct(){ openLightbox(galleryProductIndex - 1, 0); }
 
   function closeLightbox(){
     lightbox.classList.remove('is-open');
@@ -270,9 +291,27 @@
     if (e.target === lightboxClose || e.target === lightbox) { closeLightbox(); }
   });
   lightboxClose.addEventListener('click', closeLightbox);
+  lightboxPrev.addEventListener('click', function(e){ e.stopPropagation(); showPrevProduct(); });
+  lightboxNext.addEventListener('click', function(e){ e.stopPropagation(); showNextProduct(); });
   document.addEventListener('keydown', function(e){
-    if (e.key === 'Escape' && lightbox.classList.contains('is-open')) closeLightbox();
+    if (!lightbox.classList.contains('is-open')) return;
+    if (e.key === 'Escape') closeLightbox();
+    else if (e.key === 'ArrowRight') showNextProduct();
+    else if (e.key === 'ArrowLeft') showPrevProduct();
   });
+
+  var touchStartX = null;
+  lightbox.addEventListener('touchstart', function(e){
+    touchStartX = e.changedTouches[0].clientX;
+  }, { passive: true });
+  lightbox.addEventListener('touchend', function(e){
+    if (touchStartX === null) return;
+    var dx = e.changedTouches[0].clientX - touchStartX;
+    touchStartX = null;
+    if (Math.abs(dx) < 40) return;
+    e.preventDefault();
+    if (dx < 0) showNextProduct(); else showPrevProduct();
+  }, { passive: false });
 
   // ---------- Router ----------
 
