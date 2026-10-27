@@ -78,7 +78,7 @@
 
     if (CATALOG.featured && CATALOG.featured.length){
       html += '<h2 class="section-heading">Più richiesti</h2>';
-      html += '<div class="product-grid featured-grid">';
+      html += '<div class="featured-carousel">';
       CATALOG.featured.forEach(function(img, i){
         var p = findProductByImg(img);
         if (p) html += productCardHtml(p, i, 45);

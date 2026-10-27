@@ -238,8 +238,30 @@ main{ max-width: 1200px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
   display: block;
 }
 
-.featured-grid{
-  margin-bottom: 2.6rem;
+.featured-carousel{
+  display: flex;
+  gap: 1.1rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding: .3rem .2rem 1.3rem;
+  margin: 0 0 2rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--gold-soft) transparent;
+}
+.featured-carousel::-webkit-scrollbar{ height: 6px; }
+.featured-carousel::-webkit-scrollbar-thumb{ background: var(--gold-soft); border-radius: 999px; }
+.featured-carousel::-webkit-scrollbar-track{ background: transparent; }
+
+.featured-carousel .product-card{
+  flex: 0 0 auto;
+  width: 200px;
+  scroll-snap-align: start;
+}
+
+@media (max-width: 560px){
+  .featured-carousel .product-card{ width: 46vw; }
 }
 
 .product-grid{
