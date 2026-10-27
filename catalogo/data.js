@@ -160,7 +160,7 @@ var CATALOG = {
       "slug": "digestivi",
       "name": "Digestivi",
       "cover": "digestivi_ov.jpg",
-      "intro": "Liquori artigianali Regina Spirits pensati per il fine pasto: dall'anice della sambuca al prugnolo del bargnolino, dalle noci verdi del nocino agli agrumi del limoncello, fino alle creme di liquirizia e al caffè.",
+      "intro": "I liquori e digestivi Regina Spirits raccontano il piacere del fine pasto italiano. Il carattere avvolgente della liquirizia, le note intense e speziate del nocino e la freschezza agrumata del limoncello danno vita a una selezione artigianale legata al territorio mantovano. Da gustare freddi, con ghiaccio o in abbinamento ai dessert.",
       "products": [
         {
           "name": "Sambuca",
