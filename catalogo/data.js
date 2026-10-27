@@ -31,6 +31,7 @@ var CATALOG = {
   ],
   "featured": [
     "crema-sbrisolona-50.jpg",
+    "amaro-di-pomponesco.jpg",
     "46100-premium.jpg",
     "mantua-london-dry.jpg",
     "melone-50.jpg",
@@ -240,46 +241,71 @@ var CATALOG = {
           "name": "Mantuà",
           "grade": "17%",
           "note": "crema al whisky",
-          "images": [
-            { "src": "mantua-50.jpg", "label": "50 cl" },
-            { "src": "mantua-70.jpg", "label": "70 cl" }
-          ]
+          "sizes": "50 cl",
+          "img": "mantua-50.jpg"
         },
         {
           "name": "Ciocò",
           "grade": "17%",
           "note": "crema al cioccolato",
-          "images": [
-            { "src": "cioco-50.jpg", "label": "50 cl" },
-            { "src": "cioco-70.jpg", "label": "70 cl" }
-          ]
+          "sizes": "50 cl",
+          "img": "cioco-50.jpg"
         },
         {
           "name": "Pistà",
           "grade": "17%",
           "note": "crema al pistacchio",
-          "images": [
-            { "src": "pista-50.jpg", "label": "50 cl" },
-            { "src": "pista-70.jpg", "label": "70 cl" }
-          ]
+          "sizes": "50 cl",
+          "img": "pista-50.jpg"
         },
         {
           "name": "Melone",
           "grade": "17%",
           "note": "crema al melone",
-          "images": [
-            { "src": "melone-50.jpg", "label": "50 cl" },
-            { "src": "melone-70.jpg", "label": "70 cl" }
-          ]
+          "sizes": "50 cl",
+          "img": "melone-50.jpg"
         },
         {
           "name": "Crema Sbrisolona",
           "grade": "17%",
           "note": null,
-          "images": [
-            { "src": "crema-sbrisolona-50.jpg", "label": "50 cl" },
-            { "src": "crema-sbrisolona-70.jpg", "label": "70 cl" }
-          ]
+          "sizes": "50 cl",
+          "img": "crema-sbrisolona-50.jpg"
+        },
+        {
+          "name": "Mantuà",
+          "grade": "17%",
+          "note": "crema al whisky",
+          "sizes": "70 cl",
+          "img": "mantua-70.jpg"
+        },
+        {
+          "name": "Ciocò",
+          "grade": "17%",
+          "note": "crema al cioccolato",
+          "sizes": "70 cl",
+          "img": "cioco-70.jpg"
+        },
+        {
+          "name": "Pistà",
+          "grade": "17%",
+          "note": "crema al pistacchio",
+          "sizes": "70 cl",
+          "img": "pista-70.jpg"
+        },
+        {
+          "name": "Melone",
+          "grade": "17%",
+          "note": "crema al melone",
+          "sizes": "70 cl",
+          "img": "melone-70.jpg"
+        },
+        {
+          "name": "Crema Sbrisolona",
+          "grade": "17%",
+          "note": null,
+          "sizes": "70 cl",
+          "img": "crema-sbrisolona-70.jpg"
         }
       ]
     },
