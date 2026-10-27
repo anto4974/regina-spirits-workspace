@@ -229,6 +229,12 @@ var CATALOG = {
           "grade": "17%",
           "note": "crema al melone",
           "img": "melone.jpg"
+        },
+        {
+          "name": "Crema Sbrisolona",
+          "grade": "17%",
+          "note": null,
+          "img": "crema-sbrisolona.jpg"
         }
       ]
     },
