@@ -140,6 +140,18 @@
     });
     html += '</div>';
 
+    if (CATALOG.corporateGifts){
+      var cg = CATALOG.corporateGifts;
+      html += '<a class="gifts-banner" href="#/regali-aziendali">';
+      html += '<img src="img/' + cg.heroImage + '" alt="">';
+      html += '<div class="gifts-banner-text">';
+      html += '<h2>' + escapeHtml(cg.title) + '</h2>';
+      html += '<p>' + escapeHtml(cg.tagline) + '</p>';
+      html += '<span class="gifts-banner-cta">Scopri di più &rarr;</span>';
+      html += '</div>';
+      html += '</a>';
+    }
+
     html += '<div class="chi-cta-wrap"><button type="button" class="btn-gold" id="chiBtn">Chi siamo</button></div>';
 
     viewEl.innerHTML = html;
@@ -224,6 +236,93 @@
     html += '<h1 class="page-title">' + escapeHtml(a.title) + '</h1>';
     html += '<p>' + escapeHtml(a.description || a.caption) + '</p>';
     html += '</div>';
+    viewEl.innerHTML = html;
+    bindBack();
+  }
+
+  function renderRegaliAziendali(){
+    var cg = CATALOG.corporateGifts;
+    if (!cg){
+      viewEl.innerHTML = '<button type="button" class="breadcrumb" data-back>&larr; Torna al catalogo</button>' +
+        '<p>Pagina non trovata.</p>';
+      bindBack();
+      return;
+    }
+    var html = '';
+    html += '<button type="button" class="breadcrumb" data-back>&larr; Torna al catalogo</button>';
+
+    html += '<div class="gifts-hero"><img src="img/' + cg.heroImage + '" alt="' + escapeHtml(cg.title) + '">';
+    html += '<div class="gifts-hero-content">';
+    html += '<h1>' + escapeHtml(cg.title) + '</h1>';
+    html += '<p>' + escapeHtml(cg.tagline) + '</p>';
+    html += '</div></div>';
+
+    html += '<p class="gifts-intro">' + escapeHtml(cg.intro) + '</p>';
+
+    if (cg.points && cg.points.length){
+      html += '<div class="gifts-points">';
+      cg.points.forEach(function(pt, i){
+        html += '<div class="gifts-point" style="' + staggerStyle(i, 70) + '">' + escapeHtml(pt) + '</div>';
+      });
+      html += '</div>';
+    }
+
+    if (cg.packages && cg.packages.length){
+      html += '<h2 class="section-heading">Le confezioni</h2>';
+      html += '<div class="gifts-packages">';
+      cg.packages.forEach(function(pack, i){
+        html += '<div class="gift-package" style="' + staggerStyle(i, 80) + '">';
+        html += '<h3>' + escapeHtml(pack.name) + '</h3>';
+        html += '<div class="gift-package-price">' + escapeHtml(pack.price) + '</div>';
+        html += '<ul>';
+        pack.items.forEach(function(item){ html += '<li>' + escapeHtml(item) + '</li>'; });
+        html += '</ul>';
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+
+    if (cg.gallery && cg.gallery.length){
+      html += '<h2 class="section-heading">Dal nostro laboratorio</h2>';
+      html += '<div class="gifts-gallery">';
+      cg.gallery.forEach(function(img, i){
+        html += '<div class="gifts-gallery-item" style="' + staggerStyle(i, 50) + '"><img src="img/' + img + '" alt="" loading="lazy"></div>';
+      });
+      html += '</div>';
+    }
+
+    if (cg.personalization && cg.personalization.length){
+      html += '<h2 class="section-heading">Personalizzazione</h2>';
+      html += '<div class="gifts-personalization">';
+      cg.personalization.forEach(function(p, i){
+        html += '<div class="gifts-pers-item" style="' + staggerStyle(i, 70) + '">';
+        html += '<h4>' + escapeHtml(p.title) + '</h4>';
+        html += '<p>' + escapeHtml(p.text) + '</p>';
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+
+    if (cg.process && cg.process.length){
+      html += '<h2 class="section-heading">Come funziona</h2>';
+      html += '<ol class="gifts-process">';
+      cg.process.forEach(function(step){ html += '<li>' + escapeHtml(step) + '</li>'; });
+      html += '</ol>';
+    }
+
+    if (cg.faq && cg.faq.length){
+      html += '<h2 class="section-heading">Domande frequenti</h2>';
+      html += '<div class="gifts-faq">';
+      cg.faq.forEach(function(f){
+        html += '<div class="gifts-faq-item"><h4>' + escapeHtml(f.q) + '</h4><p>' + escapeHtml(f.a) + '</p></div>';
+      });
+      html += '</div>';
+    }
+
+    if (cg.contact){
+      html += '<div class="gifts-contact">' + escapeHtml(cg.contact) + '</div>';
+    }
+
     viewEl.innerHTML = html;
     bindBack();
   }
@@ -373,6 +472,8 @@
       renderAward(decodeURIComponent(mAward[1]));
     } else if (hash === '#/chi-siamo'){
       renderChiSiamo();
+    } else if (hash === '#/regali-aziendali'){
+      renderRegaliAziendali();
     } else {
       renderHome();
     }

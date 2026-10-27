@@ -13,6 +13,105 @@ var CATALOG = {
     "Il nostro showroom a Pomponesco è aperto per la vendita diretta e accoglie anche professionisti del settore — ristoratori, distributori e partner — oltre a offrire produzione conto terzi e private label.",
     "Laboratorio e showroom: Via Sant'Antonio 16, Pomponesco (MN) — reginaspirits.com"
   ],
+  "corporateGifts": {
+    "title": "Regali Aziendali",
+    "heroImage": "regali-box-chiuso.jpg",
+    "tagline": "Un regalo con un'identità, non un cesto che si dimentica",
+    "intro": "Una bottiglia con un'identità propria resta in vista, viene riutilizzata e ricordata — a differenza di un cesto gastronomico o di un gadget promozionale, che spesso finiscono dimenticati. Per le festività e le occasioni aziendali, Regina Spirits propone gin, liquori e amari in confezioni regalo personalizzabili, pensate per raccontare il territorio e, su richiesta, il marchio della tua azienda.",
+    "points": [
+      "Produzione diretta nel nostro laboratorio di Pomponesco (MN), senza intermediari",
+      "Lo skyline di Mantova e l'identità del territorio protagonisti sulle bottiglie",
+      "Etichette personalizzate con il nome della tua azienda, a partire da 25 box"
+    ],
+    "gallery": [
+      "regali-box-46100-mincio.jpg",
+      "regali-box-tris.jpg",
+      "regali-imbottigliamento-1.jpg",
+      "regali-imbottigliamento-2.jpg",
+      "regali-imbottigliamento-3.jpg",
+      "regali-imbottigliamento-4.jpg"
+    ],
+    "packages": [
+      {
+        "name": "Essential Gift",
+        "price": "da 49,90 €",
+        "items": [
+          "2 bottiglie da 50 cl a scelta dal catalogo",
+          "Box coordinata Regina Spirits",
+          "Biglietto di auguri (grafica fornita dal cliente)"
+        ]
+      },
+      {
+        "name": "Mantua Selection",
+        "price": "da 69,90 €",
+        "items": [
+          "3 bottiglie a scelta dal catalogo",
+          "Box premium",
+          "Prodotti gourmet su richiesta"
+        ]
+      },
+      {
+        "name": "Custom Corporate",
+        "price": "su preventivo",
+        "items": [
+          "Etichette personalizzate con nome e logo aziendale",
+          "2 o 3 bottiglie a scelta",
+          "Disponibile a partire da 25 box"
+        ]
+      }
+    ],
+    "personalization": [
+      {
+        "title": "Etichette personalizzate",
+        "text": "Nome e logo della tua azienda inseriti nel design delle etichette, a partire da 25 box."
+      },
+      {
+        "title": "Composizione libera",
+        "text": "Scegli tu quali 2 o 3 bottiglie inserire, tra tutto il catalogo."
+      },
+      {
+        "title": "Biglietto di auguri",
+        "text": "Lo stampi con la tua grafica: il laboratorio lo inserisce nella confezione."
+      },
+      {
+        "title": "Controllo grafico",
+        "text": "Ogni etichetta personalizzata viene verificata — leggibilità, coerenza e correttezza — prima di andare in produzione."
+      }
+    ],
+    "process": [
+      "Invia una richiesta con i dettagli del progetto",
+      "Ricevi una proposta entro 24 ore lavorative",
+      "Approva la grafica definitiva",
+      "Produzione e spedizione assicurata in tutta Italia"
+    ],
+    "faq": [
+      {
+        "q": "Qual è la quantità minima?",
+        "a": "Le box si possono ordinare anche in piccole quantità; etichette personalizzate e sconti quantità partono da 25 pezzi."
+      },
+      {
+        "q": "Quali sono i tempi di consegna?",
+        "a": "Dipendono dall'ordine e dall'approvazione della grafica: i tempi vengono concordati nel preventivo. Per Natale conviene richiedere il preventivo con anticipo."
+      },
+      {
+        "q": "Posso scegliere liberamente le bottiglie?",
+        "a": "Sì, tra tutti i prodotti del catalogo: gin, liquori, amari, creme e aperitivi, tutti in formato 50 cl."
+      },
+      {
+        "q": "Quanto costa la personalizzazione con il logo?",
+        "a": "Dipende dalla quantità e dalla configurazione scelta: viene dettagliata nel preventivo."
+      },
+      {
+        "q": "Come avviene la spedizione?",
+        "a": "In tutta Italia con corriere assicurato; nella zona di Mantova è possibile anche la consegna diretta."
+      },
+      {
+        "q": "Come viene fatturato l'ordine?",
+        "a": "Fattura elettronica per aziende e professionisti, oppure scontrino fiscale."
+      }
+    ],
+    "contact": "Per un preventivo scrivici a info@reginaspirits.com o vieni a trovarci in Via Sant'Antonio 16, Pomponesco (MN) — reginaspirits.com"
+  },
   "awards": [
     {
       "slug": "qualita-artigiana",
