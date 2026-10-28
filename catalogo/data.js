@@ -27,6 +27,7 @@ var CATALOG = {
       "regali-box-46100-mincio.jpg",
       "regali-box-tris.jpg",
       "regali-selezione-amaro-set.jpg",
+      "regali-selezione-tris-classico.jpg",
       "regali-imbottigliamento-1.jpg",
       "regali-imbottigliamento-2.jpg",
       "regali-imbottigliamento-3.jpg",
