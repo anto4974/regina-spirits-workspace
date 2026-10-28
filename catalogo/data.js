@@ -26,6 +26,10 @@ var CATALOG = {
     "gallery": [
       "regali-box-46100-mincio.jpg",
       "regali-box-tris.jpg",
+      "regali-selezione-tris-gin.jpg",
+      "regali-selezione-46100-lotus.jpg",
+      "regali-selezione-mantua-set.jpg",
+      "regali-selezione-amaro-set.jpg",
       "regali-imbottigliamento-1.jpg",
       "regali-imbottigliamento-2.jpg",
       "regali-imbottigliamento-3.jpg",
