@@ -26,9 +26,6 @@ var CATALOG = {
     "gallery": [
       "regali-box-46100-mincio.jpg",
       "regali-box-tris.jpg",
-      "regali-selezione-tris-gin.jpg",
-      "regali-selezione-46100-lotus.jpg",
-      "regali-selezione-mantua-set.jpg",
       "regali-selezione-amaro-set.jpg",
       "regali-imbottigliamento-1.jpg",
       "regali-imbottigliamento-2.jpg",
@@ -39,6 +36,7 @@ var CATALOG = {
       {
         "name": "Essential Gift",
         "price": "da 49,90 €",
+        "img": "regali-selezione-46100-lotus.jpg",
         "items": [
           "2 bottiglie da 50 cl a scelta dal catalogo",
           "Box coordinata Regina Spirits",
@@ -48,6 +46,7 @@ var CATALOG = {
       {
         "name": "Mantua Selection",
         "price": "da 69,90 €",
+        "img": "regali-selezione-tris-gin.jpg",
         "items": [
           "3 bottiglie a scelta dal catalogo",
           "Box premium",
@@ -57,6 +56,7 @@ var CATALOG = {
       {
         "name": "Custom Corporate",
         "price": "su preventivo",
+        "img": "regali-selezione-mantua-set.jpg",
         "items": [
           "Etichette personalizzate con nome e logo aziendale",
           "2 o 3 bottiglie a scelta",

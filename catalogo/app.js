@@ -272,11 +272,14 @@
       html += '<div class="gifts-packages">';
       cg.packages.forEach(function(pack, i){
         html += '<div class="gift-package" style="' + staggerStyle(i, 80) + '">';
+        if (pack.img) html += '<div class="gift-package-img"><img src="img/' + pack.img + '" alt="' + escapeHtml(pack.name) + '" loading="lazy"></div>';
+        html += '<div class="gift-package-body">';
         html += '<h3>' + escapeHtml(pack.name) + '</h3>';
         html += '<div class="gift-package-price">' + escapeHtml(pack.price) + '</div>';
         html += '<ul>';
         pack.items.forEach(function(item){ html += '<li>' + escapeHtml(item) + '</li>'; });
         html += '</ul>';
+        html += '</div>';
         html += '</div>';
       });
       html += '</div>';
