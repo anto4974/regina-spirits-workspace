@@ -257,13 +257,13 @@
     html += '<p>' + escapeHtml(cg.tagline) + '</p>';
     html += '</div></div>';
 
-    var galleryProducts = (cg.gallery || []).map(function(img){ return { name: cg.title, grade: null, img: img }; });
+    var galleryProducts = (cg.gallery || []).map(function(g){ return { name: g.caption || cg.title, grade: null, img: g.src }; });
     var floatCount = Math.min(2, galleryProducts.length);
 
     function galleryPhotoBtn(idx, extraClass){
-      var img = cg.gallery[idx];
+      var g = cg.gallery[idx];
       return '<button type="button" class="product-photo-btn' + (extraClass ? ' ' + extraClass : '') + '" data-index="' + idx + '">' +
-        '<img src="img/' + img + '" alt="" loading="lazy"></button>';
+        '<img src="img/' + g.src + '" alt="' + escapeHtml(g.caption || '') + '" loading="lazy"></button>';
     }
 
     html += '<div class="gifts-intro-wrap">';
@@ -301,10 +301,11 @@
     if (cg.gallery && cg.gallery.length > floatCount){
       html += '<h2 class="section-heading">Dal nostro laboratorio</h2>';
       html += '<div class="gifts-gallery gifts-gallery-compact">';
-      cg.gallery.forEach(function(img, i){
+      cg.gallery.forEach(function(g, i){
         if (i < floatCount) return;
         html += '<div class="gifts-gallery-item" style="' + staggerStyle(i, 50) + '">';
         html += galleryPhotoBtn(i);
+        if (g.caption) html += '<p class="gifts-gallery-caption">' + escapeHtml(g.caption) + '</p>';
         html += '</div>';
       });
       html += '</div>';

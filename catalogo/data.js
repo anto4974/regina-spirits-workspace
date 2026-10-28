@@ -15,7 +15,7 @@ var CATALOG = {
   ],
   "corporateGifts": {
     "title": "Regali Aziendali",
-    "heroImage": "regali-box-chiuso.jpg",
+    "heroImage": "regali-selezione-amaro-set.jpg",
     "tagline": "Un regalo con un'identità, non un cesto che si dimentica",
     "intro": "Una bottiglia con un'identità propria resta in vista, viene riutilizzata e ricordata — a differenza di un cesto gastronomico o di un gadget promozionale, che spesso finiscono dimenticati. Per le festività e le occasioni aziendali, Regina Spirits propone gin, liquori e amari in confezioni regalo personalizzabili, pensate per raccontare il territorio e, su richiesta, il marchio della tua azienda.",
     "points": [
@@ -24,14 +24,13 @@ var CATALOG = {
       "Etichette personalizzate con il nome della tua azienda, a partire da 25 box"
     ],
     "gallery": [
-      "regali-box-46100-mincio.jpg",
-      "regali-box-tris.jpg",
-      "regali-selezione-amaro-set.jpg",
-      "regali-selezione-tris-classico.jpg",
-      "regali-imbottigliamento-1.jpg",
-      "regali-imbottigliamento-2.jpg",
-      "regali-imbottigliamento-3.jpg",
-      "regali-imbottigliamento-4.jpg"
+      { "src": "regali-box-46100-mincio.jpg", "caption": "46100 Premium e Mincio Gin in confezione regalo" },
+      { "src": "regali-box-tris.jpg", "caption": "Selezione tris: Melon, Mantua e Mincio Gin" },
+      { "src": "regali-selezione-tris-classico.jpg", "caption": "Sambuca, Melone e Limoncillo in edizione regalo" },
+      { "src": "regali-imbottigliamento-1.jpg", "caption": "Imbottigliamento a mano, bottiglia per bottiglia" },
+      { "src": "regali-imbottigliamento-2.jpg", "caption": "Controllo di ogni lotto durante il riempimento" },
+      { "src": "regali-imbottigliamento-3.jpg", "caption": "Riempimento diretto dal nostro impianto" },
+      { "src": "regali-imbottigliamento-4.jpg", "caption": "Tappatura artigianale in laboratorio" }
     ],
     "packages": [
       {

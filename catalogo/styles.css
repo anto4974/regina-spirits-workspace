@@ -686,7 +686,14 @@ main{ max-width: 1200px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
 .gifts-gallery-item .product-photo-btn{ aspect-ratio: 4/5; }
 .gifts-gallery-compact{
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: .7rem;
+  gap: .7rem .9rem;
+}
+.gifts-gallery-caption{
+  margin: .45rem 0 0;
+  font-size: .74rem;
+  line-height: 1.35;
+  color: var(--text-dim);
+  text-align: center;
 }
 
 .gifts-personalization{
