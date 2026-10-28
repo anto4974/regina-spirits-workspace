@@ -259,6 +259,10 @@
 
     var galleryProducts = (cg.gallery || []).map(function(g){ return { name: g.caption || cg.title, grade: null, img: g.src }; });
     var floatCount = Math.min(2, galleryProducts.length);
+    var packageIndexOffset = galleryProducts.length;
+    (cg.packages || []).forEach(function(pack){
+      if (pack.img) galleryProducts.push({ name: pack.name, grade: pack.price, img: pack.img });
+    });
 
     function galleryPhotoBtn(idx, extraClass){
       var g = cg.gallery[idx];
@@ -283,9 +287,14 @@
     if (cg.packages && cg.packages.length){
       html += '<h2 class="section-heading">Le confezioni</h2>';
       html += '<div class="gifts-packages">';
+      var packagePhotoIndex = packageIndexOffset;
       cg.packages.forEach(function(pack, i){
         html += '<div class="gift-package" style="' + staggerStyle(i, 80) + '">';
-        if (pack.img) html += '<div class="gift-package-img"><img src="img/' + pack.img + '" alt="' + escapeHtml(pack.name) + '" loading="lazy"></div>';
+        if (pack.img){
+          html += '<button type="button" class="product-photo-btn gift-package-img" data-index="' + packagePhotoIndex + '">';
+          html += '<img src="img/' + pack.img + '" alt="' + escapeHtml(pack.name) + '" loading="lazy"></button>';
+          packagePhotoIndex++;
+        }
         html += '<div class="gift-package-body">';
         html += '<h3>' + escapeHtml(pack.name) + '</h3>';
         html += '<div class="gift-package-price">' + escapeHtml(pack.price) + '</div>';
