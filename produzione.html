@@ -651,9 +651,10 @@
   // real cost driver (far more tokens than the extracted text), so it's kept
   // only as large as printed invoice text needs to stay legible.
   var AI_MODEL_DEFAULT = 'claude-haiku-4-5';
-  var INVOICE_IMAGE_MAX_DIM = 1280;
-  var INVOICE_IMAGE_QUALITY = 0.75;
-  var INVOICE_MAX_OUTPUT_TOKENS = 2048;
+  var INVOICE_IMAGE_MAX_DIM = 1568;
+  var ACCURATE_MODEL = 'claude-sonnet-5-5';
+  var INVOICE_IMAGE_QUALITY = 0.85;
+  var INVOICE_MAX_OUTPUT_TOKENS = 16000;
 
   // ---------- state ----------
   var state = {
@@ -701,7 +702,7 @@
   }
 
   function freshFatturaDraft(){
-    return { files: [], analyzing: false };
+    return { files: [], analyzing: false, accurate: false };
   }
 
   // ---------- utils ----------
@@ -1368,13 +1369,15 @@
     html += '<label class="file-picker-btn">' + iconCamera() + '<span>Scatta foto</span><input type="file" accept="image/*" capture="environment" id="fatturaCameraInput" hidden></label>';
     html += '<label class="file-picker-btn">' + iconUpload() + '<span>Carica file (anche più di uno)</span><input type="file" accept="image/*,application/pdf" multiple id="fatturaFileInput" hidden></label>';
     html += '</div>';
+    html += '<label class="chk" style="margin-top:.7rem"><input type="checkbox" id="fatturaAccurate"' + (d.accurate ? ' checked' : '') + '> Lettura accurata (modello più potente: più preciso con fatture lunghe o fotografate, costa di più)</label>';
     d.files.forEach(function(f, i){
-      var st = f.status === 'done' ? '<span class="tag ok">Letta · ' + ((f.result && f.result.righe) ? f.result.righe.length : 0) + ' righe</span>' :
+      var st = f.status === 'done' ? '<span class="tag ' + (f.warn ? 'warn' : 'ok') + '">Letta · ' + ((f.result && f.result.righe) ? f.result.righe.length : 0) + (f.result && typeof f.result.righe_totali_in_fattura === 'number' ? ' su ' + f.result.righe_totali_in_fattura : '') + ' righe</span>' + (f.warn ? ' <span class="tag warn">⚠ ' + escapeHtml(f.warn) + '</span>' : '') :
         f.status === 'analyzing' ? '<span class="tag warn">Lettura in corso…</span>' :
         f.status === 'error' ? '<span class="tag bad" title="' + escapeHtml(f.error || '') + '">Errore</span>' : '<span class="tag">Da leggere</span>';
       html += '<div class="file-chosen">';
       if (f.previewUrl) html += '<img src="' + f.previewUrl + '" alt="" style="width:2.6rem;height:2.6rem;object-fit:cover;border-radius:.4rem;flex:none;">';
       html += '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(f.name) + (f.status === 'error' ? ' <span class="hint">— ' + escapeHtml(f.error || '') + '</span>' : '') + '</span>' + st;
+      if (f.status === 'done' || f.status === 'error') html += '<button type="button" class="btn btn-sm btn-ghost" data-action="fattura-reread" data-idx="' + i + '"' + (d.analyzing ? ' disabled' : '') + '>Rileggi</button>';
       html += '<button type="button" class="file-chosen-remove" data-action="remove-fattura-file" data-idx="' + i + '"' + (d.analyzing ? ' disabled' : '') + '>' + iconTrash() + '</button>';
       html += '</div>';
     });
@@ -1450,7 +1453,7 @@
   function analyzeInvoiceFile(d, ai){
     var contentType = d.mediaType === 'application/pdf' ? 'document' : 'image';
     var body = {
-      model: ai.model,
+      model: state.fattura.accurate ? ACCURATE_MODEL : ai.model,
       max_tokens: INVOICE_MAX_OUTPUT_TOKENS,
       tools: [{
         name: 'registra_righe_fattura',
@@ -1458,6 +1461,7 @@
         input_schema: {
           type: 'object',
           properties: {
+            righe_totali_in_fattura: { type: 'integer', description: 'Numero totale di righe di articolo che vedi nella fattura (tutte le pagine). Contale PRIMA di compilare l\'elenco: righe deve avere lo stesso numero di voci.' },
             fornitore: { type: ['string','null'], description: 'Nome del fornitore, se presente' },
             righe: {
               type: 'array',
@@ -1479,7 +1483,7 @@
               }
             }
           },
-          required: ['righe']
+          required: ['righe_totali_in_fattura', 'righe']
         }
       }],
       tool_choice: { type: 'tool', name: 'registra_righe_fattura' },
@@ -1487,7 +1491,7 @@
         role: 'user',
         content: [
           { type: contentType, source: { type: 'base64', media_type: d.mediaType, data: d.base64 } },
-          { type: 'text', text: 'Questa è una fattura di un fornitore di materie prime per un\'azienda che produce liquori (alcol, zucchero, aromi, frutta, acqua, ecc.). Estrai ogni riga di prodotto con quantità, unità di misura, numero di lotto, data di scadenza e codice articolo/prodotto del fornitore, se presenti. Ignora totali, IVA, spese di trasporto, sconti e note generiche. Scrivi l\'unità di misura esattamente come appare in fattura. Usa lo strumento fornito per rispondere.' }
+          { type: 'text', text: 'Questa è una fattura di un fornitore per un\'azienda che produce liquori. ELENCA OGNI SINGOLA RIGA DI ARTICOLO, senza saltarne nessuna: materie prime (alcol, zucchero, aromi, frutta, acqua, additivi) ma anche imballi e materiali (bottiglie, tappi, etichette, scatole, contrassegni). Se la fattura ha più pagine leggile tutte. Prima di compilare l\'elenco conta le righe di articolo e indicale in righe_totali_in_fattura: l\'elenco deve avere lo stesso numero di voci. Per ogni riga indica quantità, unità di misura (esattamente come scritta in fattura), numero di lotto, data di scadenza, codice articolo e prezzo unitario, se presenti. Ignora solo totali, IVA, spese di trasporto, sconti e note generiche. Usa lo strumento fornito per rispondere.' }
         ]
       }]
     };
@@ -1511,11 +1515,18 @@
       return res.json();
     }).then(function(data){
       var toolUse = (data.content || []).filter(function(b){ return b.type === 'tool_use'; })[0];
-      if (!toolUse || !toolUse.input){ throw new Error('Risposta IA non valida.'); }
-      return toolUse.input;
+      if (!toolUse || !toolUse.input || !Array.isArray(toolUse.input.righe)){ throw new Error(data.stop_reason === 'max_tokens' ? 'Fattura troppo lunga: la risposta è stata troncata.' : 'Risposta IA non valida.'); }
+      return Object.assign({}, toolUse.input, { _stop: data.stop_reason });
     });
   }
 
+  // confronta le righe lette con quelle che l'IA dichiara di aver visto
+  function invoiceWarning(res){
+    var n = (res.righe || []).length, tot = res.righe_totali_in_fattura;
+    if (res._stop === 'max_tokens') return 'lettura troncata: fattura molto lunga, mancano righe';
+    if (typeof tot === 'number' && n < tot) return 'lette ' + n + ' righe su ' + tot + ' dichiarate: ne mancano ' + (tot - n);
+    return '';
+  }
   function aiErrorMessage(e){
     var msg = (e && e.message) || 'Analisi non riuscita.';
     if (/401|invalid.*api.*key|authentication/i.test(msg)) msg = 'Chiave API non valida. Controlla le impostazioni.';
@@ -1536,7 +1547,7 @@
       chain = chain.then(function(){
         f.status = 'analyzing'; f.error = '';
         render();
-        return analyzeInvoiceFile(f, ai).then(function(res){ f.status = 'done'; f.result = res; })
+        return analyzeInvoiceFile(f, ai).then(function(res){ f.status = 'done'; f.result = res; f.warn = invoiceWarning(res); })
           .catch(function(e){ console.error(e); f.status = 'error'; f.error = aiErrorMessage(e); });
       });
     });
@@ -1546,8 +1557,10 @@
       var errs = d.files.filter(function(f){ return f.status === 'error'; });
       render();
       if (!ok.length){ showToast(errs.length ? 'Nessuna fattura letta: ' + errs[0].error : 'Nessuna riga trovata.'); return; }
-      if (errs.length) showToast(errs.length + (errs.length === 1 ? ' fattura non è stata letta' : ' fatture non sono state lette') + ': le altre sono pronte per la revisione.');
-      openInvoiceReviewModal(ok.map(function(f){ return { name: f.name, fornitore: f.result.fornitore || null, righe: f.result.righe || [] }; }));
+      var warns = ok.filter(function(f){ return f.warn; });
+      if (warns.length) showToast('Attenzione: ' + warns[0].name + ' — ' + warns[0].warn + '. Controlla la revisione o rileggi la fattura.');
+      else if (errs.length) showToast(errs.length + (errs.length === 1 ? ' fattura non è stata letta' : ' fatture non sono state lette') + ': le altre sono pronte per la revisione.');
+      openInvoiceReviewModal(ok.map(function(f){ return { name: f.name, fornitore: f.result.fornitore || null, righe: f.result.righe || [], warn: f.warn || '' }; }));
     });
   }
 
@@ -1657,6 +1670,7 @@
         include: true,
         supplier: doc.fornitore || null,
         source: doc.name || '',
+        srcWarn: doc.warn || '',
         rawDescription: r.descrizione || '',
         extractedName: r.nome_prodotto || r.descrizione || '',
         extractedUnit: r.unita || '',
@@ -1691,7 +1705,7 @@
     html += '<p class="modal-subtitle">' + rev.lines.length + (rev.lines.length === 1 ? ' riga' : ' righe') + ' da ' + rev.docs + (rev.docs === 1 ? ' fattura' : ' fatture') + ' — controlla ogni riga prima di registrare i carichi.</p>';
     html += '<div class="btn-row" style="justify-content:flex-start;margin-bottom:.4rem"><button type="button" class="btn btn-sm btn-ghost" data-action="inv-all" data-v="1">Includi tutte</button><button type="button" class="btn btn-sm btn-ghost" data-action="inv-all" data-v="0">Escludi tutte</button></div>';
     rev.lines.forEach(function(line, idx){
-      if (idx === 0 || line.source !== rev.lines[idx - 1].source || line.supplier !== rev.lines[idx - 1].supplier) html += '<div class="side-sec" style="margin:.8rem 0 .5rem;border-radius:.3rem;text-transform:none;font-size:.85rem">Fattura: ' + escapeHtml(line.source || '') + (line.supplier ? ' — ' + escapeHtml(line.supplier) : '') + '</div>';
+      if (idx === 0 || line.source !== rev.lines[idx - 1].source || line.supplier !== rev.lines[idx - 1].supplier) html += '<div class="side-sec" style="margin:.8rem 0 .5rem;border-radius:.3rem;text-transform:none;font-size:.85rem">Fattura: ' + escapeHtml(line.source || '') + (line.supplier ? ' — ' + escapeHtml(line.supplier) : '') + (line.srcWarn ? ' <span style="color:var(--warn)">⚠ ' + escapeHtml(line.srcWarn) + '</span>' : '') + '</div>';
       html += renderInvoiceLine(line, idx);
     });
     var includedCount = rev.lines.filter(function(l){ return l.include; }).length;
@@ -4786,6 +4800,7 @@
       openMergeModal(dsx ? dsx.split(',').filter(Boolean) : (el.getAttribute('data-id') ? [el.getAttribute('data-id')] : selectedIds('materie')));
       return true;
     }
+    if (a === 'fattura-reread'){ var rf = state.fattura.files[idx]; if (rf){ rf.status = 'pending'; rf.result = null; rf.warn = ''; rf.error = ''; } render(); return true; }
     if (a === 'doc-del-sel'){ deleteSelectedDocRows(el.getAttribute('data-kind')); return true; }
     if (a === 'inv-all'){
       var onv = el.getAttribute('data-v') === '1';
@@ -4857,6 +4872,7 @@
     var t = e.target;
     if (state.toolModal && handleToolInput(t)) return true;
     var f;
+    if (t.id === 'fatturaAccurate'){ state.fattura.accurate = t.checked; return true; }
     if (t.hasAttribute('data-rowsel')){
       var rw = docRows(t.getAttribute('data-rowsel'))[parseInt(t.getAttribute('data-idx'), 10)];
       if (rw) rw._sel = t.checked;
