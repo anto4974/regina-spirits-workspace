@@ -458,6 +458,7 @@
   main.view.gridmode > .gv{ flex:1; min-height:0; }
 
   .gv{ flex-direction:row; gap:.6rem; }
+  table.grid tbody tr.grow{ user-select:none; -webkit-user-select:none; }
   .gv-left{ flex:1; min-width:0; display:flex; flex-direction:column; gap:.45rem; min-height:0; }
   .side{ flex:none; width:min(440px, 42%); overflow:auto; border:1px solid #6a6a6a; border-radius:.3rem; background:var(--surface); font-size:.88rem; }
   .side-h{ position:sticky; top:0; z-index:3; background:var(--surface-2); display:flex; justify-content:space-between; align-items:flex-start; gap:.6rem; padding:.6rem .8rem; border-bottom:1px solid #6a6a6a; }
@@ -660,6 +661,8 @@
     config: freshConfig(),
     search: {},
     sel: {},
+    multi: {},
+    anchor: {},
     collapsed: {},
     filters: { materie:{ cat:'', stock:'' }, lotti:{ cat:'', stock:'', scad:'' }, storico:{ type:'' } },
     menuOpen: null,
@@ -1976,8 +1979,18 @@
       g.rows.forEach(function(r){ visibleIds.push(o.rowId(r)); });
     });
     gridOrder[gid] = visibleIds;
-    if (state.sel[gid] && !rows.some(function(r){ return o.rowId(r) === state.sel[gid]; })) state.sel[gid] = null;
-    var selRow = state.sel[gid] ? rows.filter(function(r){ return o.rowId(r) === state.sel[gid]; })[0] : null;
+    var byRowId = {};
+    rows.forEach(function(r){ byRowId[o.rowId(r)] = r; });
+    var msel = state.multi[gid] || {};
+    var selIds = Object.keys(msel).filter(function(k){ return byRowId[k]; });
+    if (!selIds.length){ selIds = (state.sel[gid] && byRowId[state.sel[gid]]) ? [state.sel[gid]] : []; }
+    else if (!msel[state.sel[gid]]) state.sel[gid] = selIds[selIds.length - 1];
+    if (!selIds.length) state.sel[gid] = null;
+    var selSet = {};
+    selIds.forEach(function(k){ selSet[k] = true; });
+    var nSel = selIds.length;
+    var selRow = nSel === 1 ? byRowId[selIds[0]] : null;
+    var selRows = selIds.map(function(k){ return byRowId[k]; });
 
     function sums(list){
       var out = [];
@@ -1994,8 +2007,14 @@
     // barra comandi
     html += '<div class="grid-toolbar">';
     (o.actions || []).forEach(function(a){
-      var dis = (a.needSel && !selRow) ? ' disabled' : '';
-      var attrs = (a.needSel && selRow) ? (a.attrs ? a.attrs(selRow) : ' data-id="' + escapeHtml(o.rowId(selRow)) + '"') : '';
+      var dis, attrs;
+      if (a.multi){
+        dis = nSel ? '' : ' disabled';
+        attrs = nSel ? ' data-ids="' + escapeHtml(selIds.join(',')) + '"' + (selRow ? ' data-id="' + escapeHtml(o.rowId(selRow)) + '"' : '') : '';
+      } else {
+        dis = (a.needSel && !selRow) ? ' disabled' : '';
+        attrs = (a.needSel && selRow) ? (a.attrs ? a.attrs(selRow) : ' data-id="' + escapeHtml(o.rowId(selRow)) + '"') : '';
+      }
       html += '<button type="button" class="btn btn-sm ' + (a.cls || 'btn-ghost') + '" data-action="' + a.action + '"' + attrs + dis + '>' + a.label + (a.key ? ' <small style="opacity:.7">' + a.key + '</small>' : '') + '</button>';
     });
     if (o.searchText){
@@ -2003,7 +2022,7 @@
     }
     html += o.filtersHtml || '';
     html += '<span class="gt-spacer"></span>';
-    html += '<span class="gt-count">' + rows.length + (rows.length === 1 ? ' riga' : ' righe') + '</span>';
+    html += '<span class="gt-count">' + rows.length + (rows.length === 1 ? ' riga' : ' righe') + (nSel > 1 ? ' · <b>' + nSel + ' selezionate</b>' : '') + '</span>';
     if (o.groupBy) html += '<button type="button" class="btn btn-sm btn-ghost" data-action="grid-group" data-grid="' + gid + '">' + (P.group ? 'Togli raggruppamento' : 'Raggruppa per categoria') + '</button>';
     html += '<button type="button" class="btn btn-sm btn-ghost" data-action="grid-cols" data-grid="' + gid + '">Colonne…</button>';
     html += '</div>';
@@ -2032,7 +2051,7 @@
       }
       g.rows.forEach(function(r){
         var id = o.rowId(r);
-        html += '<tr class="grow' + (state.sel[gid] === id ? ' sel' : '') + (o.rowClass ? ' ' + (o.rowClass(r) || '') : '') + '" data-grid="' + gid + '" data-grow="' + escapeHtml(id) + '">';
+        html += '<tr class="grow' + (selSet[id] ? ' sel' : '') + (o.rowClass ? ' ' + (o.rowClass(r) || '') : '') + '" data-grid="' + gid + '" data-grow="' + escapeHtml(id) + '">';
         cols.forEach(function(c){ html += '<td class="' + (c.num ? 'num' : '') + '">' + cellText(c, r) + '</td>'; });
         html += '</tr>';
       });
@@ -2051,18 +2070,37 @@
     if (o.detail) html += o.detail(selRow);
     html += '</div>';
     if (o.side && selRow) html += o.side(selRow);
+    else if (nSel > 1) html += bulkPanelHtml(gid, selRows, o.bulk, o);
     html += '</div>';
     return html;
   }
 
-  function selectRow(gid, id, fromClick){
+  function selectOnly(gid, id){ state.sel[gid] = id; state.multi[gid] = {}; if (id) state.multi[gid][id] = true; state.anchor[gid] = id; }
+  function selectedIds(gid){
+    var k = Object.keys(state.multi[gid] || {});
+    if (!k.length && state.sel[gid]) k = [state.sel[gid]];
+    return k;
+  }
+  function selectRow(gid, id, fromClick, mods){
+    mods = mods || {};
     var now = Date.now();
-    var dbl = fromClick && lastRowClick.gid === gid && lastRowClick.id === id && (now - lastRowClick.t) < 450;
+    var dbl = fromClick && !mods.ctrl && !mods.shift && lastRowClick.gid === gid && lastRowClick.id === id && (now - lastRowClick.t) < 450;
     lastRowClick = { gid:gid, id:id, t:now };
+    var order = gridOrder[gid] || [], set = {}, i;
+    if (mods.shift && state.anchor[gid] && order.indexOf(state.anchor[gid]) !== -1 && order.indexOf(id) !== -1){
+      var x = order.indexOf(state.anchor[gid]), y = order.indexOf(id);
+      if (mods.ctrl) set = Object.assign({}, state.multi[gid] || {});
+      for (i = Math.min(x, y); i <= Math.max(x, y); i++) set[order[i]] = true;
+      state.multi[gid] = set;
+    } else if (mods.ctrl){
+      set = Object.assign({}, Object.keys(state.multi[gid] || {}).length ? state.multi[gid] : (state.sel[gid] ? (function(){ var o = {}; o[state.sel[gid]] = true; return o; })() : {}));
+      if (set[id]) delete set[id]; else set[id] = true;
+      state.multi[gid] = set; state.anchor[gid] = id;
+    } else { state.multi[gid] = {}; state.multi[gid][id] = true; state.anchor[gid] = id; }
     state.sel[gid] = id;
     if (dbl){ lastRowClick.t = 0; activateRow(gid, id); return; }
     render();
-    var el = document.querySelector('tr.grow.sel');
+    var el = document.querySelector('tr.grow[data-grow="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]');
     if (el && !fromClick) el.scrollIntoView({ block:'nearest' });
   }
   function activateRow(gid, id){
@@ -2237,7 +2275,10 @@
       ACCENTS.forEach(function(c){
         html += '<button type="button" class="swatch' + ((p.accent || '#ffb000') === c ? ' on' : '') + '" style="background:' + c + '" data-action="pref-accent" data-v="' + c + '" aria-label="' + c + '"></button>';
       });
-      html += '</div></div><div class="btn-row"><button type="button" class="btn btn-primary" data-action="tool-close">Fatto</button></div>';
+      html += '</div></div><div class="modal-field"><label>Rotellina del mouse nelle liste</label><div class="seg">';
+      html += '<button type="button" class="seg-btn' + (p.wheelSelect !== false ? ' active' : '') + '" data-action="pref-wheel" data-v="on">Sposta la selezione</button>';
+      html += '<button type="button" class="seg-btn' + (p.wheelSelect === false ? ' active' : '') + '" data-action="pref-wheel" data-v="off">Scorre soltanto</button>';
+      html += '</div><div class="hint" style="margin-top:.3rem">Con la selezione attiva la rotellina la sposta di riga in riga (Alt + rotellina scorre senza cambiarla).</div></div><div class="btn-row"><button type="button" class="btn btn-primary" data-action="tool-close">Fatto</button></div>';
     } else if (m.kind === 'cols'){
       var cols = gridDefs[m.gid] || [];
       var P = gridPrefs(m.gid, cols);
@@ -2467,9 +2508,10 @@
         { label:'Modifica', action:'edit-reference', key:'F2', needSel:true },
         { label:'Carica', action:'quick-carico', needSel:true, attrs:function(r){ return ' data-ref="' + r.id + '"'; } },
         { label:'Unisci duplicati…', action:'merge-open' },
-        { label:'Elimina', action:'delete-reference', needSel:true }
+        { label:'Elimina', action:'delete-reference', multi:true }
       ],
-      side:function(r){ return refSideHtml(r); }
+      side:function(r){ return refSideHtml(r); },
+      bulk:bulkMaterie
     });
   }
 
@@ -2516,6 +2558,7 @@
       gid:'lotti', columns:cols, rows:rows, rowId:function(l){ return l.id; },
       searchText:function(l){ return [l.refName, l.lotto].join(' '); },
       defaultSort:{ id:'scad', dir:'asc' }, filtersHtml:filters,
+      bulk:function(rows){ var lt = 0, kg = 0; rows.forEach(function(l){ lt += l.qtyLt || 0; kg += l.qtyKg || 0; }); return kvRows([['Litri', fmt(lt, 3) + ' Lt'], ['Chili', fmt(kg, 3) + ' Kg']]); },
       emptyMsg:'Nessun lotto in giacenza.',
       rowClass:function(l){ return ''; },
       actions:[
@@ -2546,7 +2589,8 @@
       gid:'storico', columns:cols, rows:rows, rowId:function(m){ return m.id; },
       searchText:function(m){ return [m.refName, m.lotto, m.causale].join(' '); },
       defaultSort:{ id:'ts', dir:'desc' }, filtersHtml:filters, emptyMsg:'Nessun movimento registrato.',
-      actions:[{ label:'Elimina dallo storico', action:'delete-movement', key:'Canc', needSel:true }]
+      actions:[{ label:'Elimina dallo storico', action:'delete-movement', key:'Canc', multi:true }],
+      bulk:function(rows){ var a = 0; rows.forEach(function(m){ a += m.delta || 0; }); return kvRows([['Movimenti', String(rows.length)]]) + bulkButtons('storico'); }
     });
   }
 
@@ -2574,6 +2618,7 @@
       gid:'produzioni', columns:cols, rows:state.productions, rowId:function(p){ return p.id; },
       searchText:function(p){ return [p.finishedLotto, p.recipeName, p.note].join(' '); },
       defaultSort:{ id:'data', dir:'desc' }, emptyMsg:'Nessuna produzione registrata.',
+      bulk:function(rows){ var q = 0; rows.forEach(function(p){ q += p.quantityLt || 0; }); return kvRows([['Litri prodotti', fmt(q, 2) + ' Lt']]); },
       actions:[
         { label:'+ Nuova produzione', action:'go-produzione', cls:'btn-primary' },
         { label:'Scheda di produzione', action:'view-scheda', key:'F2', needSel:true },
@@ -2622,9 +2667,10 @@
         { label:'+ Nuovo prodotto finito', action:'new-recipe', key:'F4', cls:'btn-primary' },
         { label:'Modifica distinta', action:'edit-recipe', key:'F2', needSel:true },
         { label:'Produci', action:'recipe-produce', needSel:true, cls:'btn-good' },
-        { label:'Elimina', action:'delete-recipe', key:'Canc', needSel:true }
+        { label:'Elimina', action:'delete-recipe', key:'Canc', multi:true }
       ],
-      side:function(r){ return recipeSideHtml(r); }
+      side:function(r){ return recipeSideHtml(r); },
+      bulk:function(){ return bulkButtons('prodotti'); }
     });
   }
 
@@ -3392,7 +3438,7 @@
         if (row !== null && state.carico.rows[row]) state.carico.rows[row] = fresh; else state.carico.rows.push(fresh);
         state.view = 'carico';
       }
-      state.sel.materie = id;
+      selectOnly('materie', id);
       render();
     }).catch(function(e){
       console.error(e);
@@ -3619,9 +3665,10 @@
         { label:'+ Aggiungi blocchi', action:'stamp-add', key:'F4', cls:'btn-primary' },
         { label:'Rotti / scarto', action:'stamp-adjust', needSel:true },
         { label:'Modifica', action:'stamp-edit', key:'F2', needSel:true },
-        { label:'Elimina', action:'stamp-delete', key:'Canc', needSel:true }
+        { label:'Elimina', action:'stamp-delete', key:'Canc', multi:true }
       ],
-      side:function(b){ return stampSideHtml(b); }
+      side:function(b){ return stampSideHtml(b); },
+      bulk:function(rows){ var rem = 0, q = 0; rows.forEach(function(b){ rem += b.remaining; q += b.quantita; }); return kvRows([['Residui totali', String(rem)], ['Quantità iniziale', String(q)]]) + bulkButtons('contrassegni'); }
     });
   }
 
@@ -3750,7 +3797,7 @@
           return window.__fb.setDoc(STAMPS_COLL + '/' + id, doc).then(function(){
             var obj = Object.assign({ id: id }, doc);
             state.stamps.push(obj);
-            state.sel.contrassegni = id;
+            selectOnly('contrassegni', id);
             logStampMovement({ type:'carico', blockId:id, serie:it.serie, from: stampLabel(obj, it.inizio), to: stampLabel(obj, stampLast(obj)), qty: it.quantita, order: it.order, causale: 'Inserimento blocco' });
           });
         });
@@ -4098,8 +4145,11 @@
     if (t.kg !== null) parts.push(fmt(t.kg, 3) + ' Kg');
     return (parts.join(' · ') || 'nessuna giacenza') + ' · ' + n + (n === 1 ? ' lotto' : ' lotti');
   }
-  function openMergeModal(refId){
-    state.mergeModal = { ids: refId ? [refId] : [], targetId: refId || '', name: '', nameEdited: false, query: '', busy: false };
+  function openMergeModal(arg){
+    var ids = (Array.isArray(arg) ? arg : (arg ? [arg] : [])).filter(function(id){ return referenceById(id); });
+    if (ids.length){ var t0 = referenceById(ids[0]).unit; ids = ids.filter(function(id){ return referenceById(id).unit === t0; }); }
+    var best = ids.slice().sort(function(a, b){ return lotsForRef(b).length - lotsForRef(a).length; })[0] || '';
+    state.mergeModal = { ids: ids, targetId: best, name: '', nameEdited: false, query: '', busy: false };
     renderMergeModal();
   }
   function closeMergeModal(){
@@ -4280,7 +4330,7 @@
     chain.then(function(){
       var n = p.sources.length;
       showToast('Unite ' + (n + 1) + ' materie prime in «' + finalName + '»: ' + p.lots.length + ' lotti spostati.');
-      state.sel.materie = target.id;
+      selectOnly('materie', target.id);
       closeMergeModal();
       render();
     }).catch(function(e){
@@ -4290,6 +4340,126 @@
       render();
       if (state.mergeModal) renderMergeModal();
     });
+  }
+
+
+  // ==================================================================
+  // SELEZIONE MULTIPLA: pannello, azioni di gruppo, rotellina
+  // ==================================================================
+  function bulkPanelHtml(gid, rows, bulkFn, o){
+    var h = sideHead(gid, rows.length + ' selezionati', 'Ctrl+clic aggiunge · Maiusc+clic un intervallo · Ctrl+A tutti', '');
+    var names = rows.slice(0, 14).map(function(r){ return '• ' + escapeHtml(bulkLabel(gid, r)); }).join('<br>') + (rows.length > 14 ? '<br><span class="hint">… e altri ' + (rows.length - 14) + '</span>' : '');
+    h += '<div class="side-pad">' + names + '</div>';
+    h += '<div class="side-sec">Riepilogo</div>' + (bulkFn ? bulkFn(rows) : '');
+    return '<aside class="side">' + h + '</aside>';
+  }
+  function bulkLabel(gid, r){
+    if (gid === 'materie') return r.name;
+    if (gid === 'lotti') return r.refName + ' — lotto ' + r.lotto;
+    if (gid === 'prodotti') return r.name;
+    if (gid === 'produzioni') return 'Lotto ' + r.finishedLotto + (r.recipeName ? ' — ' + r.recipeName : '');
+    if (gid === 'storico') return formatDateTime(r.ts) + ' — ' + r.refName;
+    if (gid === 'contrassegni') return stampLabel(r, r.inizio) + ' (' + r.remaining + ' residui)';
+    return String(r.id);
+  }
+  function bulkButtons(gid, extra){
+    return '<div class="side-btns">' + (extra || '') + '<button type="button" class="btn btn-sm btn-bad" data-action="bulk-delete" data-grid="' + gid + '">Elimina selezionati</button></div>';
+  }
+  function bulkMaterie(rows){
+    var lt = 0, kg = 0, val = 0, hasVal = false;
+    rows.forEach(function(r){
+      var t = totalStock(r.id); lt += t.lt || 0; kg += t.kg || 0;
+      var p = effectivePrice(r), q = r.unit === 'liquido' ? t.lt : t.kg;
+      if (p !== null && p !== undefined && q){ val += p * q; hasVal = true; }
+    });
+    var same = rows.every(function(r){ return r.unit === rows[0].unit; });
+    return kvRows([['Giacenza totale', fmt(lt, 3) + ' Lt · ' + fmt(kg, 3) + ' Kg'], ['Valore', hasVal ? money(val) : null]]) +
+      '<div class="side-sec">Azioni</div><div class="side-btns">' +
+      '<button type="button" class="btn btn-sm btn-primary" data-action="merge-open" data-ids="' + rows.map(function(r){ return r.id; }).join(',') + '"' + (same ? '' : ' disabled title="Si possono unire solo prodotti dello stesso tipo"') + '>Unisci in uno</button></div>' +
+      '<div class="side-pad"><label class="hint" for="bulkCat">Assegna la categoria a tutti</label><div style="display:flex;gap:.4rem;margin-top:.3rem"><select id="bulkCat" style="flex:1"><option value="">— Nessuna —</option>' +
+      categories().map(function(c){ return '<option value="' + c.id + '">' + escapeHtml(c.name) + '</option>'; }).join('') + '</select><button type="button" class="btn btn-sm btn-ghost" data-action="bulk-cat">Applica</button></div></div>' + bulkButtons('materie');
+  }
+  function bulkSetCategory(ids, cat){
+    if (!ids.length) return;
+    var chain = Promise.resolve();
+    ids.forEach(function(id){
+      chain = chain.then(function(){
+        var r = referenceById(id); if (!r) return null;
+        r.category = cat || null;
+        return window.__fb.setDoc(REFS_COLL + '/' + id, { category: cat || null }, true);
+      });
+    });
+    chain.then(function(){ showToast('Categoria aggiornata su ' + ids.length + ' materie prime.'); render(); })
+      .catch(function(e){ console.error(e); showToast('Aggiornamento non riuscito.'); });
+  }
+  function bulkDelete(gid, ids){
+    ids = ids || selectedIds(gid);
+    if (!ids.length) return;
+    var done = function(msg){ state.multi[gid] = {}; state.sel[gid] = null; closeConfirm(); showToast(msg); render(); };
+    var fail = function(e){ console.error(e); showToast('Eliminazione non riuscita.'); };
+    if (gid === 'materie'){
+      var free = ids.filter(function(id){ return !stockLots(id).length; }), keep = ids.length - free.length;
+      if (!free.length){ showToast('Nessuna eliminabile: hanno tutte giacenze nei lotti.'); return; }
+      openConfirm('Eliminare ' + free.length + ' materie prime?', (keep ? keep + ' con giacenze restano. ' : '') + 'Le altre verranno rimosse definitivamente.', function(){
+        var chain = Promise.resolve();
+        free.forEach(function(id){
+          chain = chain.then(function(){
+            var empties = lotsForRef(id);
+            var c2 = Promise.resolve();
+            empties.forEach(function(l){ c2 = c2.then(function(){ return window.__fb.deleteDoc(LOTS_COLL + '/' + l.id); }); });
+            return c2.then(function(){ state.lots = state.lots.filter(function(l){ return l.refId !== id; }); return window.__fb.deleteDoc(REFS_COLL + '/' + id); })
+              .then(function(){ state.references = state.references.filter(function(r){ return r.id !== id; }); });
+          });
+        });
+        chain.then(function(){ done(free.length + ' materie prime eliminate.'); }).catch(fail);
+      });
+    } else if (gid === 'prodotti'){
+      openConfirm('Eliminare ' + ids.length + ' prodotti finiti?', 'Verranno rimossi con le loro distinte (le produzioni già registrate restano).', function(){
+        Promise.all(ids.map(function(id){ return window.__fb.deleteDoc(RECIPES_COLL + '/' + id); })).then(function(){ done(ids.length + ' prodotti finiti eliminati.'); }).catch(fail);
+      });
+    } else if (gid === 'storico'){
+      openConfirm('Eliminare ' + ids.length + ' movimenti?', 'Verranno tolti dallo storico (non modifica le giacenze).', function(){
+        var set = {}; ids.forEach(function(i){ set[i] = true; });
+        state.movements = state.movements.filter(function(m){ return !set[m.id]; });
+        window.__fb.setDoc(MOVES_DOC, { entries: state.movements }).then(function(){ done(ids.length + ' movimenti eliminati.'); }).catch(fail);
+      });
+    } else if (gid === 'contrassegni'){
+      openConfirm('Eliminare ' + ids.length + ' blocchi?', 'Verranno rimossi i blocchi selezionati con i contrassegni residui. Lo storico dei consumi resta.', function(){
+        Promise.all(ids.map(function(id){ return window.__fb.deleteDoc(STAMPS_COLL + '/' + id); })).then(function(){
+          state.stamps = state.stamps.filter(function(b){ return ids.indexOf(b.id) === -1; });
+          done(ids.length + ' blocchi eliminati.');
+        }).catch(fail);
+      });
+    }
+  }
+
+  var wheelAcc = 0, wheelPending = 0, wheelRaf = null;
+  function bindWheel(){
+    document.addEventListener('wheel', function(e){
+      if (e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) return;
+      var wrap = e.target.closest ? e.target.closest('.grid-wrap') : null;
+      if (!wrap) return;
+      if ((state.config.prefs || {}).wheelSelect === false) return;
+      var gid = currentGrid();
+      if (!gid || !state.sel[gid] || anyModalOpen()) return;
+      if (!(gridOrder[gid] || []).length) return;
+      e.preventDefault();
+      var dy = e.deltaMode === 1 ? e.deltaY * 16 : (e.deltaMode === 2 ? e.deltaY * 400 : e.deltaY);
+      wheelAcc += dy;
+      var steps = Math.trunc(wheelAcc / 34);
+      if (!steps) return;
+      wheelAcc -= steps * 34;
+      wheelPending += steps;
+      if (!wheelRaf) wheelRaf = requestAnimationFrame(function(){
+        wheelRaf = null;
+        var n = wheelPending; wheelPending = 0;
+        var order = gridOrder[gid] || [];
+        if (!order.length) return;
+        var at = order.indexOf(state.sel[gid]);
+        var nx = Math.max(0, Math.min(order.length - 1, (at < 0 ? 0 : at) + n));
+        if (order[nx] !== state.sel[gid]) selectRow(gid, order[nx], false);
+      });
+    }, { passive:false });
   }
 
   // ==================================================================
@@ -4323,7 +4493,7 @@
     if (state.menuOpen && !t.closest('.menu')){ state.menuOpen = null; renderMenus(); }
     var rowEl = t.closest('tr[data-grow]');
     if (rowEl && !t.closest('button,a,input,select,label,textarea')){
-      selectRow(rowEl.getAttribute('data-grid'), rowEl.getAttribute('data-grow'), true);
+      selectRow(rowEl.getAttribute('data-grid'), rowEl.getAttribute('data-grow'), true, { ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey });
       return true;
     }
     var el = t.closest('[data-action]');
@@ -4331,6 +4501,11 @@
     var a = el.getAttribute('data-action');
     var gid = el.getAttribute('data-grid');
     var idx = parseInt(el.getAttribute('data-idx'), 10);
+    var BULK_DEL = { 'delete-reference':'materie', 'delete-recipe':'prodotti', 'delete-movement':'storico', 'stamp-delete':'contrassegni' };
+    if (BULK_DEL[a]){
+      var many = (el.getAttribute('data-ids') || '').split(',').filter(Boolean);
+      if (many.length > 1){ bulkDelete(BULK_DEL[a], many); return true; }
+    }
 
     if (a === 'tab'){ gotoView(el.getAttribute('data-tab')); return true; }
     if (a === 'menu-toggle'){ var m = el.getAttribute('data-menu'); state.menuOpen = state.menuOpen === m ? null : m; renderMenus(); return true; }
@@ -4392,11 +4567,18 @@
     if (a === 'prod-realloc'){ autoAllocate(state.produzione.components[parseInt(el.getAttribute('data-comp-idx'), 10)]); refreshProdComps(); return true; }
     if (a === 'prod-realloc-all'){ autoAllocateAll(); refreshProdComps(); return true; }
     if (a === 'prod-reset'){ state.produzione = freshProduzioneDraft(); render(); return true; }
-    if (a === 'merge-open'){ openMergeModal(el.getAttribute('data-id') || state.sel.materie || ''); return true; }
+    if (a === 'merge-open'){
+      var dsx = el.getAttribute('data-ids');
+      openMergeModal(dsx ? dsx.split(',').filter(Boolean) : (el.getAttribute('data-id') ? [el.getAttribute('data-id')] : selectedIds('materie')));
+      return true;
+    }
+    if (a === 'bulk-delete'){ bulkDelete(gid); return true; }
+    if (a === 'bulk-cat'){ bulkSetCategory(selectedIds('materie'), (document.getElementById('bulkCat') || {}).value || ''); return true; }
+    if (a === 'pref-wheel'){ saveConfig({ prefs:{ wheelSelect: el.getAttribute('data-v') === 'on' } }); renderToolModal(); return true; }
     if (a === 'merge-close'){ closeMergeModal(); return true; }
     if (a === 'merge-run'){ runMerge(); return true; }
     if (a === 'merge-suggest'){ mergeSuggest(parseInt(el.getAttribute('data-idx'), 10)); return true; }
-    if (a === 'side-close'){ state.sel[gid] = null; render(); return true; }
+    if (a === 'side-close'){ state.sel[gid] = null; state.multi[gid] = {}; render(); return true; }
     if (a === 'stamp-add'){ openStampModal('add'); return true; }
     if (a === 'stamp-edit'){ openStampModal('edit', el.getAttribute('data-id')); return true; }
     if (a === 'stamp-adjust'){ openStampModal('adjust', el.getAttribute('data-id')); return true; }
@@ -4618,18 +4800,26 @@
     var tag = (e.target && e.target.tagName) || '';
     if (/^(INPUT|SELECT|TEXTAREA)$/.test(tag) || !gid) return;
     var ids = gridOrder[gid] || [];
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')){
+      e.preventDefault();
+      var all = {}; ids.forEach(function(k){ all[k] = true; });
+      state.multi[gid] = all; state.sel[gid] = ids[0] || null; state.anchor[gid] = ids[0] || null;
+      render(); return;
+    }
     var at = ids.indexOf(state.sel[gid]);
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp'){
       e.preventDefault();
       if (!ids.length) return;
       var nx = e.key === 'ArrowDown' ? Math.min(ids.length - 1, at + 1) : Math.max(0, at === -1 ? 0 : at - 1);
-      selectRow(gid, ids[nx], false);
+      selectRow(gid, ids[nx], false, { shift: e.shiftKey });
     } else if (e.key === 'Enter' && state.sel[gid]){ e.preventDefault(); activateRow(gid, state.sel[gid]); }
-    else if (e.key === 'Delete' && state.sel[gid]){
-      if (gid === 'materie') deleteReference(state.sel[gid]);
-      else if (gid === 'prodotti') deleteRecipe(state.sel[gid]);
-      else if (gid === 'storico') deleteMovement(state.sel[gid]);
-      else if (gid === 'contrassegni') deleteStamp(state.sel[gid]);
+    else if (e.key === 'Delete' && selectedIds(gid).length){
+      var dl = selectedIds(gid);
+      if (dl.length > 1) bulkDelete(gid, dl);
+      else if (gid === 'materie') deleteReference(dl[0]);
+      else if (gid === 'prodotti') deleteRecipe(dl[0]);
+      else if (gid === 'storico') deleteMovement(dl[0]);
+      else if (gid === 'contrassegni') deleteStamp(dl[0]);
     }
   }
 
@@ -4806,6 +4996,7 @@
     document.addEventListener('keydown', onKeyNew);
     bindGridResize();
     bindPickers();
+    bindWheel();
   }
 
   // ==================================================================
