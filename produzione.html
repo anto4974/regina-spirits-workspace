@@ -495,6 +495,13 @@
   .merge-row.on{ background:#1d1a0d; }
   .merge-row.blocked{ opacity:.4; }
   .merge-row .chk{ align-items:flex-start; }
+
+  input[type=checkbox]{ accent-color:var(--accent); }
+  table.grid th.selcol, table.grid td.selcol{ width:34px; text-align:center; padding:0 .2rem; cursor:default; }
+  table.grid td.selcol input, table.grid th.selcol input{ width:1.1rem; height:1.1rem; cursor:pointer; vertical-align:middle; }
+  table.grid tr.grow.sel td.selcol input{ accent-color:#000; }
+  table.doc-grid td.idx, table.doc-grid th:first-child{ white-space:nowrap; width:4.2rem; text-align:left; }
+  table.doc-grid td.idx input, table.doc-grid th input{ width:1.05rem; height:1.05rem; vertical-align:middle; cursor:pointer; }
 </style>
 </head>
 <body>
@@ -854,6 +861,7 @@
     var isGrid = GRID_VIEWS.indexOf(v) !== -1 || (v === 'prodotti' && !state.ricette.formOpen);
     root.className = 'view' + (isGrid ? ' gridmode' : '');
     root.innerHTML = html;
+    root.querySelectorAll('input[data-checkall][data-ind="1"]').forEach(function(c){ c.indeterminate = true; });
     if (lastRenderedView === v){
       root.scrollTop = saved.top;
       var w2 = root.querySelector('.grid-wrap');
@@ -1681,6 +1689,7 @@
     var html = '<div class="modal-sheet wide">';
     html += '<h2 class="modal-title">Revisione fattura</h2>';
     html += '<p class="modal-subtitle">' + rev.lines.length + (rev.lines.length === 1 ? ' riga' : ' righe') + ' da ' + rev.docs + (rev.docs === 1 ? ' fattura' : ' fatture') + ' — controlla ogni riga prima di registrare i carichi.</p>';
+    html += '<div class="btn-row" style="justify-content:flex-start;margin-bottom:.4rem"><button type="button" class="btn btn-sm btn-ghost" data-action="inv-all" data-v="1">Includi tutte</button><button type="button" class="btn btn-sm btn-ghost" data-action="inv-all" data-v="0">Escludi tutte</button></div>';
     rev.lines.forEach(function(line, idx){
       if (idx === 0 || line.source !== rev.lines[idx - 1].source || line.supplier !== rev.lines[idx - 1].supplier) html += '<div class="side-sec" style="margin:.8rem 0 .5rem;border-radius:.3rem;text-transform:none;font-size:.85rem">Fattura: ' + escapeHtml(line.source || '') + (line.supplier ? ' — ' + escapeHtml(line.supplier) : '') + '</div>';
       html += renderInvoiceLine(line, idx);
@@ -2033,28 +2042,31 @@
     // tabella
     var total = 0;
     var widths = cols.map(function(c){ var w = P.widths[c.id] || c.w || 120; total += w; return w; });
-    html += '<div class="grid-wrap"><table class="grid" data-grid="' + gid + '" style="width:' + total + 'px"><colgroup>';
+    var visSel = visibleIds.filter(function(k){ return selSet[k]; }).length;
+    var allOn = visibleIds.length > 0 && visSel === visibleIds.length, someOn = visSel > 0 && !allOn;
+    html += '<div class="grid-wrap"><table class="grid" data-grid="' + gid + '" style="width:' + (total + 34) + 'px"><colgroup><col style="width:34px">';
     widths.forEach(function(w, i){ html += '<col data-col="' + cols[i].id + '" style="width:' + w + 'px">'; });
-    html += '</colgroup><thead><tr>';
+    html += '</colgroup><thead><tr><th class="selcol"><input type="checkbox" data-checkall="' + gid + '" data-ind="' + (someOn ? 1 : 0) + '"' + (allOn ? ' checked' : '') + ' title="Seleziona / deseleziona tutte"></th>';
     cols.forEach(function(c){
       var ind = (sc.id === c.id) ? '<span class="sort-ind">' + (dirMul === 1 ? '▲' : '▼') + '</span>' : '';
       html += '<th class="' + (c.num ? 'num' : '') + '" data-action="grid-sort" data-grid="' + gid + '" data-col="' + c.id + '" title="Clic per ordinare">' + escapeHtml(c.label) + ind + '<span class="col-resize" data-resize="' + c.id + '" data-grid="' + gid + '"></span></th>';
     });
     html += '</tr></thead><tbody>';
     if (!rows.length){
-      html += '<tr><td colspan="' + cols.length + '" style="text-align:center;color:var(--muted);padding:2rem;white-space:normal;">' + (o.emptyMsg || 'Nessun elemento.') + '</td></tr>';
+      html += '<tr><td colspan="' + (cols.length + 1) + '" style="text-align:center;color:var(--muted);padding:2rem;white-space:normal;">' + (o.emptyMsg || 'Nessun elemento.') + '</td></tr>';
     }
     groups.forEach(function(g){
       var collapsed = grouped && state.collapsed[gid + ':' + g.key];
       if (grouped){
         var s = sums(g.rows).map(function(x){ return escapeHtml(x.c.label) + ': ' + fmt(x.v, x.c.dec === undefined ? 3 : x.c.dec); }).join(' · ');
-        html += '<tr class="grp" data-action="grid-grp" data-grid="' + gid + '" data-key="' + escapeHtml(g.key) + '"><td colspan="' + cols.length + '">' + (collapsed ? '▸ ' : '▾ ') +
+        html += '<tr class="grp" data-action="grid-grp" data-grid="' + gid + '" data-key="' + escapeHtml(g.key) + '"><td colspan="' + (cols.length + 1) + '">' + (collapsed ? '▸ ' : '▾ ') +
           '<span class="cat-dot" style="background:' + (g.color || '#888') + '"></span>' + escapeHtml(g.label) + ' <span style="color:var(--muted);font-weight:500;">(' + g.rows.length + ')' + (s ? ' — ' + s : '') + '</span></td></tr>';
         if (collapsed) return;
       }
       g.rows.forEach(function(r){
         var id = o.rowId(r);
         html += '<tr class="grow' + (selSet[id] ? ' sel' : '') + (o.rowClass ? ' ' + (o.rowClass(r) || '') : '') + '" data-grid="' + gid + '" data-grow="' + escapeHtml(id) + '">';
+        html += '<td class="selcol"><input type="checkbox" data-gcheck="' + escapeHtml(id) + '" data-grid="' + gid + '"' + (selSet[id] ? ' checked' : '') + '></td>';
         cols.forEach(function(c){ html += '<td class="' + (c.num ? 'num' : '') + '">' + cellText(c, r) + '</td>'; });
         html += '</tr>';
       });
@@ -2062,7 +2074,7 @@
     html += '</tbody>';
     var tot = sums(rows);
     if (tot.length){
-      html += '<tfoot><tr>';
+      html += '<tfoot><tr><td></td>';
       cols.forEach(function(c, i){
         var t = tot.filter(function(x){ return x.c.id === c.id; })[0];
         html += '<td class="' + (c.num ? 'num' : '') + '">' + (t ? fmt(t.v, c.dec === undefined ? 3 : c.dec) : (i === 0 ? 'Totale' : '')) + '</td>';
@@ -2509,7 +2521,7 @@
       actions:[
         { label:'+ Nuova materia prima', action:'new-reference', key:'F4', cls:'btn-primary' },
         { label:'Modifica', action:'edit-reference', key:'F2', needSel:true },
-        { label:'Carica', action:'quick-carico', needSel:true, attrs:function(r){ return ' data-ref="' + r.id + '"'; } },
+        { label:'Carica', action:'bulk-carico', multi:true },
         { label:'Unisci duplicati…', action:'merge-open' },
         { label:'Elimina', action:'delete-reference', multi:true }
       ],
@@ -2561,12 +2573,13 @@
       gid:'lotti', columns:cols, rows:rows, rowId:function(l){ return l.id; },
       searchText:function(l){ return [l.refName, l.lotto].join(' '); },
       defaultSort:{ id:'scad', dir:'asc' }, filtersHtml:filters,
-      bulk:function(rows){ var lt = 0, kg = 0; rows.forEach(function(l){ lt += l.qtyLt || 0; kg += l.qtyKg || 0; }); return kvRows([['Litri', fmt(lt, 3) + ' Lt'], ['Chili', fmt(kg, 3) + ' Kg']]); },
+      bulk:function(rows){ var lt = 0, kg = 0; rows.forEach(function(l){ lt += l.qtyLt || 0; kg += l.qtyKg || 0; }); return kvRows([['Litri', fmt(lt, 3) + ' Lt'], ['Chili', fmt(kg, 3) + ' Kg']]) + '<div class="side-btns"><button type="button" class="btn btn-sm btn-primary" data-action="bulk-scarico" data-ids="' + rows.map(function(l){ return l.id; }).join(',') + '">Scarica selezionati</button></div>' + bulkButtons('lotti'); },
       emptyMsg:'Nessun lotto in giacenza.',
       rowClass:function(l){ return ''; },
       actions:[
         { label:'Correggi giacenza', action:'edit-lot', key:'F2', needSel:true, attrs:function(l){ return ' data-lot="' + l.id + '"'; } },
-        { label:'Scarica', action:'quick-scarico', needSel:true, attrs:function(l){ return ' data-ref="' + l.refId + '" data-lot="' + l.id + '"'; } }
+        { label:'Scarica', action:'bulk-scarico', multi:true },
+        { label:'Elimina lotti', action:'bulk-del-lots', multi:true }
       ]
     });
   }
@@ -2622,11 +2635,12 @@
       gid:'produzioni', columns:cols, rows:state.productions, rowId:function(p){ return p.id; },
       searchText:function(p){ return [p.finishedLotto, p.recipeName, p.note].join(' '); },
       defaultSort:{ id:'data', dir:'desc' }, emptyMsg:'Nessuna produzione registrata.',
-      bulk:function(rows){ var q = 0; rows.forEach(function(p){ q += p.quantityLt || 0; }); return kvRows([['Litri prodotti', fmt(q, 2) + ' Lt']]); },
+      bulk:function(rows){ var q = 0; rows.forEach(function(p){ q += p.quantityLt || 0; }); return kvRows([['Litri prodotti', fmt(q, 2) + ' Lt']]) + bulkButtons('produzioni'); },
       actions:[
         { label:'+ Nuova produzione', action:'go-produzione', cls:'btn-primary' },
         { label:'Scheda di produzione', action:'view-scheda', key:'F2', needSel:true },
-        { label:'Carica in Giacenze Liquori', action:'open-push', needSel:true }
+        { label:'Carica in Giacenze Liquori', action:'open-push', needSel:true },
+        { label:'Elimina', action:'bulk-del-prod', multi:true }
       ]
     });
   }
@@ -2710,12 +2724,12 @@
     html += '<div class="doc-head"><div class="field"><label for="recipeBottle">Formato bottiglia (Lt)</label><input type="number" id="recipeBottle" step="any" min="0" value="' + escapeHtml(d.bottleLt) + '" placeholder="Es. 0.5"></div><label class="chk"><input type="checkbox" id="recipeStamps"' + (d.stamps ? ' checked' : '') + '> Questo prodotto usa i contrassegni (1 per bottiglia)</label></div>';
     html += '<p class="hint">Elenca le componenti per la quantità indicata sopra. In produzione le dosi si moltiplicano per i litri da produrre e lo scarico dai lotti avviene in automatico.</p>';
 
-    html += '<div class="doc-gridwrap"><table class="doc-grid" style="min-width:56rem"><thead><tr><th>#</th><th style="min-width:18rem">Componente (materia prima)</th><th style="width:8rem">Dose</th><th style="width:7rem">U.M.</th><th style="width:9rem">Equivale a</th><th style="width:7rem">Gradaz.</th><th style="width:8rem">Lt anidri</th><th style="width:3rem"></th></tr></thead><tbody>';
+    html += '<div class="doc-gridwrap"><table class="doc-grid" style="min-width:56rem"><thead><tr><th>' + selHead('recipe') + '</th><th style="min-width:18rem">Componente (materia prima)</th><th style="width:8rem">Dose</th><th style="width:7rem">U.M.</th><th style="width:9rem">Equivale a</th><th style="width:7rem">Gradaz.</th><th style="width:8rem">Lt anidri</th><th style="width:3rem"></th></tr></thead><tbody>';
     d.components.forEach(function(c, idx){
       var ref = c.refId ? referenceById(c.refId) : null;
       var base = ref ? draftDoseBase(c) : null;
       var umSel = c.um || (ref ? refUm(ref).id : 'lt');
-      html += '<tr><td class="idx">' + (idx + 1) + '</td>';
+      html += '<tr><td class="idx">' + selCell('recipe', idx, c) + '</td>';
       html += '<td>' + refPickerHtml('data-rc-field="refId" data-rc-idx="' + idx + '"', c.refId, { focus:'[data-rc-field="dose"][data-rc-idx="' + idx + '"]' }) + '</td>';
       html += '<td><input type="text" inputmode="decimal" autocomplete="off" value="' + escapeHtml(c.dose) + '" data-rc-field="dose" data-rc-idx="' + idx + '"' + (ref ? '' : ' disabled') + '></td>';
       html += '<td><select data-rc-field="um" data-rc-idx="' + idx + '"' + (ref ? '' : ' disabled') + '>' + unitOptions(umSel, ref && !ref.density ? baseUnitId(ref.unit) : null) + '</select></td>';
@@ -2728,7 +2742,7 @@
     var calc = recipeCalc(mergedDraftRecipe(d));
     html += '</tbody><tfoot><tr><td colspan="6" style="text-align:right">Litri anidri totali / gradazione teorica</td><td class="ro" colspan="2" id="rcTotals">' + (calc.anidri === null ? '—' : fmt(calc.anidri, 3) + ' Lt') + ' · ' + (calc.gradeTheoretical === null ? '—' : fmt(calc.gradeTheoretical, 2) + '%') + '</td></tr></tfoot></table></div>';
     html += '<div class="field"><label for="recipeNote">Note (opz.)</label><input type="text" id="recipeNote" value="' + escapeHtml(d.note) + '"></div>';
-    html += '<div class="doc-actions"><button type="button" class="btn btn-ghost" data-action="recipe-add-component">+ Aggiungi componente (F4)</button><span class="gt-spacer"></span>' +
+    html += '<div class="doc-actions"><button type="button" class="btn btn-ghost" data-action="recipe-add-component">+ Aggiungi componente (F4)</button>' + delSelBtn('recipe') + '<span class="gt-spacer"></span>' +
       '<button type="button" class="btn btn-ghost" data-action="cancel-recipe">Annulla</button><button type="button" class="btn btn-primary" data-action="save-recipe">Salva prodotto finito</button></div>';
     html += '</div>';
     return html;
@@ -2840,13 +2854,13 @@
     var html = '<div class="doc">';
     html += '<div class="doc-head"><h2>Carico materie prime</h2><div class="field" style="min-width:16rem"><label for="caricoSupplier">Fornitore (valido per tutte le righe)</label><input type="text" id="caricoSupplier" list="supListC" value="' + escapeHtml(d.supplier) + '" placeholder="Es. Distillerie Rossi">' + supplierDatalist('supListC') + '</div><div class="field" style="flex:1;min-width:16rem"><label for="caricoCausale">Causale / documento (valido per tutte le righe)</label><input type="text" id="caricoCausale" placeholder="Es. DDT 123 fornitore XY" value="' + escapeHtml(d.causale) + '"></div></div>';
     html += '<p class="hint">Una riga per ogni lotto in arrivo. Scrivi la quantità e scegli l\'unità (ml, Lt, g, Kg, …): Lt e Kg si calcolano da soli con la densità; se inserisci sia Lt che Kg la densità si ricava automaticamente.</p>';
-    html += '<div class="doc-gridwrap"><table class="doc-grid"><thead><tr><th>#</th><th style="min-width:15rem">Materia prima</th><th style="width:8rem">Lotto</th><th style="width:7rem">Quantità</th><th style="width:6rem">U.M.</th><th style="width:7rem">Lt</th><th style="width:7rem">Kg</th><th style="width:6rem">Densità</th><th style="width:6rem">Gradaz. %</th><th style="width:6rem">Lt anidri</th><th style="width:9.5rem">Scadenza</th><th style="width:7.5rem">Prezzo €/Lt·Kg</th><th style="width:3rem"></th></tr></thead><tbody>';
+    html += '<div class="doc-gridwrap"><table class="doc-grid"><thead><tr><th>' + selHead('carico') + '</th><th style="min-width:15rem">Materia prima</th><th style="width:8rem">Lotto</th><th style="width:7rem">Quantità</th><th style="width:6rem">U.M.</th><th style="width:7rem">Lt</th><th style="width:7rem">Kg</th><th style="width:6rem">Densità</th><th style="width:6rem">Gradaz. %</th><th style="width:6rem">Lt anidri</th><th style="width:9.5rem">Scadenza</th><th style="width:7.5rem">Prezzo €/Lt·Kg</th><th style="width:3rem"></th></tr></thead><tbody>';
     d.rows.forEach(function(row, i){
       var ref = row.refId ? referenceById(row.refId) : null;
       var liq = ref && ref.unit === 'liquido';
       var an = caricoAnidri(row);
       html += '<tr>' +
-        '<td class="idx">' + (i + 1) + '</td>' +
+        '<td class="idx">' + selCell('carico', i, row) + '</td>' +
         '<td>' + refPickerHtml('data-crow="' + i + '" data-cfield="refId"', row.refId, { allowNew:true, focus:'[data-crow="' + i + '"][data-cfield="lotto"]' }) + '</td>' +
         '<td><input type="text" data-crow="' + i + '" data-cfield="lotto" value="' + escapeHtml(row.lotto) + '" placeholder="L2026-001"' + (ref ? ' list="lotlist_' + i + '"' : '') + '>' + (ref ? '<datalist id="lotlist_' + i + '">' + lotsForRef(ref.id).map(function(l){ return '<option value="' + escapeHtml(l.lotto) + '">'; }).join('') + '</datalist>' : '') + '</td>' +
         '<td><input type="number" step="any" min="0" data-crow="' + i + '" data-cfield="qty" value="' + escapeHtml(row.qty) + '"' + (ref ? '' : ' disabled') + '></td>' +
@@ -2861,7 +2875,7 @@
         '<td><button type="button" class="x-btn" data-action="carico-del-row" data-idx="' + i + '" title="Rimuovi riga">×</button></td></tr>';
     });
     html += '</tbody><tfoot><tr><td colspan="5" style="text-align:right">Totali</td><td class="ro" id="cTotLt"></td><td class="ro" id="cTotKg"></td><td></td><td></td><td class="ro" id="cTotAn"></td><td colspan="3"></td></tr></tfoot></table></div>';
-    html += '<div class="doc-actions"><button type="button" class="btn btn-ghost" data-action="carico-add-row">+ Aggiungi riga (F4)</button><button type="button" class="btn btn-ghost" data-action="carico-clear">Svuota</button><span class="gt-spacer"></span><button type="button" class="btn btn-good" data-action="save-carico">Registra carico (Ctrl+Invio)</button></div>';
+    html += '<div class="doc-actions"><button type="button" class="btn btn-ghost" data-action="carico-add-row">+ Aggiungi riga (F4)</button>' + delSelBtn('carico') + '<button type="button" class="btn btn-ghost" data-action="carico-clear">Svuota</button><span class="gt-spacer"></span><button type="button" class="btn btn-good" data-action="save-carico">Registra carico (Ctrl+Invio)</button></div>';
     html += '</div>';
     setTimeout(updateCaricoTotals, 0);
     return html;
@@ -2997,10 +3011,10 @@
     var html = '<div class="doc">';
     html += '<div class="doc-head"><h2>Scarico manuale materie prime</h2><div class="field" style="flex:1;min-width:16rem"><label for="scaricoCausale">Causale (valida per tutte le righe)</label><input type="text" id="scaricoCausale" placeholder="Es. scarto, campione, rettifica" value="' + escapeHtml(d.causale) + '"></div></div>';
     html += '<p class="hint">Per lo scarico automatico legato a un prodotto finito usa «Produzione»: scala da solo i lotti giusti.</p>';
-    html += '<div class="doc-gridwrap"><table class="doc-grid" style="min-width:56rem"><thead><tr><th>#</th><th style="min-width:15rem">Materia prima</th><th style="min-width:17rem">Lotto</th><th style="width:7rem">Quantità</th><th style="width:6rem">U.M.</th><th style="min-width:14rem">Verrà scaricato</th><th style="width:3rem"></th></tr></thead><tbody>';
+    html += '<div class="doc-gridwrap"><table class="doc-grid" style="min-width:56rem"><thead><tr><th>' + selHead('scarico') + '</th><th style="min-width:15rem">Materia prima</th><th style="min-width:17rem">Lotto</th><th style="width:7rem">Quantità</th><th style="width:6rem">U.M.</th><th style="min-width:14rem">Verrà scaricato</th><th style="width:3rem"></th></tr></thead><tbody>';
     d.rows.forEach(function(row, i){
       var ref = row.refId ? referenceById(row.refId) : null;
-      html += '<tr><td class="idx">' + (i + 1) + '</td>';
+      html += '<tr><td class="idx">' + selCell('scarico', i, row) + '</td>';
       html += '<td>' + refPickerHtml('data-srow="' + i + '" data-sfield="refId"', row.refId, { filter:'stock', focus:'[data-srow="' + i + '"][data-sfield="qty"]' }) + '</td>';
       html += '<td><select data-srow="' + i + '" data-sfield="lotId"' + (ref ? '' : ' disabled') + '><option value="">— Seleziona lotto —</option>';
       if (ref) lotsByExpiry(ref.id).forEach(function(l){
@@ -3017,7 +3031,7 @@
       html += '<td><button type="button" class="x-btn" data-action="scarico-del-row" data-idx="' + i + '" title="Rimuovi riga">×</button></td></tr>';
     });
     html += '</tbody></table></div>';
-    html += '<div class="doc-actions"><button type="button" class="btn btn-ghost" data-action="scarico-add-row">+ Aggiungi riga (F4)</button><span class="gt-spacer"></span><button type="button" class="btn btn-bad" data-action="save-scarico">Registra scarico (Ctrl+Invio)</button></div>';
+    html += '<div class="doc-actions"><button type="button" class="btn btn-ghost" data-action="scarico-add-row">+ Aggiungi riga (F4)</button>' + delSelBtn('scarico') + '<span class="gt-spacer"></span><button type="button" class="btn btn-bad" data-action="save-scarico">Registra scarico (Ctrl+Invio)</button></div>';
     html += '</div>';
     return html;
   }
@@ -3108,7 +3122,7 @@
       var ref = c.refId ? referenceById(c.refId) : null;
       var unitLbl = ref ? (ref.unit === 'liquido' ? 'Lt' : 'Kg') : '';
       var req = ref ? prodRequired(c) : null;
-      html += '<tr data-pcrow="' + i + '"><td class="idx">' + (i + 1) + '</td>';
+      html += '<tr data-pcrow="' + i + '"><td class="idx">' + (recipe ? (i + 1) : selCell('prod', i, c)) + '</td>';
       if (recipe){
         html += '<td><strong>' + (ref ? escapeHtml(ref.name) : '?') + '</strong>' + (ref && ref.category && categoryById(ref.category) ? '<div class="hint">' + escapeHtml(categoryById(ref.category).name) + '</div>' : '') + '</td>';
         var um = ref ? refUm(ref) : null;
@@ -3196,10 +3210,10 @@
     html += '<div class="field" style="flex:1;min-width:12rem"><label for="prodNote">Note</label><input type="text" id="prodNote" value="' + escapeHtml(d.note) + '"></div>';
     html += '</div>';
     html += '<p class="hint">' + (recipe ? 'Le quantità si calcolano dalla distinta di «' + escapeHtml(recipe.name) + '» e i lotti vengono scelti in automatico (scadenza più vicina per prima, esclusi i lotti scaduti). Puoi cambiare lotto e quantità riga per riga.' : 'Produzione libera: scegli le materie prime e le quantità, i lotti vengono assegnati in automatico.') + '</p>';
-    html += '<div class="doc-gridwrap"><table class="doc-grid" style="min-width:60rem"><thead><tr><th>#</th><th style="min-width:15rem">Componente</th><th style="width:13rem">Occorrente</th><th style="min-width:26rem">Scarico automatico dai lotti</th><th style="width:11rem">Copertura</th><th style="width:3rem"></th></tr></thead><tbody id="prodCompsBody">' + prodCompRows() + '</tbody></table></div>';
+    html += '<div class="doc-gridwrap"><table class="doc-grid" style="min-width:60rem"><thead><tr><th>' + (recipe ? '#' : selHead('prod')) + '</th><th style="min-width:15rem">Componente</th><th style="width:13rem">Occorrente</th><th style="min-width:26rem">Scarico automatico dai lotti</th><th style="width:11rem">Copertura</th><th style="width:3rem"></th></tr></thead><tbody id="prodCompsBody">' + prodCompRows() + '</tbody></table></div>';
     html += '<div id="prodTotals" class="readonly-box" style="font-family:inherit;font-weight:500">' + prodTotalsText() + '</div>';
     html += renderProdStamps();
-    html += '<div class="doc-actions">' + (recipe ? '' : '<button type="button" class="btn btn-ghost" data-action="prod-add-component">+ Aggiungi componente (F4)</button>') +
+    html += '<div class="doc-actions">' + (recipe ? '' : '<button type="button" class="btn btn-ghost" data-action="prod-add-component">+ Aggiungi componente (F4)</button>' + delSelBtn('prod')) +
       '<button type="button" class="btn btn-ghost" data-action="prod-realloc-all">Ricalcola scarico automatico</button><button type="button" class="btn btn-ghost" data-action="prod-reset">Svuota</button><span class="gt-spacer"></span>' +
       '<button type="button" class="btn btn-primary" data-action="save-produzione">Registra produzione e scarica (Ctrl+Invio)</button></div>';
     html += '</div>';
@@ -3723,9 +3737,9 @@
     var h = '<div class="modal-sheet wide">';
     if (m.kind === 'add'){
       h += '<h2 class="modal-title">Aggiungi blocchi di contrassegni</h2><p class="modal-subtitle">Una riga per ogni blocco in seriale. Esempio: serie <b>AAJ</b>, dal <b>116777</b>, quantità <b>500</b>. Puoi scrivere «al» invece della quantità (o viceversa): l\'altro si calcola. Se il blocco scende (dal numero più alto), scegli «Decrescente».</p>';
-      h += '<table class="tool-table"><thead><tr><th style="width:6rem">Serie</th><th style="width:9rem">Dal seriale</th><th style="width:9rem">Al seriale</th><th style="width:7rem">Quantità</th><th style="width:9rem">Ordine</th><th>Note</th><th style="width:2.5rem"></th></tr></thead><tbody>';
+      h += '<table class="tool-table"><thead><tr><th style="width:2.2rem">' + selHead('stmodal') + '</th><th style="width:6rem">Serie</th><th style="width:9rem">Dal seriale</th><th style="width:9rem">Al seriale</th><th style="width:7rem">Quantità</th><th style="width:9rem">Ordine</th><th>Note</th><th style="width:2.5rem"></th></tr></thead><tbody>';
       m.rows.forEach(function(r, i){
-        h += '<tr><td><input type="text" data-st="' + i + '" data-stf="serie" value="' + escapeHtml(r.serie) + '" placeholder="AAJ"></td>' +
+        h += '<tr><td><input type="checkbox" data-rowsel="stmodal" data-idx="' + i + '"' + (r._sel ? ' checked' : '') + '></td><td><input type="text" data-st="' + i + '" data-stf="serie" value="' + escapeHtml(r.serie) + '" placeholder="AAJ"></td>' +
           '<td><input type="text" inputmode="numeric" data-st="' + i + '" data-stf="dal" value="' + escapeHtml(r.dal) + '" placeholder="116777"></td>' +
           '<td><input type="text" inputmode="numeric" data-st="' + i + '" data-stf="al" value="' + escapeHtml(r.al) + '"></td>' +
           '<td><input type="number" min="1" step="1" data-st="' + i + '" data-stf="qty" value="' + escapeHtml(r.qty) + '"></td>' +
@@ -3733,7 +3747,7 @@
           '<td><input type="text" data-st="' + i + '" data-stf="note" value="' + escapeHtml(r.note) + '"></td>' +
           '<td><button type="button" class="x-btn" data-action="stamp-row-del" data-idx="' + i + '">×</button></td></tr>';
       });
-      h += '</tbody></table><button type="button" class="add-toggle" data-action="stamp-row-add">+ Aggiungi un altro blocco</button>';
+      h += '</tbody></table><button type="button" class="add-toggle" data-action="stamp-row-add">+ Aggiungi un altro blocco</button>' + delSelBtn('stmodal');
       h += '<div class="btn-row"><button type="button" class="btn btn-ghost" data-action="stamp-modal-close">Annulla</button><button type="button" class="btn btn-primary" data-action="stamp-modal-save">Salva blocchi</button></div>';
     } else if (m.kind === 'edit'){
       var b = stampById(m.id);
@@ -3881,10 +3895,10 @@
   function prodStampLines(){
     var s = state.produzione.stamps;
     var avail = stampsAvailable();
-    var h = '<table class="doc-grid" style="min-width:48rem"><thead><tr><th>#</th><th style="min-width:20rem">Serie / blocco</th><th style="width:10rem">Ordine</th><th style="width:7rem">Quanti</th><th style="min-width:17rem">Seriali che verranno usati</th><th style="width:3rem"></th></tr></thead><tbody>';
+    var h = '<table class="doc-grid" style="min-width:48rem"><thead><tr><th>' + selHead('pstamp') + '</th><th style="min-width:20rem">Serie / blocco</th><th style="width:10rem">Ordine</th><th style="width:7rem">Quanti</th><th style="min-width:17rem">Seriali che verranno usati</th><th style="width:3rem"></th></tr></thead><tbody>';
     s.lines.forEach(function(l, i){
       var b = stampById(l.blockId), q = parseInt(l.qty, 10) || 0;
-      h += '<tr><td class="idx">' + (i + 1) + '</td><td><select data-sl="' + i + '" data-sf="block">';
+      h += '<tr><td class="idx">' + selCell('pstamp', i, l) + '</td><td><select data-sl="' + i + '" data-sf="block">';
       if (!b) h += '<option value="">— Scegli la serie —</option>';
       avail.concat(b && b.remaining <= 0 ? [b] : []).forEach(function(x){
         h += '<option value="' + x.id + '"' + (x.id === l.blockId ? ' selected' : '') + '>' + escapeHtml(stampLabel(x, x.next)) + ' — residui ' + x.remaining + (x.order === 'desc' ? ' (decrescente)' : ' (crescente)') + '</option>';
@@ -3911,7 +3925,7 @@
     h += '</div>';
     if (s.use){
       h += '<div class="doc-gridwrap" id="prodStampLines">' + prodStampLines() + '</div>';
-      h += '<div class="doc-actions"><button type="button" class="btn btn-sm btn-ghost" data-action="prod-stamp-add">+ Altro blocco</button><button type="button" class="btn btn-sm btn-ghost" data-action="prod-stamp-realloc">Ricalcola</button><span class="hint">I contrassegni rotti si inseriscono in «Rotti / scartati»: aumentano il numero usato.</span></div>';
+      h += '<div class="doc-actions"><button type="button" class="btn btn-sm btn-ghost" data-action="prod-stamp-add">+ Altro blocco</button>' + delSelBtn('pstamp').replace('btn-ghost', 'btn-sm btn-ghost') + '<button type="button" class="btn btn-sm btn-ghost" data-action="prod-stamp-realloc">Ricalcola</button><span class="hint">I contrassegni rotti si inseriscono in «Rotti / scartati»: aumentano il numero usato.</span></div>';
     }
     return '<div id="prodStampsWrap">' + h + '</div>';
   }
@@ -4204,7 +4218,7 @@
       });
       h += '</div>';
     }
-    h += '<div class="modal-field"><label>Cerca</label><input type="search" id="mergeQuery" value="' + escapeHtml(m.query) + '" placeholder="Es. alcol"></div>';
+    h += '<div class="modal-field"><label>Cerca</label><div style="display:flex;gap:.5rem"><input type="search" id="mergeQuery" value="' + escapeHtml(m.query) + '" placeholder="Es. alcol" style="flex:1"><button type="button" class="btn btn-sm btn-ghost" data-action="merge-selall">Seleziona tutte quelle trovate</button></div></div>';
     h += '<div class="merge-list" id="mergeList">' + mergeListHtml() + '</div>';
     h += '<div class="modal-field" style="margin-top:.8rem"><label>Nome finale</label><input type="text" id="mergeName" value="' + escapeHtml(m.name || (referenceById(m.targetId) || {}).name || '') + '" placeholder="Nome della materia prima unita"></div>';
     h += '<div class="readonly-box" id="mergeSummary" style="font-family:inherit;font-weight:500;line-height:1.5">' + mergeSummaryHtml() + '</div>';
@@ -4379,7 +4393,8 @@
     var same = rows.every(function(r){ return r.unit === rows[0].unit; });
     return kvRows([['Giacenza totale', fmt(lt, 3) + ' Lt · ' + fmt(kg, 3) + ' Kg'], ['Valore', hasVal ? money(val) : null]]) +
       '<div class="side-sec">Azioni</div><div class="side-btns">' +
-      '<button type="button" class="btn btn-sm btn-primary" data-action="merge-open" data-ids="' + rows.map(function(r){ return r.id; }).join(',') + '"' + (same ? '' : ' disabled title="Si possono unire solo prodotti dello stesso tipo"') + '>Unisci in uno</button></div>' +
+      '<button type="button" class="btn btn-sm btn-primary" data-action="merge-open" data-ids="' + rows.map(function(r){ return r.id; }).join(',') + '"' + (same ? '' : ' disabled title="Si possono unire solo prodotti dello stesso tipo"') + '>Unisci in uno</button>' +
+      '<button type="button" class="btn btn-sm btn-ghost" data-action="bulk-carico" data-ids="' + rows.map(function(r){ return r.id; }).join(',') + '">Carica tutte</button></div>' +
       '<div class="side-pad"><label class="hint" for="bulkCat">Assegna la categoria a tutti</label><div style="display:flex;gap:.4rem;margin-top:.3rem"><select id="bulkCat" style="flex:1"><option value="">— Nessuna —</option>' +
       categories().map(function(c){ return '<option value="' + c.id + '">' + escapeHtml(c.name) + '</option>'; }).join('') + '</select><button type="button" class="btn btn-sm btn-ghost" data-action="bulk-cat">Applica</button></div></div>' + bulkButtons('materie');
   }
@@ -4416,6 +4431,21 @@
           });
         });
         chain.then(function(){ done(free.length + ' materie prime eliminate.'); }).catch(fail);
+      });
+    } else if (gid === 'lotti'){
+      var lq = 0, lk = 0; ids.forEach(function(id){ var l = lotById(id); if (l){ lq += l.qtyLt || 0; lk += l.qtyKg || 0; } });
+      openConfirm('Eliminare ' + ids.length + ' lotti?', 'La giacenza di questi lotti (' + fmt(lq, 3) + ' Lt · ' + fmt(lk, 3) + ' Kg) viene persa e non si può recuperare. Lo storico dei movimenti resta: per rifare un carico usa «Annulla e storna» dallo Storico.', function(){
+        Promise.all(ids.map(function(id){ return window.__fb.deleteDoc(LOTS_COLL + '/' + id); })).then(function(){
+          state.lots = state.lots.filter(function(l){ return ids.indexOf(l.id) === -1; });
+          done(ids.length + ' lotti eliminati.');
+        }).catch(fail);
+      });
+    } else if (gid === 'produzioni'){
+      openConfirm('Eliminare ' + ids.length + (ids.length === 1 ? ' produzione?' : ' produzioni?'), 'Vengono tolte dall\'elenco delle produzioni (e dalle schede). Le giacenze dei componenti NON vengono ripristinate.', function(){
+        Promise.all(ids.map(function(id){ return window.__fb.deleteDoc(PRODUCTIONS_COLL + '/' + id); })).then(function(){
+          state.productions = state.productions.filter(function(p){ return ids.indexOf(p.id) === -1; });
+          done(ids.length + ' produzioni eliminate.');
+        }).catch(fail);
       });
     } else if (gid === 'prodotti'){
       openConfirm('Eliminare ' + ids.length + ' prodotti finiti?', 'Verranno rimossi con le loro distinte (le produzioni già registrate restano).', function(){
@@ -4606,6 +4636,34 @@
     });
   }
 
+
+  // ==================================================================
+  // RIGHE DEI DOCUMENTI: selezione multipla e eliminazione
+  // ==================================================================
+  function selHead(kind){ return '<input type="checkbox" data-rowselall="' + kind + '" title="Seleziona tutte">'; }
+  function selCell(kind, i, row){ return '<input type="checkbox" data-rowsel="' + kind + '" data-idx="' + i + '"' + (row && row._sel ? ' checked' : '') + '> <span class="hint">' + (i + 1) + '</span>'; }
+  function delSelBtn(kind){ return '<button type="button" class="btn btn-ghost" data-action="doc-del-sel" data-kind="' + kind + '">Elimina righe spuntate</button>'; }
+  function docRows(kind){
+    if (kind === 'carico') return state.carico.rows;
+    if (kind === 'scarico') return state.scarico.rows;
+    if (kind === 'recipe') return state.ricette.draft ? state.ricette.draft.components : [];
+    if (kind === 'prod') return state.produzione.components;
+    if (kind === 'pstamp') return state.produzione.stamps.lines;
+    if (kind === 'stmodal') return state.stampModal ? state.stampModal.rows : [];
+    return [];
+  }
+  function deleteSelectedDocRows(kind){
+    var arr = docRows(kind), keep = arr.filter(function(r){ return !r._sel; });
+    if (keep.length === arr.length){ showToast('Spunta prima le righe da eliminare.'); return; }
+    if (kind === 'carico'){ state.carico.rows = keep.length ? keep : [freshCaricoRow()]; render(); }
+    else if (kind === 'scarico'){ state.scarico.rows = keep.length ? keep : [freshScaricoRow()]; render(); }
+    else if (kind === 'recipe'){ state.ricette.draft.components = keep.length ? keep : [{ refId:'', dose:'', um:'' }]; render(); }
+    else if (kind === 'prod'){ state.produzione.components = keep; refreshProdComps(); }
+    else if (kind === 'pstamp'){ state.produzione.stamps.lines = keep; refreshProdStamps(); }
+    else if (kind === 'stmodal'){ state.stampModal.rows = keep.length ? keep : [freshStampRow()]; renderStampModal(); }
+    showToast((arr.length - keep.length) + (arr.length - keep.length === 1 ? ' riga eliminata.' : ' righe eliminate.'));
+  }
+
   // ==================================================================
   // Eventi del nuovo gestionale (restituiscono true se l'evento è gestito)
   // ==================================================================
@@ -4630,12 +4688,23 @@
     else if (state.settingsModal) closeSettingsModal();
     else if (state.invoiceReview) closeInvoiceReviewModal();
   }
-  function gotoView(id){ state.view = id; state.menuOpen = null; render(); }
+  function gotoView(id){ if (id !== state.view) state.multi = {}; state.view = id; state.menuOpen = null; render(); }
 
   function onClickNew(e){
     var t = e.target;
     if (t.closest('.col-resize')) return true;
     if (state.menuOpen && !t.closest('.menu')){ state.menuOpen = null; renderMenus(); }
+    if (t.matches && t.matches('input[data-gcheck]')){
+      selectRow(t.getAttribute('data-grid'), t.getAttribute('data-gcheck'), true, { ctrl: true, shift: e.shiftKey });
+      return true;
+    }
+    if (t.matches && t.matches('input[data-checkall]')){
+      var cg = t.getAttribute('data-checkall'), ord = gridOrder[cg] || [];
+      var nOn = selectedIds(cg).filter(function(k){ return ord.indexOf(k) !== -1; }).length;
+      if (ord.length && nOn === ord.length){ state.multi[cg] = {}; state.sel[cg] = null; }
+      else { var all2 = {}; ord.forEach(function(k){ all2[k] = true; }); state.multi[cg] = all2; state.sel[cg] = ord[0] || null; state.anchor[cg] = ord[0] || null; }
+      render(); return true;
+    }
     var rowEl = t.closest('tr[data-grow]');
     if (rowEl && !t.closest('button,a,input,select,label,textarea')){
       selectRow(rowEl.getAttribute('data-grid'), rowEl.getAttribute('data-grow'), true, { ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey });
@@ -4717,6 +4786,35 @@
       openMergeModal(dsx ? dsx.split(',').filter(Boolean) : (el.getAttribute('data-id') ? [el.getAttribute('data-id')] : selectedIds('materie')));
       return true;
     }
+    if (a === 'doc-del-sel'){ deleteSelectedDocRows(el.getAttribute('data-kind')); return true; }
+    if (a === 'inv-all'){
+      var onv = el.getAttribute('data-v') === '1';
+      state.invoiceReview.lines.forEach(function(l){ l.include = onv; });
+      renderInvoiceReviewModal(); return true;
+    }
+    if (a === 'merge-selall'){
+      var mm = state.mergeModal, cand = mergeCandidates();
+      var ty = (mm.ids[0] && referenceById(mm.ids[0])) ? referenceById(mm.ids[0]).unit : (cand[0] ? cand[0].unit : null);
+      mm.ids = cand.filter(function(r){ return r.unit === ty; }).map(function(r){ return r.id; });
+      if (mm.ids.indexOf(mm.targetId) === -1) mm.targetId = mm.ids.slice().sort(function(a2, b2){ return lotsForRef(b2).length - lotsForRef(a2).length; })[0] || '';
+      renderMergeModal(); return true;
+    }
+    if (a === 'bulk-carico'){
+      var cds = el.getAttribute('data-ids'), cids = cds ? cds.split(',').filter(Boolean) : selectedIds('materie');
+      state.carico = freshCaricoDraft(); state.carico.rows = cids.map(function(id){ return freshCaricoRow(id); });
+      gotoView('carico'); return true;
+    }
+    if (a === 'bulk-scarico'){
+      var sds = el.getAttribute('data-ids'), sids = sds ? sds.split(',').filter(Boolean) : selectedIds('lotti');
+      var lts = sids.map(lotById).filter(Boolean);
+      state.scarico = freshScaricoDraft(); state.scarico.rows = lts.map(function(l){ return freshScaricoRow(l.refId, l.id); });
+      if (!state.scarico.rows.length) state.scarico.rows = [freshScaricoRow()];
+      gotoView('scarico'); return true;
+    }
+    if (a === 'bulk-del-lots' || a === 'bulk-del-prod'){
+      var dds = el.getAttribute('data-ids'), g3 = a === 'bulk-del-lots' ? 'lotti' : 'produzioni';
+      bulkDelete(g3, dds ? dds.split(',').filter(Boolean) : selectedIds(g3)); return true;
+    }
     if (a === 'grid-selall'){
       var allIds = gridOrder[gid] || [], allSet = {};
       allIds.forEach(function(k){ allSet[k] = true; });
@@ -4759,6 +4857,17 @@
     var t = e.target;
     if (state.toolModal && handleToolInput(t)) return true;
     var f;
+    if (t.hasAttribute('data-rowsel')){
+      var rw = docRows(t.getAttribute('data-rowsel'))[parseInt(t.getAttribute('data-idx'), 10)];
+      if (rw) rw._sel = t.checked;
+      return true;
+    }
+    if (t.hasAttribute('data-rowselall')){
+      var rk = t.getAttribute('data-rowselall');
+      docRows(rk).forEach(function(r){ r._sel = t.checked; });
+      document.querySelectorAll('[data-rowsel="' + rk + '"]').forEach(function(c){ c.checked = t.checked; });
+      return true;
+    }
     if (t.hasAttribute('data-undo') && state.undoModal){
       state.undoModal[t.getAttribute('data-undo')] = t.checked;
       renderUndoModal(); return true;
@@ -4977,7 +5086,7 @@
     } else if (e.key === 'Enter' && state.sel[gid]){ e.preventDefault(); activateRow(gid, state.sel[gid]); }
     else if (e.key === 'Delete' && selectedIds(gid).length){
       var dl = selectedIds(gid);
-      if (dl.length > 1) bulkDelete(gid, dl);
+      if (dl.length > 1 || gid === 'lotti' || gid === 'produzioni') bulkDelete(gid, dl);
       else if (gid === 'materie') deleteReference(dl[0]);
       else if (gid === 'prodotti') deleteRecipe(dl[0]);
       else if (gid === 'storico') deleteMovement(dl[0]);
