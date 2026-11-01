@@ -456,6 +456,27 @@
   @media print{ header.top, .statusbar, nav.tabs{ display:none !important; } .app{ height:auto; display:block; } main.view{ overflow:visible; } }
   main.view.gridmode{ overflow:hidden; display:flex; flex-direction:column; }
   main.view.gridmode > .gv{ flex:1; min-height:0; }
+
+  .gv{ flex-direction:row; gap:.6rem; }
+  .gv-left{ flex:1; min-width:0; display:flex; flex-direction:column; gap:.45rem; min-height:0; }
+  .side{ flex:none; width:min(440px, 42%); overflow:auto; border:1px solid #6a6a6a; border-radius:.3rem; background:var(--surface); font-size:.88rem; }
+  .side-h{ position:sticky; top:0; z-index:3; background:var(--surface-2); display:flex; justify-content:space-between; align-items:flex-start; gap:.6rem; padding:.6rem .8rem; border-bottom:1px solid #6a6a6a; }
+  .side-title{ font-size:1.1rem; font-weight:800; color:var(--accent); word-break:break-word; }
+  .side-btns{ display:flex; gap:.4rem; flex-wrap:wrap; padding:.5rem .8rem; border-bottom:1px solid var(--line); }
+  .side-sec{ background:#1c1c1c; color:var(--accent); font-weight:700; font-size:.75rem; letter-spacing:.04em; text-transform:uppercase; padding:.35rem .8rem; margin-top:.5rem; }
+  .side-pad{ padding:.3rem .8rem .5rem; line-height:1.6; }
+  .kv{ display:grid; grid-template-columns:42% 1fr; gap:.25rem .6rem; padding:.45rem .8rem; }
+  .kv .k{ color:var(--muted); }
+  .kv .v{ font-weight:600; word-break:break-word; }
+  .side-lot{ padding:.5rem .8rem; border-bottom:1px solid var(--line); }
+  .side-lot.expired{ background:#2a0d0d; }
+  .side-tbl{ width:100%; border-collapse:collapse; font-size:.82rem; }
+  .side-tbl th{ text-align:left; color:var(--muted); font-size:.7rem; padding:.3rem .8rem; }
+  .side-tbl td{ padding:.35rem .8rem; border-top:1px solid var(--line); vertical-align:top; }
+  .side-tbl td.num{ text-align:right; font-family:'IBM Plex Mono', monospace; white-space:nowrap; }
+  .chk{ display:flex; align-items:center; gap:.5rem; font-weight:600; padding-bottom:.55rem; cursor:pointer; }
+  .chk input{ width:1.2rem; height:1.2rem; accent-color:var(--accent); }
+  @media (max-width:900px){ .gv{ flex-direction:column; } .side{ width:auto; max-height:55%; } }
 </style>
 </head>
 <body>
@@ -505,6 +526,7 @@
   <div class="modal-overlay" id="settingsModalOverlay" hidden></div>
   <div class="modal-overlay" id="invoiceModalOverlay" hidden></div>
   <div class="modal-overlay" id="toolModalOverlay" hidden></div>
+  <div class="modal-overlay" id="stampModalOverlay" hidden></div>
 </div>
 
 <script type="module">
@@ -624,6 +646,9 @@
     filters: { materie:{ cat:'', stock:'' }, lotti:{ cat:'', stock:'', scad:'' }, storico:{ type:'' } },
     menuOpen: null,
     toolModal: null,
+    stamps: [],
+    stampMoves: [],
+    stampModal: null,
     refModal: null,       // { mode:'new'|'edit', draft:{...}, returnTo:null|'carico' }
     lotModal: null,        // { lotId, draft:{qtyLt, qtyKg, density, grade} }
     pushModal: null,      // { productionId, mode:'existing'|'new', productId, newName, location, qty }
@@ -638,10 +663,10 @@
     ricette: { editingId: null, formOpen: false, draft: null }
   };
 
-  function freshCaricoDraft(){ return { causale:'', rows:[freshCaricoRow()] }; }
+  function freshCaricoDraft(){ return { causale:'', supplier:'', rows:[freshCaricoRow()] }; }
   function freshScaricoDraft(){ return { causale:'', rows:[freshScaricoRow()] }; }
   function freshProduzioneDraft(){
-    return { recipeId:'', quantity:'', components:[], finishedLotto:'', gradeEffective:'', note:'' };
+    return { recipeId:'', quantity:'', components:[], finishedLotto:'', gradeEffective:'', note:'', stamps: freshStampDraft() };
   }
 
   function freshFatturaDraft(){
@@ -775,7 +800,7 @@
   // RENDER: top-level
   // ==================================================================
   var lastRenderedView = null;
-  var GRID_VIEWS = ['materie', 'lotti', 'produzioni', 'storico'];
+  var GRID_VIEWS = ['materie', 'lotti', 'produzioni', 'storico', 'contrassegni'];
   function render(){
     applyPrefs();
     renderMenus();
@@ -796,6 +821,7 @@
     else if (v === 'prodotti') html = renderRicetteView();
     else if (v === 'produzioni') html = renderProduzioniView();
     else if (v === 'storico') html = renderStoricoView();
+    else if (v === 'contrassegni') html = renderContrassegniView();
     else if (v === 'carico') html = renderCaricoView();
     else if (v === 'scarico') html = renderScaricoView();
     else if (v === 'produzione') html = renderProduzioneView();
@@ -870,6 +896,7 @@
     html += '<div><span class="k">Litri anidri</span><span class="v">' + (p.anhydrousLt!==null&&p.anhydrousLt!==undefined ? fmt(p.anhydrousLt,3)+' Lt' : '—') + '</span></div>';
     html += '<div><span class="k">Gradazione teorica</span><span class="v">' + (p.gradeTheoretical!==null&&p.gradeTheoretical!==undefined ? fmt(p.gradeTheoretical,2)+'%' : '—') + '</span></div>';
     html += '<div><span class="k">Gradazione effettiva</span><span class="v">' + (p.gradeEffective!==null&&p.gradeEffective!==undefined ? fmt(p.gradeEffective,2)+'%' : '—') + '</span></div>';
+    if (p.bottles !== null && p.bottles !== undefined) html += '<div><span class="k">Bottiglie</span><span class="v">' + p.bottles + (p.brokenStamps ? ' (+ ' + p.brokenStamps + ' rotti)' : '') + '</span></div>';
     html += '</div>';
     if (p.note) html += '<p style="font-size:.84rem;"><strong>Note:</strong> ' + escapeHtml(p.note) + '</p>';
 
@@ -888,6 +915,11 @@
       html += '</tr>';
     });
     html += '</tbody></table></div>';
+    if (p.stamps && p.stamps.length){
+      html += '<div class="section-title" style="margin-top:.8rem;">Contrassegni utilizzati</div><div class="table-scroll"><table class="data-table"><thead><tr><th>Serie</th><th>Dal</th><th>Al</th><th>Quantità</th><th>Ordine</th></tr></thead><tbody>';
+      p.stamps.forEach(function(x){ html += '<tr><td>' + escapeHtml(x.serie || '') + '</td><td>' + escapeHtml(x.from) + '</td><td>' + escapeHtml(x.to) + '</td><td class="num">' + x.qty + '</td><td>' + (x.order === 'desc' ? 'Decrescente' : 'Crescente') + '</td></tr>'; });
+      html += '</tbody></table></div>';
+    }
     html += '</div>';
     return html;
   }
@@ -1132,7 +1164,7 @@
   }
 
   // waiting for Firestore's listener to echo each write back.
-  function commitCarico(ref, lotto, qtyLt, qtyKg, density, grade, causale, scadenza){
+  function commitCarico(ref, lotto, qtyLt, qtyKg, density, grade, causale, scadenza, extra){
     var lotId = lotDocId(ref.id, lotto);
     var existing = lotById(lotId);
     var newQtyLt = (existing ? (existing.qtyLt||0) : 0) + (qtyLt || 0);
@@ -1143,6 +1175,8 @@
       density: density !== null ? density : (existing ? existing.density : null),
       grade: grade !== null ? grade : (existing ? existing.grade : null),
       scadenza: scadenza ? scadenza : (existing ? (existing.scadenza || null) : null),
+      supplier: (extra && extra.supplier) ? extra.supplier : (existing ? (existing.supplier || null) : null),
+      price: (extra && extra.price !== null && extra.price !== undefined) ? extra.price : (existing && existing.price !== undefined ? existing.price : null),
       qtyLt: hasLt ? round(newQtyLt,3) : null,
       qtyKg: round(newQtyKg,3),
       createdAt: existing ? existing.createdAt : new Date().toISOString(),
@@ -1401,6 +1435,7 @@
                   unita: { type: ['string','null'], description: 'Unità di misura come scritta (kg, l, lt, g, ml, pz, ecc.)' },
                   lotto: { type: ['string','null'], description: 'Numero di lotto del prodotto, se indicato' },
                   scadenza: { type: ['string','null'], description: 'Data di scadenza del prodotto, se indicata, in formato AAAA-MM-GG' },
+                  prezzo_unitario: { type: ['number','null'], description: 'Prezzo unitario (senza IVA) per una unità di misura della colonna "unita", se indicato' },
                   categoria: { type: ['string','null'], description: 'La categoria più adatta tra: ' + categories().map(function(c){ return c.name; }).join('; ') + '. Null se nessuna è adatta.' }
                 },
                 required: ['descrizione','nome_prodotto']
@@ -1562,6 +1597,7 @@
         extractedCode: r.codice_prodotto || '',
         lotto: r.lotto || '',
         scadenza: /^\d{4}-\d{2}-\d{2}$/.test(r.scadenza || '') ? r.scadenza : '',
+        price: (function(){ var u = guessUnit(r.unita); return (u && r.prezzo_unitario) ? round(r.prezzo_unitario / u.factor, 4) : ''; })(),
         refMode: match ? 'existing' : 'new',
         refId: match ? match.id : '',
         newRef: { name: r.nome_prodotto || r.descrizione || '', unit: guessUnit(r.unita) && guessUnit(r.unita).kind === 'kg' ? 'solido' : 'liquido', codice: r.codice_prodotto || '', category: guessCategoryId(r.categoria) },
@@ -1634,6 +1670,7 @@
       html += fieldInput('invGrade_' + idx, 'Gradazione (%) — opzionale', 'number', line.grade, 'step="0.1" min="0" max="100"');
     }
 
+    html += fieldInput('invPrice_' + idx, 'Prezzo € per Lt o per Kg (opzionale)', 'number', line.price, 'step="any" min="0"');
     html += '</div>';
     return html;
   }
@@ -1711,7 +1748,7 @@
         }
         return resolveRef.then(function(ref){
           if (!ref) return;
-          return commitCarico(ref, l.lotto.trim(), numOrNull(l.qtyLt), numOrNull(l.qtyKg), numOrNull(l.density), ref.unit === 'liquido' ? numOrNull(l.grade) : null, causale, l.scadenza || null);
+          return commitCarico(ref, l.lotto.trim(), numOrNull(l.qtyLt), numOrNull(l.qtyKg), numOrNull(l.density), ref.unit === 'liquido' ? numOrNull(l.grade) : null, causale, l.scadenza || null, { supplier: rev.supplierName || null, price: numOrNull(l.price) });
         });
       });
     });
@@ -1896,7 +1933,7 @@
       return out;
     }
 
-    var html = '<div class="gv">';
+    var html = '<div class="gv"><div class="gv-left">';
     // barra comandi
     html += '<div class="grid-toolbar">';
     (o.actions || []).forEach(function(a){
@@ -1956,6 +1993,8 @@
     html += '</table></div>';
     if (o.detail) html += o.detail(selRow);
     html += '</div>';
+    if (o.side && selRow) html += o.side(selRow);
+    html += '</div>';
     return html;
   }
 
@@ -1974,6 +2013,7 @@
     else if (gid === 'lotti'){ openLotModal(id); }
     else if (gid === 'prodotti'){ editRecipe(id); }
     else if (gid === 'produzioni'){ state.view = 'scheda'; state.schedaProductionId = id; render(); }
+    else if (gid === 'contrassegni'){ openStampModal('edit', id); }
   }
 
   // ==================================================================
@@ -1985,11 +2025,13 @@
     { id:'prodotti',   label:'Prodotti finiti', group:'Archivi',    key:'3', icon:function(){ return iconBook(); } },
     { id:'produzioni', label:'Produzioni',      group:'Archivi',    key:'4', icon:function(){ return iconPrinter(); } },
     { id:'storico',    label:'Storico',         group:'Archivi',    key:'5', icon:function(){ return ico('<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 8v4l3 2"/>'); } },
+    { id:'contrassegni', label:'Contrassegni',  group:'Archivi',    key:'', icon:function(){ return ico('<rect x="3" y="6" width="18" height="12" rx="1.5"/><path d="M7 10h2M7 14h6M13 10h4"/>'); } },
     { id:'carico',     label:'Carico',          group:'Operazioni', key:'6', icon:function(){ return iconPlus(); } },
     { id:'scarico',    label:'Scarico',         group:'Operazioni', key:'7', icon:function(){ return iconMinus(); } },
     { id:'produzione', label:'Produzione',      group:'Operazioni', key:'8', icon:function(){ return iconFlask(); } },
     { id:'fattura',    label:'Fattura IA',      group:'Operazioni', key:'9', icon:function(){ return iconReceipt(); } }
   ];
+  VIEWS.forEach(function(v, i){ v.key = i < 9 ? String(i + 1) : ''; });
   var TOOLS = [
     { id:'categorie', label:'Categorie…',        short:'Categorie',  icon:function(){ return ico('<path d="M20 12l-8 8-9-9V3h8l9 9Z"/><circle cx="7.5" cy="7.5" r="1.3"/>'); } },
     { id:'unita',     label:'Unità di misura…',  short:'Unità',      icon:function(){ return ico('<path d="M3 17L17 3l4 4L7 21l-4-4Z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/>'); } },
@@ -2014,7 +2056,7 @@
         html += '<div class="menu-pop">';
         m.items.forEach(function(it){
           if (it.sep) html += '<div class="menu-sep"></div>';
-          else if (it.view) html += '<button type="button" class="menu-item" data-action="tab" data-tab="' + it.view.id + '"><span>' + it.view.label + '</span><kbd>Alt+' + it.view.key + '</kbd></button>';
+          else if (it.view) html += '<button type="button" class="menu-item" data-action="tab" data-tab="' + it.view.id + '"><span>' + it.view.label + '</span>' + (it.view.key ? '<kbd>Alt+' + it.view.key + '</kbd>' : '') + '</button>';
           else if (it.tool) html += '<button type="button" class="menu-item" data-action="tool" data-tool="' + it.tool.id + '"><span>' + it.tool.label + '</span></button>';
           else if (it.ia) html += '<button type="button" class="menu-item" data-action="open-settings"><span>Impostazioni IA (chiave API)…</span></button>';
           else if (it.help) html += '<button type="button" class="menu-item" data-action="tool" data-tool="help"><span>Scorciatoie da tastiera…</span><kbd>F1</kbd></button>';
@@ -2032,7 +2074,7 @@
     ['Archivi', 'Operazioni'].forEach(function(g){
       html += '<div class="tb-group">';
       VIEWS.filter(function(v){ return v.group === g; }).forEach(function(v){
-        html += '<button type="button" class="tab-btn' + (cur === v.id ? ' active' : '') + '" data-action="tab" data-tab="' + v.id + '" title="' + v.label + ' (Alt+' + v.key + ')">' + v.icon() + '<span>' + v.label + '</span></button>';
+        html += '<button type="button" class="tab-btn' + (cur === v.id ? ' active' : '') + '" data-action="tab" data-tab="' + v.id + '" title="' + v.label + (v.key ? ' (Alt+' + v.key + ')' : '') + '">' + v.icon() + '<span>' + v.label + '</span></button>';
       });
       html += '</div>';
     });
@@ -2369,12 +2411,7 @@
         { label:'Carica', action:'quick-carico', needSel:true, attrs:function(r){ return ' data-ref="' + r.id + '"'; } },
         { label:'Elimina', action:'delete-reference', needSel:true }
       ],
-      detail:function(sel){
-        if (!sel) return '<div class="detail"><div class="detail-h"><span style="color:var(--muted)">Seleziona una materia prima per vedere i suoi lotti</span></div></div>';
-        var lots = stockLots(sel.id).sort(function(a, b){ return (a.scadenza || '9999').localeCompare(b.scadenza || '9999'); });
-        return '<div class="detail"><div class="detail-h"><span>Lotti di «' + escapeHtml(sel.name) + '» — ' + lots.length + '</span></div>' +
-          (lots.length ? lotsDetailTable(lots, false) : '<p class="hint" style="padding:.6rem .8rem;margin:0">Nessun lotto in giacenza.</p>') + '</div>';
-      }
+      side:function(r){ return refSideHtml(r); }
     });
   }
 
@@ -2528,7 +2565,8 @@
         { label:'Modifica distinta', action:'edit-recipe', key:'F2', needSel:true },
         { label:'Produci', action:'recipe-produce', needSel:true, cls:'btn-good' },
         { label:'Elimina', action:'delete-recipe', key:'Canc', needSel:true }
-      ]
+      ],
+      side:function(r){ return recipeSideHtml(r); }
     });
   }
 
@@ -2561,6 +2599,7 @@
     html += '<div class="field" style="min-width:16rem"><label for="recipeLiquoriProduct">Prodotto Liquori collegato (opz.)</label><select id="recipeLiquoriProduct"><option value="">— Nessuno —</option>' +
       state.liquoriProducts.slice().sort(function(a, b){ return (a.name || '').localeCompare(b.name || '', 'it'); }).map(function(p){ return '<option value="' + p.id + '"' + (p.id === d.liquoriProductId ? ' selected' : '') + '>' + escapeHtml(p.name) + '</option>'; }).join('') + '</select></div>';
     html += '</div>';
+    html += '<div class="doc-head"><div class="field"><label for="recipeBottle">Formato bottiglia (Lt)</label><input type="number" id="recipeBottle" step="any" min="0" value="' + escapeHtml(d.bottleLt) + '" placeholder="Es. 0.5"></div><label class="chk"><input type="checkbox" id="recipeStamps"' + (d.stamps ? ' checked' : '') + '> Questo prodotto usa i contrassegni (1 per bottiglia)</label></div>';
     html += '<p class="hint">Elenca le componenti per la quantità indicata sopra. In produzione le dosi si moltiplicano per i litri da produrre e lo scarico dai lotti avviene in automatico.</p>';
 
     html += '<div class="doc-gridwrap"><table class="doc-grid" style="min-width:56rem"><thead><tr><th>#</th><th style="min-width:18rem">Componente (materia prima)</th><th style="width:8rem">Dose</th><th style="width:7rem">U.M.</th><th style="width:9rem">Equivale a</th><th style="width:7rem">Gradaz.</th><th style="width:8rem">Lt anidri</th><th style="width:3rem"></th></tr></thead><tbody>';
@@ -2589,7 +2628,7 @@
   function newRecipe(){
     state.ricette.formOpen = true;
     state.ricette.editingId = null;
-    state.ricette.draft = { name:'', codice:'', baseLt:'1', note:'', components:[{ refId:'', dose:'', um:'' }], liquoriProductId:'' };
+    state.ricette.draft = { name:'', codice:'', baseLt:'1', note:'', components:[{ refId:'', dose:'', um:'' }], liquoriProductId:'', bottleLt:'', stamps:false };
     state.view = 'prodotti';
     render();
   }
@@ -2607,7 +2646,9 @@
         var shown = (base === null || base === undefined || !um) ? '' : round(base / um.factor, 4);
         return { refId:c.refId, dose: shown, um: um ? um.id : '' };
       }),
-      liquoriProductId: r.liquoriProductId || ''
+      liquoriProductId: r.liquoriProductId || '',
+      bottleLt: r.bottleLt || '',
+      stamps: !!r.stamps
     };
     state.view = 'prodotti';
     render();
@@ -2639,7 +2680,7 @@
     }
     if (!components.length){ showToast('Aggiungi almeno un componente.'); return; }
     var id = state.ricette.editingId || uid('recipe');
-    window.__fb.setDoc(RECIPES_COLL + '/' + id, { name: name, codice: d.codice.trim() || null, baseLt: baseLt, components: components, liquoriProductId: d.liquoriProductId || null, note: d.note.trim() || null }).then(function(){
+    window.__fb.setDoc(RECIPES_COLL + '/' + id, { name: name, codice: d.codice.trim() || null, baseLt: baseLt, components: components, liquoriProductId: d.liquoriProductId || null, note: d.note.trim() || null, bottleLt: numOrNull(d.bottleLt), stamps: !!d.stamps }).then(function(){
       showToast('Prodotto finito salvato.');
       cancelRecipeForm();
     }).catch(function(e){ console.error(e); showToast('Salvataggio non riuscito.'); });
@@ -2657,7 +2698,7 @@
   // VIEW: Carico (documento a righe)
   // ==================================================================
   function freshCaricoRow(refId){
-    var row = { refId:'', lotto:'', qty:'', um:'', lt:'', kg:'', density:'', grade:'', scadenza:'' };
+    var row = { refId:'', lotto:'', qty:'', um:'', lt:'', kg:'', density:'', grade:'', scadenza:'', price:'' };
     if (refId) setCaricoRef(row, refId);
     return row;
   }
@@ -2668,6 +2709,8 @@
       row.density = ref.density === null || ref.density === undefined ? '' : ref.density;
       row.grade = ref.unit === 'liquido' && ref.grade !== null && ref.grade !== undefined ? ref.grade : '';
       row.um = refUm(ref).id;
+      var ep = effectivePrice(ref);
+      row.price = ep === null || ep === undefined ? '' : ep;
       applyQtyUm(row);
     }
   }
@@ -2686,9 +2729,9 @@
   function renderCaricoView(){
     var d = state.carico;
     var html = '<div class="doc">';
-    html += '<div class="doc-head"><h2>Carico materie prime</h2><div class="field" style="flex:1;min-width:16rem"><label for="caricoCausale">Causale / documento (valido per tutte le righe)</label><input type="text" id="caricoCausale" placeholder="Es. DDT 123 fornitore XY" value="' + escapeHtml(d.causale) + '"></div></div>';
+    html += '<div class="doc-head"><h2>Carico materie prime</h2><div class="field" style="min-width:16rem"><label for="caricoSupplier">Fornitore (valido per tutte le righe)</label><input type="text" id="caricoSupplier" list="supListC" value="' + escapeHtml(d.supplier) + '" placeholder="Es. Distillerie Rossi">' + supplierDatalist('supListC') + '</div><div class="field" style="flex:1;min-width:16rem"><label for="caricoCausale">Causale / documento (valido per tutte le righe)</label><input type="text" id="caricoCausale" placeholder="Es. DDT 123 fornitore XY" value="' + escapeHtml(d.causale) + '"></div></div>';
     html += '<p class="hint">Una riga per ogni lotto in arrivo. Scrivi la quantità e scegli l\'unità (ml, Lt, g, Kg, …): Lt e Kg si calcolano da soli con la densità; se inserisci sia Lt che Kg la densità si ricava automaticamente.</p>';
-    html += '<div class="doc-gridwrap"><table class="doc-grid"><thead><tr><th>#</th><th style="min-width:15rem">Materia prima</th><th style="width:8rem">Lotto</th><th style="width:7rem">Quantità</th><th style="width:6rem">U.M.</th><th style="width:7rem">Lt</th><th style="width:7rem">Kg</th><th style="width:6rem">Densità</th><th style="width:6rem">Gradaz. %</th><th style="width:6rem">Lt anidri</th><th style="width:9.5rem">Scadenza</th><th style="width:3rem"></th></tr></thead><tbody>';
+    html += '<div class="doc-gridwrap"><table class="doc-grid"><thead><tr><th>#</th><th style="min-width:15rem">Materia prima</th><th style="width:8rem">Lotto</th><th style="width:7rem">Quantità</th><th style="width:6rem">U.M.</th><th style="width:7rem">Lt</th><th style="width:7rem">Kg</th><th style="width:6rem">Densità</th><th style="width:6rem">Gradaz. %</th><th style="width:6rem">Lt anidri</th><th style="width:9.5rem">Scadenza</th><th style="width:7.5rem">Prezzo €/Lt·Kg</th><th style="width:3rem"></th></tr></thead><tbody>';
     d.rows.forEach(function(row, i){
       var ref = row.refId ? referenceById(row.refId) : null;
       var liq = ref && ref.unit === 'liquido';
@@ -2705,9 +2748,10 @@
         '<td><input type="number" step="any" min="0" max="100" data-crow="' + i + '" data-cfield="grade" value="' + escapeHtml(row.grade) + '"' + (liq ? '' : ' disabled') + '></td>' +
         '<td class="ro" data-ccell="anidri" data-crow="' + i + '">' + (an === null ? '—' : fmt(an, 3)) + '</td>' +
         '<td><input type="date" data-crow="' + i + '" data-cfield="scadenza" value="' + escapeHtml(row.scadenza) + '"></td>' +
+        '<td><input type="number" step="any" min="0" data-crow="' + i + '" data-cfield="price" value="' + escapeHtml(row.price) + '" placeholder="' + (liq ? '€/Lt' : '€/Kg') + '"' + (ref ? '' : ' disabled') + '></td>' +
         '<td><button type="button" class="x-btn" data-action="carico-del-row" data-idx="' + i + '" title="Rimuovi riga">×</button></td></tr>';
     });
-    html += '</tbody><tfoot><tr><td colspan="5" style="text-align:right">Totali</td><td class="ro" id="cTotLt"></td><td class="ro" id="cTotKg"></td><td></td><td></td><td class="ro" id="cTotAn"></td><td colspan="2"></td></tr></tfoot></table></div>';
+    html += '</tbody><tfoot><tr><td colspan="5" style="text-align:right">Totali</td><td class="ro" id="cTotLt"></td><td class="ro" id="cTotKg"></td><td></td><td></td><td class="ro" id="cTotAn"></td><td colspan="3"></td></tr></tfoot></table></div>';
     html += '<div class="doc-actions"><button type="button" class="btn btn-ghost" data-action="carico-add-row">+ Aggiungi riga (F4)</button><button type="button" class="btn btn-ghost" data-action="carico-clear">Svuota</button><span class="gt-spacer"></span><button type="button" class="btn btn-good" data-action="save-carico">Registra carico (Ctrl+Invio)</button></div>';
     html += '</div>';
     setTimeout(updateCaricoTotals, 0);
@@ -2777,12 +2821,12 @@
       if (!lotto){ showToast('Riga ' + (i + 1) + ': inserisci il numero di lotto.'); return; }
       var qtyLt = numOrNull(row.lt), qtyKg = numOrNull(row.kg);
       if ((!qtyLt || qtyLt <= 0) && (!qtyKg || qtyKg <= 0)){ showToast('Riga ' + (i + 1) + ': inserisci una quantità maggiore di zero.'); return; }
-      items.push({ ref:ref, lotto:lotto, qtyLt:qtyLt, qtyKg:qtyKg, density:numOrNull(row.density), grade: ref.unit === 'liquido' ? numOrNull(row.grade) : null, scadenza: row.scadenza || null });
+      items.push({ price: numOrNull(row.price), ref:ref, lotto:lotto, qtyLt:qtyLt, qtyKg:qtyKg, density:numOrNull(row.density), grade: ref.unit === 'liquido' ? numOrNull(row.grade) : null, scadenza: row.scadenza || null });
     }
     if (!items.length){ showToast('Compila almeno una riga.'); return; }
     var chain = Promise.resolve();
     items.forEach(function(it){
-      chain = chain.then(function(){ return commitCarico(it.ref, it.lotto, it.qtyLt, it.qtyKg, it.density, it.grade, causale, it.scadenza); });
+      chain = chain.then(function(){ return commitCarico(it.ref, it.lotto, it.qtyLt, it.qtyKg, it.density, it.grade, causale, it.scadenza, { supplier: d.supplier.trim() || null, price: it.price }); });
     });
     chain.then(function(){
       showToast(items.length === 1 ? 'Carico registrato: lotto ' + items[0].lotto + '.' : items.length + ' carichi registrati.');
@@ -3045,6 +3089,7 @@
     html += '<p class="hint">' + (recipe ? 'Le quantità si calcolano dalla distinta di «' + escapeHtml(recipe.name) + '» e i lotti vengono scelti in automatico (scadenza più vicina per prima, esclusi i lotti scaduti). Puoi cambiare lotto e quantità riga per riga.' : 'Produzione libera: scegli le materie prime e le quantità, i lotti vengono assegnati in automatico.') + '</p>';
     html += '<div class="doc-gridwrap"><table class="doc-grid" style="min-width:60rem"><thead><tr><th>#</th><th style="min-width:15rem">Componente</th><th style="width:13rem">Occorrente</th><th style="min-width:26rem">Scarico automatico dai lotti</th><th style="width:11rem">Copertura</th><th style="width:3rem"></th></tr></thead><tbody id="prodCompsBody">' + prodCompRows() + '</tbody></table></div>';
     html += '<div id="prodTotals" class="readonly-box" style="font-family:inherit;font-weight:500">' + prodTotalsText() + '</div>';
+    html += renderProdStamps();
     html += '<div class="doc-actions">' + (recipe ? '' : '<button type="button" class="btn btn-ghost" data-action="prod-add-component">+ Aggiungi componente (F4)</button>') +
       '<button type="button" class="btn btn-ghost" data-action="prod-realloc-all">Ricalcola scarico automatico</button><button type="button" class="btn btn-ghost" data-action="prod-reset">Svuota</button><span class="gt-spacer"></span>' +
       '<button type="button" class="btn btn-primary" data-action="save-produzione">Registra produzione e scarica (Ctrl+Invio)</button></div>';
@@ -3065,6 +3110,9 @@
       d.components = [];
     }
     autoAllocateAll();
+    d.stamps = freshStampDraft();
+    var rc = recipeId ? recipeById(recipeId) : null;
+    if (rc && rc.stamps){ d.stamps.use = true; d.stamps.bottles = bottlesFromLt(); autoAllocateStamps(); }
     render();
   }
   function prodAddComponent(){
@@ -3088,6 +3136,8 @@
     var finishedLotto = (d.finishedLotto || '').trim();
     var gradeEffective = numOrNull(d.gradeEffective);
     var note = (d.note || '').trim();
+    var stampErr = validateProdStamps();
+    if (stampErr){ showToast(stampErr); return; }
 
     if (!finishedLotto){ showToast('Inserisci il lotto del prodotto finito.'); return; }
     if (!quantity || quantity <= 0){ showToast('Inserisci i litri da produrre.'); return; }
@@ -3144,6 +3194,8 @@
         });
       });
     });
+    var stampUsed = [];
+    chain = chain.then(function(){ return consumeProdStamps(finishedLotto, stampUsed); });
     chain.then(function(){
       var recipe = d.recipeId ? recipeById(d.recipeId) : null;
       var prodDoc = {
@@ -3157,7 +3209,10 @@
         components: componentsSnapshot,
         note: note || null,
         createdAt: new Date().toISOString(),
-        pushes: []
+        pushes: [],
+        bottles: d.stamps.use ? (parseInt(d.stamps.bottles, 10) || 0) : null,
+        brokenStamps: d.stamps.use ? (parseInt(d.stamps.broken, 10) || 0) : null,
+        stamps: stampUsed
       };
       return window.__fb.setDoc(PRODUCTIONS_COLL + '/' + productionId, prodDoc).then(function(){
         state.productions.push(Object.assign({ id: productionId }, prodDoc));
@@ -3190,8 +3245,10 @@
         notes: ref.notes || '',
         category: ref.category || '',
         um: ref.um || '',
-        minQty: ref.minQty === null || ref.minQty === undefined ? '' : ref.minQty
-      } : { id:null, name:'', unit:'liquido', codice:'', density:'', grade:'', notes:'', category:'', um:'', minQty:'' }
+        minQty: ref.minQty === null || ref.minQty === undefined ? '' : ref.minQty,
+        supplier: ref.supplier || '',
+        price: ref.price === null || ref.price === undefined ? '' : ref.price
+      } : { id:null, name:'', unit:'liquido', codice:'', density:'', grade:'', notes:'', category:'', um:'', minQty:'', supplier:'', price:'' }
     };
     renderRefModal();
   }
@@ -3232,6 +3289,8 @@
     html += '<div class="row-split"><div class="modal-field"><label>Unità di misura preferita</label><select id="refUm">' + unitOptions(effUm) + '</select></div>';
     html += '<div class="modal-field"><label>Scorta minima (nell\'unità preferita)</label><input type="number" step="any" min="0" id="refMin" value="' + escapeHtml(d.minQty) + '" placeholder="Avvisa se scende sotto"></div></div>';
 
+    html += '<div class="row-split"><div class="modal-field"><label>Fornitore abituale</label><input type="text" id="refSupplier" list="supList" value="' + escapeHtml(d.supplier) + '">' + supplierDatalist('supList') + '</div>';
+    html += '<div class="modal-field"><label>Prezzo di acquisto (€ per ' + (d.unit === 'liquido' ? 'Lt' : 'Kg') + ')</label><input type="number" step="any" min="0" id="refPrice" value="' + escapeHtml(d.price) + '"></div></div>';
     html += '<div class="modal-field"><label>Note (opzionale)</label><input type="text" id="refNotes" value="' + escapeHtml(d.notes) + '"></div>';
 
     html += '<div class="btn-row">';
@@ -3257,7 +3316,7 @@
     var notes = document.getElementById('refNotes').value.trim();
     var id = d.id || uid('ref');
     var wasEdit = m.mode === 'edit';
-    var docData = { name: name, unit: unit, codice: codice || null, density: density, grade: grade, notes: notes || null, category: d.category || null, um: d.um || null, minQty: numOrNull(d.minQty) };
+    var docData = { name: name, unit: unit, codice: codice || null, density: density, grade: grade, notes: notes || null, category: d.category || null, um: d.um || null, minQty: numOrNull(d.minQty), supplier: (d.supplier || '').trim() || null, price: numOrNull(d.price) };
     window.__fb.setDoc(REFS_COLL + '/' + id, docData).then(function(){
       // Applica subito in locale senza aspettare l'eco di Firestore.
       var idx = -1;
@@ -3283,20 +3342,535 @@
   }
 
   // ==================================================================
+  // SCHEDA TECNICA (pannello a destra): materie prime e prodotti finiti
+  // ==================================================================
+  var STAMPS_COLL = 'stamps_produzione';
+  var STAMP_MOVES_DOC = 'log/movements_contrassegni';
+
+  function money(v){ return (v === null || v === undefined || isNaN(v)) ? '—' : '€ ' + fmt(v, 2); }
+  function kvRows(pairs){
+    return '<div class="kv">' + pairs.map(function(p){ return '<span class="k">' + escapeHtml(p[0]) + '</span><span class="v">' + (p[1] === null || p[1] === undefined || p[1] === '' ? '—' : p[1]) + '</span>'; }).join('') + '</div>';
+  }
+  function sideHead(gid, title, sub, buttons){
+    return '<div class="side-h"><div style="min-width:0"><div class="side-title">' + title + '</div>' + (sub ? '<div class="hint">' + sub + '</div>' : '') + '</div>' +
+      '<button type="button" class="x-btn" style="color:var(--ink)" data-action="side-close" data-grid="' + gid + '" title="Chiudi scheda">×</button></div>' +
+      (buttons ? '<div class="side-btns">' + buttons + '</div>' : '');
+  }
+  function lastLotPrice(refId){
+    var l = lotsForRef(refId).filter(function(x){ return x.price !== null && x.price !== undefined; })
+      .sort(function(a, b){ return (b.createdAt || '').localeCompare(a.createdAt || ''); })[0];
+    return l ? l.price : null;
+  }
+  // prezzo €/Lt (liquidi) o €/Kg (solidi): da anagrafica, altrimenti ultimo acquisto
+  function effectivePrice(ref){
+    if (ref.price !== null && ref.price !== undefined) return ref.price;
+    return lastLotPrice(ref.id);
+  }
+  function priceUnit(ref){ return ref.unit === 'liquido' ? 'Lt' : 'Kg'; }
+  function allSuppliers(){
+    var m = {};
+    state.references.forEach(function(r){ if (r.supplier) m[r.supplier] = 1; });
+    state.lots.forEach(function(l){ if (l.supplier) m[l.supplier] = 1; });
+    return Object.keys(m).sort(function(a, b){ return a.localeCompare(b, 'it'); });
+  }
+  function supplierDatalist(id){ return '<datalist id="' + id + '">' + allSuppliers().map(function(s){ return '<option value="' + escapeHtml(s) + '">'; }).join('') + '</datalist>'; }
+
+  function refSideHtml(r){
+    var tot = totalStock(r.id), st = refStatus(r), um = refUm(r);
+    var price = effectivePrice(r), lots = stockLots(r.id).sort(function(a, b){ return (a.scadenza || '9999').localeCompare(b.scadenza || '9999'); });
+    var qtyBase = r.unit === 'liquido' ? tot.lt : tot.kg;
+    var cat = categoryById(r.category);
+    var h = sideHead('materie', escapeHtml(r.name), (r.codice ? 'Codice ' + escapeHtml(r.codice) + ' · ' : '') + tagHtml(st),
+      '<button type="button" class="btn btn-sm btn-primary" data-action="edit-reference" data-id="' + r.id + '">Modifica scheda</button>' +
+      '<button type="button" class="btn btn-sm btn-ghost" data-action="quick-carico" data-ref="' + r.id + '">Carica</button>');
+    h += '<div class="side-sec">Dati tecnici</div>' + kvRows([
+      ['Categoria', cat ? '<span class="cat-dot" style="background:' + cat.color + '"></span>' + escapeHtml(cat.name) : null],
+      ['Tipo', r.unit === 'liquido' ? 'Liquido' : 'Solido'],
+      ['Fornitore', r.supplier ? escapeHtml(r.supplier) : null],
+      ['Prezzo €/' + priceUnit(r), r.price !== null && r.price !== undefined ? money(r.price) : null],
+      ['Ultimo acquisto', lastLotPrice(r.id) !== null ? money(lastLotPrice(r.id)) + '/' + priceUnit(r) : null],
+      ['Unità preferita', escapeHtml(um.label)],
+      ['Densità', r.density ? fmt(r.density, 3) + ' kg/Lt' : null],
+      ['Gradazione', r.grade !== null && r.grade !== undefined ? fmt(r.grade, 1) + '%' : null],
+      ['Scorta minima', numOrNull(r.minQty) !== null ? fmt(numOrNull(r.minQty), 3) + ' ' + escapeHtml(um.label) : null],
+      ['Note', r.notes ? escapeHtml(r.notes) : null]
+    ]);
+    var an = refAnidri(r.id), inUm = stockInUm(r);
+    h += '<div class="side-sec">Giacenza</div>' + kvRows([
+      ['Litri', tot.lt !== null ? fmt(tot.lt, 3) + ' Lt' : null],
+      ['Chili', tot.kg !== null ? fmt(tot.kg, 3) + ' Kg' : null],
+      ['In ' + um.label, inUm !== null ? fmt(inUm, 3) + ' ' + escapeHtml(um.label) : null],
+      ['Litri anidri', an !== null ? fmt(an, 3) + ' Lt' : null],
+      ['Valore', (price !== null && qtyBase !== null) ? money(price * qtyBase) : null],
+      ['Prossima scadenza', nextExpiry(r.id) ? expHtml(nextExpiry(r.id)) : null]
+    ]);
+    h += '<div class="side-sec">Lotti (' + lots.length + ')</div>';
+    if (!lots.length) h += '<p class="hint" style="padding:0 .8rem">Nessun lotto in giacenza.</p>';
+    lots.forEach(function(l){
+      var e = expiryStatus(l.scadenza);
+      h += '<div class="side-lot' + (e.cls === 'expired' ? ' expired' : '') + '"><div style="display:flex;justify-content:space-between;gap:.5rem"><strong>Lotto ' + escapeHtml(l.lotto) + '</strong><span>' + expHtml(l.scadenza) + '</span></div>' +
+        '<div class="hint">' + (l.qtyLt !== null && l.qtyLt !== undefined ? fmt(l.qtyLt, 3) + ' Lt' : '') + (l.qtyLt !== null && l.qtyLt !== undefined && l.qtyKg !== null && l.qtyKg !== undefined ? ' · ' : '') + (l.qtyKg !== null && l.qtyKg !== undefined ? fmt(l.qtyKg, 3) + ' Kg' : '') +
+        (l.grade !== null && l.grade !== undefined ? ' · ' + fmt(l.grade, 1) + '%' : '') + (l.supplier ? ' · ' + escapeHtml(l.supplier) : '') + (l.price !== null && l.price !== undefined ? ' · ' + money(l.price) + '/' + priceUnit(r) : '') + '</div>' +
+        '<div style="margin-top:.3rem"><button type="button" class="btn btn-sm btn-ghost" data-action="edit-lot" data-lot="' + l.id + '">Correggi</button> <button type="button" class="btn btn-sm btn-ghost" data-action="quick-scarico" data-ref="' + r.id + '" data-lot="' + l.id + '">Scarica</button></div></div>';
+    });
+    var used = state.recipes.filter(function(x){ return (x.components || []).some(function(c){ return c.refId === r.id; }); });
+    h += '<div class="side-sec">Usata in</div>' + (used.length ? '<div class="side-pad">' + used.map(function(x){
+      var c = x.components.filter(function(c){ return c.refId === r.id; })[0];
+      var dose = r.unit === 'liquido' ? c.doseLt : c.doseKg;
+      return escapeHtml(x.name) + ' <span class="hint">(' + fmt(dose, 3) + ' ' + priceUnit(r) + ' per ' + fmt(x.baseLt, 2) + ' Lt)</span>';
+    }).join('<br>') + '</div>' : '<p class="hint" style="padding:0 .8rem">Non è in nessuna distinta.</p>');
+    var mv = state.movements.filter(function(m){ return m.refId === r.id; }).sort(function(a, b){ return (b.ts || '').localeCompare(a.ts || ''); }).slice(0, 8);
+    h += '<div class="side-sec">Ultimi movimenti</div>' + (mv.length ? '<div class="side-pad">' + mv.map(function(m){
+      return '<div style="display:flex;justify-content:space-between;gap:.5rem"><span class="hint">' + formatDateTime(m.ts) + ' · ' + escapeHtml(m.lotto) + '</span><span style="color:' + (m.delta > 0 ? 'var(--good)' : 'var(--bad)') + '">' + (m.delta > 0 ? '+' : '') + fmt(m.delta, 3) + ' ' + (m.unit === 'lt' ? 'Lt' : 'Kg') + '</span></div>';
+    }).join('') + '</div>' : '<p class="hint" style="padding:0 .8rem">Nessun movimento.</p>');
+    return '<aside class="side">' + h + '</aside>';
+  }
+
+  // litri producibili adesso con i lotti non scaduti
+  function producibleLt(r){
+    var best = null;
+    (r.components || []).forEach(function(c){
+      var ref = referenceById(c.refId);
+      if (!ref) return;
+      var dose = ref.unit === 'liquido' ? c.doseLt : c.doseKg;
+      if (!dose) return;
+      var unit = ref.unit === 'liquido' ? 'lt' : 'kg';
+      var av = 0;
+      stockLots(ref.id).forEach(function(l){ if (expiryStatus(l.scadenza).cls !== 'expired') av += availableQty(l, unit); });
+      var lt = av / dose * r.baseLt;
+      if (best === null || lt < best) best = lt;
+    });
+    return best;
+  }
+  function recipeCostPerLt(r){
+    var tot = 0, missing = 0;
+    (r.components || []).forEach(function(c){
+      var ref = referenceById(c.refId);
+      if (!ref) return;
+      var dose = ref.unit === 'liquido' ? c.doseLt : c.doseKg;
+      var p = effectivePrice(ref);
+      if (p === null || p === undefined){ missing++; return; }
+      tot += dose * p;
+    });
+    return { perLt: r.baseLt ? tot / r.baseLt : null, missing: missing };
+  }
+  function recipeSideHtml(r){
+    var calc = recipeCalc(r), pl = producibleLt(r), cost = recipeCostPerLt(r);
+    var h = sideHead('prodotti', escapeHtml(r.name), r.codice ? 'Codice ' + escapeHtml(r.codice) : '',
+      '<button type="button" class="btn btn-sm btn-primary" data-action="edit-recipe" data-id="' + r.id + '">Modifica distinta</button>' +
+      '<button type="button" class="btn btn-sm btn-good" data-action="recipe-produce" data-id="' + r.id + '">Produci</button>');
+    var liq = r.liquoriProductId ? liquoriProductById(r.liquoriProductId) : null;
+    h += '<div class="side-sec">Dati tecnici</div>' + kvRows([
+      ['Distinta per', fmt(r.baseLt, 2) + ' Lt'],
+      ['Formato bottiglia', r.bottleLt ? fmt(r.bottleLt, 3) + ' Lt' : null],
+      ['Contrassegni', r.stamps ? 'Sì' : 'No'],
+      ['Litri anidri', calc.anidri !== null ? fmt(calc.anidri, 3) + ' Lt' : null],
+      ['Gradazione teorica', calc.gradeTheoretical !== null ? fmt(calc.gradeTheoretical, 2) + '%' : null],
+      ['Prodotto Liquori', liq ? escapeHtml(liq.name) : null],
+      ['Note', r.note ? escapeHtml(r.note) : null]
+    ]);
+    h += '<div class="side-sec">Costi e disponibilità</div>' + kvRows([
+      ['Costo materie prime', cost.perLt !== null ? money(cost.perLt) + ' / Lt' + (cost.missing ? ' <span class="hint">(mancano ' + cost.missing + ' prezzi)</span>' : '') : null],
+      ['Costo a bottiglia', (cost.perLt !== null && r.bottleLt) ? money(cost.perLt * r.bottleLt) : null],
+      ['Producibili adesso', pl !== null ? fmt(pl, 1) + ' Lt' + (r.bottleLt ? ' (≈ ' + Math.floor(pl / r.bottleLt + 1e-9) + ' bottiglie)' : '') : null]
+    ]);
+    h += '<div class="side-sec">Distinta componenti</div><table class="side-tbl"><thead><tr><th>Componente</th><th style="text-align:right">Dose</th><th style="text-align:right">Giacenza</th></tr></thead><tbody>';
+    (r.components || []).forEach(function(c){
+      var ref = referenceById(c.refId);
+      if (!ref){ h += '<tr><td>?</td><td></td><td></td></tr>'; return; }
+      var dose = ref.unit === 'liquido' ? c.doseLt : c.doseKg, t = totalStock(ref.id);
+      var s = ref.unit === 'liquido' ? t.lt : t.kg;
+      var ok = s !== null && s >= dose;
+      h += '<tr><td>' + escapeHtml(ref.name) + '<div class="hint">' + (effectivePrice(ref) !== null ? money(effectivePrice(ref)) + '/' + priceUnit(ref) : 'prezzo n/d') + (ref.supplier ? ' · ' + escapeHtml(ref.supplier) : '') + '</div></td><td class="num">' + fmt(dose, 3) + ' ' + priceUnit(ref) + '</td><td class="num" style="color:' + (ok ? 'var(--good)' : 'var(--bad)') + '">' + (s === null ? '0' : fmt(s, 3)) + ' ' + priceUnit(ref) + '</td></tr>';
+    });
+    h += '</tbody></table>';
+    var prods = state.productions.filter(function(p){ return p.recipeId === r.id; }).sort(function(a, b){ return (b.createdAt || '').localeCompare(a.createdAt || ''); }).slice(0, 6);
+    h += '<div class="side-sec">Ultime produzioni</div>' + (prods.length ? '<div class="side-pad">' + prods.map(function(p){
+      return '<div style="display:flex;justify-content:space-between;gap:.5rem"><span><strong>' + escapeHtml(p.finishedLotto) + '</strong> <span class="hint">' + (p.createdAt ? new Date(p.createdAt).toLocaleDateString('it-IT') : '') + '</span></span><span>' + fmt(p.quantityLt, 2) + ' Lt' + (p.bottles ? ' · ' + p.bottles + ' bott.' : '') + '</span></div>';
+    }).join('') + '</div>' : '<p class="hint" style="padding:0 .8rem">Nessuna produzione.</p>');
+    return '<aside class="side">' + h + '</aside>';
+  }
+
+  // ==================================================================
+  // CONTRASSEGNI (seriali a blocchi)
+  // ==================================================================
+  function padSerial(b, n){ return String(Math.max(0, n)).padStart(b.width || 0, '0'); }
+  function stampLabel(b, n){ return (b.serie ? b.serie + ' ' : '') + padSerial(b, n); }
+  function stampLast(b){ return b.order === 'desc' ? b.inizio - b.quantita + 1 : b.inizio + b.quantita - 1; }
+  function stampById(id){ return state.stamps.filter(function(b){ return b.id === id; })[0] || null; }
+  function stampsAvailable(){
+    return state.stamps.filter(function(b){ return b.remaining > 0; }).sort(function(a, b){
+      return (a.serie || '').localeCompare(b.serie || '') || ((a.createdAt || '').localeCompare(b.createdAt || ''));
+    });
+  }
+  function stampRange(b, qty, order){
+    var o = order || b.order;
+    var from = b.next, to = o === 'desc' ? b.next - qty + 1 : b.next + qty - 1;
+    return { from: from, to: to, order: o };
+  }
+  function stampRangeText(b, qty, order){
+    if (!qty || qty <= 0) return '—';
+    var r = stampRange(b, qty, order);
+    return stampLabel(b, r.from) + (qty > 1 ? ' → ' + stampLabel(b, r.to) : '');
+  }
+  function stampStatus(b){
+    if (b.remaining <= 0) return { label:'Esaurito', cls:'bad' };
+    if (b.remaining <= Math.max(10, Math.round(b.quantita * 0.1))) return { label:'In esaurimento', cls:'warn' };
+    return { label:'OK', cls:'ok' };
+  }
+  function logStampMovement(entry){
+    entry.ts = new Date().toISOString();
+    entry.id = uid('sm');
+    var updated = state.stampMoves.concat([entry]);
+    if (updated.length > MOVES_CAP) updated = updated.slice(updated.length - MOVES_CAP);
+    state.stampMoves = updated;
+    window.__fb.setDoc(STAMP_MOVES_DOC, { entries: updated }).catch(function(e){ console.error(e); });
+  }
+  // scala qty seriali dal blocco: aggiorna prossimo seriale, residui e usati
+  function applyStampUse(b, qty, order){
+    var r = stampRange(b, qty, order);
+    var patch = { order: r.order, next: r.order === 'desc' ? r.from - qty : r.from + qty, remaining: b.remaining - qty, used: (b.used || 0) + qty };
+    Object.keys(patch).forEach(function(k){ b[k] = patch[k]; });
+    return { range: r, patch: patch };
+  }
+  function persistStamp(b, patch){ return window.__fb.setDoc(STAMPS_COLL + '/' + b.id, patch, true); }
+
+  function renderContrassegniView(){
+    var cols = [
+      { id:'serie', label:'Serie', w:100, val:function(b){ return b.serie || null; }, html:function(b){ return '<strong>' + escapeHtml(b.serie || '—') + '</strong>'; } },
+      { id:'prossimo', label:'Prossimo seriale', w:170, val:function(b){ return b.remaining > 0 ? b.next : null; }, html:function(b){ return b.remaining > 0 ? '<strong>' + escapeHtml(stampLabel(b, b.next)) + '</strong>' : '—'; } },
+      { id:'ordine', label:'Ordine', w:110, val:function(b){ return b.order === 'desc' ? 'Decrescente' : 'Crescente'; } },
+      { id:'inizio', label:'Primo seriale', w:130, num:true, val:function(b){ return b.inizio; }, html:function(b){ return padSerial(b, b.inizio); } },
+      { id:'ultimo', label:'Ultimo seriale', w:130, num:true, val:function(b){ return stampLast(b); }, html:function(b){ return padSerial(b, stampLast(b)); } },
+      { id:'quantita', label:'Quantità iniziale', w:130, num:true, sum:true, dec:0, val:function(b){ return b.quantita; } },
+      { id:'used', label:'Usati', w:90, num:true, sum:true, dec:0, val:function(b){ return b.used || 0; } },
+      { id:'remaining', label:'Residui', w:90, num:true, sum:true, dec:0, val:function(b){ return b.remaining; } },
+      { id:'stato', label:'Stato', w:130, val:function(b){ return stampStatus(b).label; }, html:function(b){ return tagHtml(stampStatus(b)); } },
+      { id:'note', label:'Note', w:240, val:function(b){ return b.note || null; } },
+      { id:'created', label:'Inserito il', w:120, def:false, val:function(b){ return b.createdAt || null; }, html:function(b){ return b.createdAt ? new Date(b.createdAt).toLocaleDateString('it-IT') : '—'; } }
+    ];
+    return renderGrid({
+      gid:'contrassegni', columns:cols, rows:state.stamps, rowId:function(b){ return b.id; },
+      searchText:function(b){ return [b.serie, b.note, b.inizio].join(' '); },
+      groupBy:function(b){ return { key:b.serie || '_', label:'Serie ' + (b.serie || '—'), color:'#ffb000', order:0 }; },
+      defaultSort:{ id:'prossimo', dir:'asc' },
+      emptyMsg:'Nessun contrassegno. Premi «Aggiungi blocchi» (F4) e inserisci serie, primo seriale e quantità: poi in produzione il calcolo è automatico.',
+      actions:[
+        { label:'+ Aggiungi blocchi', action:'stamp-add', key:'F4', cls:'btn-primary' },
+        { label:'Rotti / scarto', action:'stamp-adjust', needSel:true },
+        { label:'Modifica', action:'stamp-edit', key:'F2', needSel:true },
+        { label:'Elimina', action:'stamp-delete', key:'Canc', needSel:true }
+      ],
+      side:function(b){ return stampSideHtml(b); }
+    });
+  }
+
+  function stampSideHtml(b){
+    var st = stampStatus(b);
+    var h = sideHead('contrassegni', 'Serie ' + escapeHtml(b.serie || '—'), tagHtml(st) + ' · ' + (b.order === 'desc' ? 'decrescente' : 'crescente'),
+      '<button type="button" class="btn btn-sm btn-primary" data-action="stamp-adjust" data-id="' + b.id + '">Rotti / scarto</button><button type="button" class="btn btn-sm btn-ghost" data-action="stamp-edit" data-id="' + b.id + '">Modifica</button>');
+    h += '<div class="side-sec">Blocco</div>' + kvRows([
+      ['Primo seriale', escapeHtml(stampLabel(b, b.inizio))],
+      ['Ultimo seriale', escapeHtml(stampLabel(b, stampLast(b)))],
+      ['Quantità iniziale', String(b.quantita)],
+      ['Usati', String(b.used || 0)],
+      ['Residui', '<strong>' + b.remaining + '</strong>'],
+      ['Prossimo seriale', b.remaining > 0 ? '<strong>' + escapeHtml(stampLabel(b, b.next)) + '</strong>' : null],
+      ['Note', b.note ? escapeHtml(b.note) : null]
+    ]);
+    var mv = state.stampMoves.filter(function(m){ return m.blockId === b.id; }).sort(function(a, c){ return (c.ts || '').localeCompare(a.ts || ''); });
+    h += '<div class="side-sec">Movimenti (' + mv.length + ')</div>' + (mv.length ? '<div class="side-pad">' + mv.slice(0, 40).map(function(m){
+      var rng = m.qty > 1 ? escapeHtml(m.from) + ' → ' + escapeHtml(m.to) : escapeHtml(m.from);
+      return '<div style="margin-bottom:.45rem"><div style="display:flex;justify-content:space-between;gap:.5rem"><span><strong>' + ({ carico:'Carico', produzione:'Produzione', rotti:'Rotti/scarto' }[m.type] || escapeHtml(m.type)) + '</strong> <span class="hint">' + formatDateTime(m.ts) + '</span></span><span style="color:' + (m.qty > 0 && m.type !== 'carico' ? 'var(--bad)' : 'var(--good)') + '">' + (m.type === 'carico' ? '+' : '−') + Math.abs(m.qty) + '</span></div><div class="hint">' + rng + (m.causale ? ' · ' + escapeHtml(m.causale) : '') + '</div></div>';
+    }).join('') + '</div>' : '<p class="hint" style="padding:0 .8rem">Nessun movimento.</p>');
+    return '<aside class="side">' + h + '</aside>';
+  }
+
+  // ---------- finestra: aggiungi blocchi / modifica / rotti ----------
+  function openStampModal(kind, id){
+    var m = { kind: kind };
+    if (kind === 'add') m.rows = [freshStampRow(), freshStampRow()];
+    if (kind === 'edit' || kind === 'adjust'){
+      var b = stampById(id);
+      if (!b) return;
+      m.id = id;
+      m.draft = kind === 'edit' ? { quantita: b.quantita, remaining: b.remaining, order: b.order, note: b.note || '' } : { qty:'', causale:'Rotti' };
+    }
+    state.stampModal = m;
+    renderStampModal();
+  }
+  function closeStampModal(){
+    state.stampModal = null;
+    var o = document.getElementById('stampModalOverlay');
+    o.hidden = true; o.innerHTML = '';
+  }
+  function freshStampRow(){ return { serie:'', dal:'', al:'', qty:'', order:'asc', note:'' }; }
+
+  function renderStampModal(){
+    var m = state.stampModal, o = document.getElementById('stampModalOverlay');
+    if (!m){ o.hidden = true; return; }
+    var h = '<div class="modal-sheet wide">';
+    if (m.kind === 'add'){
+      h += '<h2 class="modal-title">Aggiungi blocchi di contrassegni</h2><p class="modal-subtitle">Una riga per ogni blocco in seriale. Esempio: serie <b>AAJ</b>, dal <b>116777</b>, quantità <b>500</b>. Puoi scrivere «al» invece della quantità (o viceversa): l\'altro si calcola. Se il blocco scende (dal numero più alto), scegli «Decrescente».</p>';
+      h += '<table class="tool-table"><thead><tr><th style="width:6rem">Serie</th><th style="width:9rem">Dal seriale</th><th style="width:9rem">Al seriale</th><th style="width:7rem">Quantità</th><th style="width:9rem">Ordine</th><th>Note</th><th style="width:2.5rem"></th></tr></thead><tbody>';
+      m.rows.forEach(function(r, i){
+        h += '<tr><td><input type="text" data-st="' + i + '" data-stf="serie" value="' + escapeHtml(r.serie) + '" placeholder="AAJ"></td>' +
+          '<td><input type="text" inputmode="numeric" data-st="' + i + '" data-stf="dal" value="' + escapeHtml(r.dal) + '" placeholder="116777"></td>' +
+          '<td><input type="text" inputmode="numeric" data-st="' + i + '" data-stf="al" value="' + escapeHtml(r.al) + '"></td>' +
+          '<td><input type="number" min="1" step="1" data-st="' + i + '" data-stf="qty" value="' + escapeHtml(r.qty) + '"></td>' +
+          '<td><select data-st="' + i + '" data-stf="order"><option value="asc"' + (r.order === 'asc' ? ' selected' : '') + '>Crescente ↑</option><option value="desc"' + (r.order === 'desc' ? ' selected' : '') + '>Decrescente ↓</option></select></td>' +
+          '<td><input type="text" data-st="' + i + '" data-stf="note" value="' + escapeHtml(r.note) + '"></td>' +
+          '<td><button type="button" class="x-btn" data-action="stamp-row-del" data-idx="' + i + '">×</button></td></tr>';
+      });
+      h += '</tbody></table><button type="button" class="add-toggle" data-action="stamp-row-add">+ Aggiungi un altro blocco</button>';
+      h += '<div class="btn-row"><button type="button" class="btn btn-ghost" data-action="stamp-modal-close">Annulla</button><button type="button" class="btn btn-primary" data-action="stamp-modal-save">Salva blocchi</button></div>';
+    } else if (m.kind === 'edit'){
+      var b = stampById(m.id);
+      h += '<h2 class="modal-title">Modifica blocco ' + escapeHtml(stampLabel(b, b.inizio)) + '</h2><p class="modal-subtitle">Corregge i dati del blocco senza registrare un consumo. Il prossimo seriale resta quello attuale: ' + escapeHtml(b.remaining > 0 ? stampLabel(b, b.next) : '—') + '.</p>';
+      h += '<div class="row-split3"><div class="modal-field"><label>Quantità iniziale</label><input type="number" min="0" step="1" id="stEditQta" value="' + escapeHtml(m.draft.quantita) + '"></div>' +
+        '<div class="modal-field"><label>Residui</label><input type="number" min="0" step="1" id="stEditRem" value="' + escapeHtml(m.draft.remaining) + '"></div>' +
+        '<div class="modal-field"><label>Ordine da ora in poi</label><select id="stEditOrder"><option value="asc"' + (m.draft.order === 'asc' ? ' selected' : '') + '>Crescente ↑</option><option value="desc"' + (m.draft.order === 'desc' ? ' selected' : '') + '>Decrescente ↓</option></select></div></div>';
+      h += '<div class="modal-field"><label>Note</label><input type="text" id="stEditNote" value="' + escapeHtml(m.draft.note) + '"></div>';
+      h += '<div class="btn-row"><button type="button" class="btn btn-ghost" data-action="stamp-modal-close">Annulla</button><button type="button" class="btn btn-primary" data-action="stamp-modal-save">Salva</button></div>';
+    } else if (m.kind === 'adjust'){
+      var bb = stampById(m.id), q = numOrNull(m.draft.qty);
+      h += '<h2 class="modal-title">Rotti / scarto — ' + escapeHtml(bb.serie || '') + '</h2><p class="modal-subtitle">Scala dei contrassegni rovinati: vengono consumati i prossimi seriali del blocco (' + (bb.order === 'desc' ? 'decrescente' : 'crescente') + ').</p>';
+      h += '<div class="row-split"><div class="modal-field"><label>Quanti contrassegni sono da scartare</label><input type="number" min="1" step="1" id="stAdjQty" value="' + escapeHtml(m.draft.qty) + '"></div>' +
+        '<div class="modal-field"><label>Motivo</label><input type="text" id="stAdjCausale" value="' + escapeHtml(m.draft.causale) + '"></div></div>';
+      h += '<div class="readonly-box" id="stAdjPreview">' + (q ? 'Verranno usati: ' + escapeHtml(stampRangeText(bb, q)) + ' · residui dopo: ' + (bb.remaining - q) : 'Residui attuali: ' + bb.remaining + ' · prossimo: ' + escapeHtml(bb.remaining > 0 ? stampLabel(bb, bb.next) : '—')) + '</div>';
+      h += '<div class="btn-row" style="margin-top:1rem"><button type="button" class="btn btn-ghost" data-action="stamp-modal-close">Annulla</button><button type="button" class="btn btn-bad" data-action="stamp-modal-save">Scala</button></div>';
+    }
+    h += '</div>';
+    o.innerHTML = h;
+    o.hidden = false;
+  }
+
+  function stampRowSync(i, from){
+    var r = state.stampModal.rows[i];
+    var dal = parseInt(r.dal, 10), al = parseInt(r.al, 10), q = parseInt(r.qty, 10);
+    var set = function(f, v){ r[f] = String(v); var el = document.querySelector('[data-st="' + i + '"][data-stf="' + f + '"]'); if (el) el.value = v; };
+    if (from === 'al' && !isNaN(dal) && !isNaN(al)){
+      set('qty', Math.abs(al - dal) + 1);
+      set('order', al >= dal ? 'asc' : 'desc');
+    } else if ((from === 'qty' || from === 'dal' || from === 'order') && !isNaN(dal) && !isNaN(q) && q > 0){
+      set('al', r.order === 'desc' ? dal - q + 1 : dal + q - 1);
+    }
+  }
+
+  function saveStampModal(){
+    var m = state.stampModal;
+    if (m.kind === 'add'){
+      var items = [];
+      for (var i = 0; i < m.rows.length; i++){
+        var r = m.rows[i];
+        if (!r.serie.trim() && !r.dal && !r.al && !r.qty) continue;
+        var dalStr = String(r.dal).trim();
+        if (!/^\d+$/.test(dalStr)){ showToast('Riga ' + (i + 1) + ': il seriale di partenza deve essere un numero.'); return; }
+        var dal = parseInt(dalStr, 10), qty = parseInt(r.qty, 10), order = r.order;
+        if (/^\d+$/.test(String(r.al).trim()) && (isNaN(qty) || qty < 1)){ var al = parseInt(r.al, 10); qty = Math.abs(al - dal) + 1; order = al >= dal ? 'asc' : 'desc'; }
+        if (isNaN(qty) || qty < 1){ showToast('Riga ' + (i + 1) + ': indica la quantità (o il seriale finale).'); return; }
+        if (order === 'desc' && dal - qty + 1 < 0){ showToast('Riga ' + (i + 1) + ': in ordine decrescente la quantità supera il seriale di partenza.'); return; }
+        items.push({ serie: r.serie.trim().toUpperCase(), inizio: dal, width: (dalStr.length > 1 && dalStr.charAt(0) === '0') ? dalStr.length : 0, quantita: qty, order: order, note: r.note.trim() });
+      }
+      if (!items.length){ showToast('Compila almeno un blocco.'); return; }
+      // sovrapposizioni con blocchi esistenti o fra le righe nuove della stessa serie
+      var all = state.stamps.map(function(b){ return { serie: b.serie || '', lo: Math.min(b.inizio, stampLast(b)), hi: Math.max(b.inizio, stampLast(b)) }; });
+      for (var k = 0; k < items.length; k++){
+        var it = items[k], last = it.order === 'desc' ? it.inizio - it.quantita + 1 : it.inizio + it.quantita - 1;
+        var lo = Math.min(it.inizio, last), hi = Math.max(it.inizio, last);
+        var clash = all.filter(function(x){ return x.serie === it.serie && lo <= x.hi && hi >= x.lo; })[0];
+        if (clash){ showToast('Il blocco ' + it.serie + ' ' + it.inizio + ' si sovrappone a un blocco già inserito (' + clash.serie + ' ' + clash.lo + '–' + clash.hi + ').'); return; }
+        all.push({ serie: it.serie, lo: lo, hi: hi });
+      }
+      var chain = Promise.resolve();
+      items.forEach(function(it){
+        chain = chain.then(function(){
+          var id = uid('stamp');
+          var doc = { serie: it.serie, inizio: it.inizio, width: it.width, quantita: it.quantita, order: it.order, next: it.inizio, remaining: it.quantita, used: 0, note: it.note || null, createdAt: new Date().toISOString() };
+          return window.__fb.setDoc(STAMPS_COLL + '/' + id, doc).then(function(){
+            var obj = Object.assign({ id: id }, doc);
+            state.stamps.push(obj);
+            state.sel.contrassegni = id;
+            logStampMovement({ type:'carico', blockId:id, serie:it.serie, from: stampLabel(obj, it.inizio), to: stampLabel(obj, stampLast(obj)), qty: it.quantita, order: it.order, causale: 'Inserimento blocco' });
+          });
+        });
+      });
+      chain.then(function(){ showToast(items.length === 1 ? 'Blocco aggiunto.' : items.length + ' blocchi aggiunti.'); closeStampModal(); render(); })
+        .catch(function(e){ console.error(e); showToast('Salvataggio non riuscito. Riprova.'); });
+    } else if (m.kind === 'edit'){
+      var b = stampById(m.id);
+      var qta = parseInt(document.getElementById('stEditQta').value, 10), rem = parseInt(document.getElementById('stEditRem').value, 10);
+      if (isNaN(qta) || qta < 0 || isNaN(rem) || rem < 0 || rem > qta){ showToast('Controlla quantità e residui (i residui non possono superare la quantità).'); return; }
+      var patch = { quantita: qta, remaining: rem, used: qta - rem, order: document.getElementById('stEditOrder').value, note: document.getElementById('stEditNote').value.trim() || null };
+      persistStamp(b, patch).then(function(){ Object.keys(patch).forEach(function(k){ b[k] = patch[k]; }); showToast('Blocco aggiornato.'); closeStampModal(); render(); })
+        .catch(function(e){ console.error(e); showToast('Salvataggio non riuscito.'); });
+    } else if (m.kind === 'adjust'){
+      var bb = stampById(m.id);
+      var q = parseInt(document.getElementById('stAdjQty').value, 10);
+      if (isNaN(q) || q < 1){ showToast('Indica quanti contrassegni scalare.'); return; }
+      if (q > bb.remaining){ showToast('Nel blocco restano solo ' + bb.remaining + ' contrassegni.'); return; }
+      var causale = document.getElementById('stAdjCausale').value.trim() || 'Rotti';
+      var use = applyStampUse(bb, q);
+      persistStamp(bb, use.patch).then(function(){
+        logStampMovement({ type:'rotti', blockId: bb.id, serie: bb.serie, from: stampLabel(bb, use.range.from), to: stampLabel(bb, use.range.to), qty: q, order: use.range.order, causale: causale });
+        showToast(q + ' contrassegni scalati.'); closeStampModal(); render();
+      }).catch(function(e){ console.error(e); showToast('Salvataggio non riuscito.'); });
+    }
+  }
+
+  function deleteStamp(id){
+    var b = stampById(id);
+    if (!b) return;
+    openConfirm('Eliminare il blocco?', 'Verrà rimosso il blocco ' + stampLabel(b, b.inizio) + ' con ' + b.remaining + ' contrassegni residui. Lo storico dei consumi resta.', function(){
+      window.__fb.deleteDoc(STAMPS_COLL + '/' + id).then(function(){
+        state.stamps = state.stamps.filter(function(x){ return x.id !== id; });
+        showToast('Blocco eliminato.'); closeConfirm(); render();
+      }).catch(function(e){ console.error(e); showToast('Eliminazione non riuscita.'); });
+    });
+  }
+
+  // ---------- contrassegni nella produzione ----------
+  function freshStampDraft(){ return { use:false, bottles:'', broken:'0', bottlesManual:false, lines:[] }; }
+  function bottlesFromLt(){
+    var d = state.produzione, recipe = d.recipeId ? recipeById(d.recipeId) : null;
+    var qty = numOrNull(d.quantity);
+    if (!recipe || !recipe.bottleLt || !qty) return '';
+    return String(Math.floor(qty / recipe.bottleLt + 1e-9));
+  }
+  function stampTotalNeeded(){
+    var s = state.produzione.stamps;
+    return (parseInt(s.bottles, 10) || 0) + (parseInt(s.broken, 10) || 0);
+  }
+  // assegna ai blocchi: parte dal blocco scelto per primo e prosegue sui successivi della stessa serie
+  function autoAllocateStamps(){
+    var s = state.produzione.stamps, total = stampTotalNeeded();
+    var avail = stampsAvailable();
+    var first = s.lines[0] && stampById(s.lines[0].blockId) && stampById(s.lines[0].blockId).remaining > 0 ? stampById(s.lines[0].blockId) : avail[0];
+    var keep = {};
+    s.lines.forEach(function(l){ keep[l.blockId] = l.order; });
+    s.lines = [];
+    if (!first || total <= 0) { if (first) s.lines.push({ blockId:first.id, qty:'', order:keep[first.id] || first.order }); return; }
+    var queue = [first].concat(avail.filter(function(b){ return b.id !== first.id && b.serie === first.serie; }));
+    var left = total;
+    queue.forEach(function(b){
+      if (left <= 0) return;
+      var take = Math.min(b.remaining, left);
+      s.lines.push({ blockId:b.id, qty:String(take), order:keep[b.id] || b.order });
+      left -= take;
+    });
+  }
+  function stampLinesTotal(){ return state.produzione.stamps.lines.reduce(function(t, l){ return t + (parseInt(l.qty, 10) || 0); }, 0); }
+  function stampCoverText(){
+    var s = state.produzione.stamps, need = stampTotalNeeded(), have = stampLinesTotal();
+    if (need <= 0) return '<span class="hint">Indica le bottiglie prodotte.</span>';
+    if (have === need) return '<span class="alloc-ok">✓ ' + need + ' contrassegni coperti</span>';
+    if (have < need) return '<span class="alloc-bad">Mancano ' + (need - have) + ' contrassegni</span>';
+    return '<span class="alloc-bad">' + (have - need) + ' in più del necessario</span>';
+  }
+  function prodStampLines(){
+    var s = state.produzione.stamps;
+    var avail = stampsAvailable();
+    var h = '<table class="doc-grid" style="min-width:48rem"><thead><tr><th>#</th><th style="min-width:20rem">Serie / blocco</th><th style="width:10rem">Ordine</th><th style="width:7rem">Quanti</th><th style="min-width:17rem">Seriali che verranno usati</th><th style="width:3rem"></th></tr></thead><tbody>';
+    s.lines.forEach(function(l, i){
+      var b = stampById(l.blockId), q = parseInt(l.qty, 10) || 0;
+      h += '<tr><td class="idx">' + (i + 1) + '</td><td><select data-sl="' + i + '" data-sf="block">';
+      if (!b) h += '<option value="">— Scegli la serie —</option>';
+      avail.concat(b && b.remaining <= 0 ? [b] : []).forEach(function(x){
+        h += '<option value="' + x.id + '"' + (x.id === l.blockId ? ' selected' : '') + '>' + escapeHtml(stampLabel(x, x.next)) + ' — residui ' + x.remaining + (x.order === 'desc' ? ' (decrescente)' : ' (crescente)') + '</option>';
+      });
+      h += '</select></td><td><select data-sl="' + i + '" data-sf="order"><option value="asc"' + (l.order === 'asc' ? ' selected' : '') + '>Crescente ↑</option><option value="desc"' + (l.order === 'desc' ? ' selected' : '') + '>Decrescente ↓</option></select></td>';
+      h += '<td><input type="number" min="0" step="1" data-sl="' + i + '" data-sf="qty" value="' + escapeHtml(l.qty) + '"></td>';
+      var over = b && q > b.remaining;
+      h += '<td class="ro" style="text-align:left;' + (over ? 'color:var(--bad)' : '') + '" data-sprev="' + i + '">' + (b ? (over ? 'Nel blocco restano solo ' + b.remaining : escapeHtml(stampRangeText(b, q, l.order))) : '—') + '</td>';
+      h += '<td><button type="button" class="x-btn" data-action="prod-stamp-del" data-idx="' + i + '">×</button></td></tr>';
+    });
+    if (!s.lines.length) h += '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:1rem">' + (avail.length ? 'Indica le bottiglie e verranno assegnati i seriali.' : 'Non ci sono contrassegni disponibili: aggiungi un blocco in «Contrassegni».') + '</td></tr>';
+    return h + '</tbody></table>';
+  }
+  function renderProdStamps(){
+    var s = state.produzione.stamps;
+    var h = '<div class="side-sec" style="margin:.4rem 0 0;border-radius:.3rem">Contrassegni</div>';
+    h += '<div class="doc-head" style="margin-top:.5rem"><label class="chk"><input type="checkbox" id="prodStampUse"' + (s.use ? ' checked' : '') + '> Usa contrassegni in questa produzione</label>';
+    if (s.use){
+      h += '<div class="field"><label for="prodBottles">Bottiglie prodotte</label><input type="number" id="prodBottles" min="0" step="1" value="' + escapeHtml(s.bottles) + '" style="width:9rem"></div>';
+      h += '<div class="field"><label for="prodBroken">Rotti / scartati</label><input type="number" id="prodBroken" min="0" step="1" value="' + escapeHtml(s.broken) + '" style="width:9rem"></div>';
+      h += '<div class="field"><label>Totale da usare</label><div class="readonly-box" id="prodStampTotal" style="min-width:7rem">' + stampTotalNeeded() + '</div></div>';
+      h += '<div id="prodStampCover" style="padding-bottom:.5rem">' + stampCoverText() + '</div>';
+    }
+    h += '</div>';
+    if (s.use){
+      h += '<div class="doc-gridwrap" id="prodStampLines">' + prodStampLines() + '</div>';
+      h += '<div class="doc-actions"><button type="button" class="btn btn-sm btn-ghost" data-action="prod-stamp-add">+ Altro blocco</button><button type="button" class="btn btn-sm btn-ghost" data-action="prod-stamp-realloc">Ricalcola</button><span class="hint">I contrassegni rotti si inseriscono in «Rotti / scartati»: aumentano il numero usato.</span></div>';
+    }
+    return '<div id="prodStampsWrap">' + h + '</div>';
+  }
+  function refreshProdStamps(full){
+    var s = state.produzione.stamps;
+    if (full){ var w = document.getElementById('prodStampsWrap'); if (w) w.outerHTML = renderProdStamps(); return; }
+    var t = document.getElementById('prodStampTotal'); if (t) t.textContent = stampTotalNeeded();
+    var c = document.getElementById('prodStampCover'); if (c) c.innerHTML = stampCoverText();
+    var l = document.getElementById('prodStampLines'); if (l) l.innerHTML = prodStampLines();
+    var b = document.getElementById('prodBottles');
+    if (b && !s.bottlesManual && document.activeElement !== b) b.value = s.bottles;
+  }
+
+  function validateProdStamps(){
+    var s = state.produzione.stamps;
+    if (!s.use) return '';
+    var need = stampTotalNeeded();
+    if (need <= 0) return 'Contrassegni: indica quante bottiglie hai prodotto.';
+    var per = {};
+    for (var i = 0; i < s.lines.length; i++){
+      var l = s.lines[i], q = parseInt(l.qty, 10) || 0;
+      if (q <= 0) continue;
+      var b = stampById(l.blockId);
+      if (!b) return 'Contrassegni: scegli la serie alla riga ' + (i + 1) + '.';
+      per[b.id] = (per[b.id] || 0) + q;
+      if (per[b.id] > b.remaining) return 'Contrassegni: nel blocco ' + stampLabel(b, b.next) + ' restano solo ' + b.remaining + '.';
+      var r = stampRange(b, q, l.order);
+      if (r.to < 0) return 'Contrassegni: l\'ordine decrescente supera lo zero (riga ' + (i + 1) + ').';
+    }
+    var have = stampLinesTotal();
+    if (have !== need) return 'Contrassegni: ne servono ' + need + ' ma ne hai assegnati ' + have + '.';
+    return '';
+  }
+  // scala i blocchi e registra i movimenti; out raccoglie i seriali usati
+  function consumeProdStamps(lotto, out){
+    var s = state.produzione.stamps;
+    if (!s.use) return Promise.resolve();
+    var chain = Promise.resolve(), broken = parseInt(s.broken, 10) || 0, first = true;
+    s.lines.forEach(function(l){
+      var q = parseInt(l.qty, 10) || 0, b = stampById(l.blockId);
+      if (q <= 0 || !b) return;
+      chain = chain.then(function(){
+        var use = applyStampUse(b, q, l.order);
+        return persistStamp(b, use.patch).then(function(){
+          var from = stampLabel(b, use.range.from), to = stampLabel(b, use.range.to);
+          out.push({ blockId: b.id, serie: b.serie, from: from, to: to, qty: q, order: use.range.order });
+          logStampMovement({ type:'produzione', blockId: b.id, serie: b.serie, from: from, to: to, qty: q, order: use.range.order, causale: 'Produzione lotto ' + lotto + (first && broken ? ' (incl. ' + broken + ' rotti)' : '') });
+          first = false;
+        });
+      });
+    });
+    return chain;
+  }
+
+  // ==================================================================
   // Eventi del nuovo gestionale (restituiscono true se l'evento è gestito)
   // ==================================================================
-  var GRID_OF_VIEW = { materie:'materie', lotti:'lotti', prodotti:'prodotti', produzioni:'produzioni', storico:'storico' };
+  var GRID_OF_VIEW = { contrassegni:'contrassegni', materie:'materie', lotti:'lotti', prodotti:'prodotti', produzioni:'produzioni', storico:'storico' };
   function currentGrid(){
     var g = GRID_OF_VIEW[state.view];
     if (g === 'prodotti' && state.ricette.formOpen) return null;
     return g || null;
   }
   function anyModalOpen(){
-    return !!(state.refModal || state.lotModal || state.pushModal || state.confirmModal || state.settingsModal || state.invoiceReview || state.toolModal);
+    return !!(state.refModal || state.lotModal || state.pushModal || state.confirmModal || state.settingsModal || state.invoiceReview || state.toolModal || state.stampModal);
   }
   function closeTopModal(){
     if (state.confirmModal) closeConfirm();
     else if (state.toolModal) closeTool();
+    else if (state.stampModal) closeStampModal();
     else if (state.refModal) closeRefModal();
     else if (state.lotModal) closeLotModal();
     else if (state.pushModal) closePushModal();
@@ -3380,6 +3954,22 @@
     if (a === 'prod-realloc'){ autoAllocate(state.produzione.components[parseInt(el.getAttribute('data-comp-idx'), 10)]); refreshProdComps(); return true; }
     if (a === 'prod-realloc-all'){ autoAllocateAll(); refreshProdComps(); return true; }
     if (a === 'prod-reset'){ state.produzione = freshProduzioneDraft(); render(); return true; }
+    if (a === 'side-close'){ state.sel[gid] = null; render(); return true; }
+    if (a === 'stamp-add'){ openStampModal('add'); return true; }
+    if (a === 'stamp-edit'){ openStampModal('edit', el.getAttribute('data-id')); return true; }
+    if (a === 'stamp-adjust'){ openStampModal('adjust', el.getAttribute('data-id')); return true; }
+    if (a === 'stamp-delete'){ deleteStamp(el.getAttribute('data-id')); return true; }
+    if (a === 'stamp-modal-close'){ closeStampModal(); return true; }
+    if (a === 'stamp-modal-save'){ saveStampModal(); return true; }
+    if (a === 'stamp-row-add'){ state.stampModal.rows.push(freshStampRow()); renderStampModal(); return true; }
+    if (a === 'stamp-row-del'){ state.stampModal.rows.splice(idx, 1); if (!state.stampModal.rows.length) state.stampModal.rows.push(freshStampRow()); renderStampModal(); return true; }
+    if (a === 'prod-stamp-add'){
+      var s0 = state.produzione.stamps, used0 = s0.lines.map(function(l){ return l.blockId; });
+      var nb = stampsAvailable().filter(function(b){ return used0.indexOf(b.id) === -1; })[0];
+      s0.lines.push({ blockId: nb ? nb.id : '', qty:'', order: nb ? nb.order : 'asc' }); refreshProdStamps(); return true;
+    }
+    if (a === 'prod-stamp-del'){ state.produzione.stamps.lines.splice(idx, 1); refreshProdStamps(); return true; }
+    if (a === 'prod-stamp-realloc'){ autoAllocateStamps(); refreshProdStamps(); return true; }
     return false;
   }
 
@@ -3387,6 +3977,26 @@
     var t = e.target;
     if (state.toolModal && handleToolInput(t)) return true;
     var f;
+    if (t.id === 'prodStampUse'){
+      var ss = state.produzione.stamps; ss.use = t.checked;
+      if (ss.use){ if (!ss.bottlesManual) ss.bottles = bottlesFromLt(); autoAllocateStamps(); }
+      refreshProdStamps(true); return true;
+    }
+    if (t.hasAttribute('data-sl')){
+      var sst = state.produzione.stamps, ln = sst.lines[parseInt(t.getAttribute('data-sl'), 10)], sf = t.getAttribute('data-sf');
+      if (!ln) return true;
+      if (sf === 'block'){ ln.blockId = t.value; var bk = stampById(t.value); if (bk) ln.order = bk.order; if (sst.lines.length === 1) autoAllocateStamps(); }
+      else if (sf === 'order') ln.order = t.value;
+      else if (sf === 'qty') ln.qty = t.value;
+      refreshProdStamps(); return true;
+    }
+    if (t.hasAttribute('data-st') && state.stampModal){
+      var sti = parseInt(t.getAttribute('data-st'), 10), stf = t.getAttribute('data-stf');
+      state.stampModal.rows[sti][stf] = t.value;
+      if (stf === 'order') stampRowSync(sti, 'order');
+      return true;
+    }
+    if (t.id === 'recipeStamps'){ state.ricette.draft.stamps = t.checked; return true; }
     if (t.id === 'fMatCat'){ state.filters.materie.cat = t.value; render(); return true; }
     if (t.id === 'fMatStock'){ state.filters.materie.stock = t.value; render(); return true; }
     if (t.id === 'fLotCat'){ state.filters.lotti.cat = t.value; render(); return true; }
@@ -3443,6 +4053,36 @@
   function onInputNew(e){
     var t = e.target;
     if (state.toolModal && handleToolInput(t)) return true;
+    if (t.hasAttribute('data-st') && state.stampModal){
+      var i2 = parseInt(t.getAttribute('data-st'), 10), f2 = t.getAttribute('data-stf');
+      state.stampModal.rows[i2][f2] = t.value;
+      if (f2 === 'dal' || f2 === 'al' || f2 === 'qty') stampRowSync(i2, f2);
+      return true;
+    }
+    if (t.id === 'stAdjQty' && state.stampModal){
+      state.stampModal.draft.qty = t.value;
+      var bq = stampById(state.stampModal.id), qn = parseInt(t.value, 10), pv = document.getElementById('stAdjPreview');
+      if (pv) pv.innerHTML = qn ? (qn > bq.remaining ? 'Nel blocco restano solo ' + bq.remaining : 'Verranno usati: ' + escapeHtml(stampRangeText(bq, qn)) + ' · residui dopo: ' + (bq.remaining - qn)) : '';
+      return true;
+    }
+    if (t.id === 'stAdjCausale' && state.stampModal){ state.stampModal.draft.causale = t.value; return true; }
+    if (t.id === 'prodBottles'){ var sb = state.produzione.stamps; sb.bottles = t.value; sb.bottlesManual = true; autoAllocateStamps(); refreshProdStamps(); return true; }
+    if (t.id === 'prodBroken'){ state.produzione.stamps.broken = t.value; autoAllocateStamps(); refreshProdStamps(); return true; }
+    if (t.hasAttribute('data-sl') && t.getAttribute('data-sf') === 'qty'){
+      var li = parseInt(t.getAttribute('data-sl'), 10), lnn = state.produzione.stamps.lines[li];
+      if (lnn){
+        lnn.qty = t.value;
+        var bb = stampById(lnn.blockId), qq = parseInt(t.value, 10) || 0, cell = document.querySelector('[data-sprev="' + li + '"]');
+        if (cell && bb) cell.textContent = qq > bb.remaining ? 'Nel blocco restano solo ' + bb.remaining : stampRangeText(bb, qq, lnn.order);
+        var cv = document.getElementById('prodStampCover'); if (cv) cv.innerHTML = stampCoverText();
+      }
+      return true;
+    }
+    if (t.id === 'refSupplier'){ state.refModal.draft.supplier = t.value; return true; }
+    if (t.id === 'refPrice'){ state.refModal.draft.price = t.value; return true; }
+    if (t.id === 'caricoSupplier'){ state.carico.supplier = t.value; return true; }
+    if (t.id === 'recipeBottle'){ state.ricette.draft.bottleLt = t.value; return true; }
+    if (t.id && t.id.indexOf('invPrice_') === 0){ state.invoiceReview.lines[parseInt(t.id.slice('invPrice_'.length), 10)].price = t.value; return true; }
     if (t.hasAttribute('data-gsearch')){ state.search[t.getAttribute('data-gsearch')] = t.value; withFocusPreserved(render); return true; }
     if (t.id === 'caricoCausale'){ state.carico.causale = t.value; return true; }
     if (t.id === 'scaricoCausale'){ state.scarico.causale = t.value; return true; }
@@ -3452,7 +4092,12 @@
     if (t.id === 'recipeName'){ state.ricette.draft.name = t.value; return true; }
     if (t.id === 'recipeBaseLt'){ state.ricette.draft.baseLt = t.value; return true; }
     if (t.id === 'recipeLiquoriProduct'){ state.ricette.draft.liquoriProductId = t.value; return true; }
-    if (t.id === 'prodQuantity'){ state.produzione.quantity = t.value; autoAllocateAll(); refreshProdComps(); return true; }
+    if (t.id === 'prodQuantity'){
+      state.produzione.quantity = t.value; autoAllocateAll(); refreshProdComps();
+      var sq = state.produzione.stamps;
+      if (sq.use && !sq.bottlesManual){ sq.bottles = bottlesFromLt(); autoAllocateStamps(); refreshProdStamps(); }
+      return true;
+    }
     if (t.id === 'refMin'){ state.refModal.draft.minQty = t.value; return true; }
     if (t.id === 'recipeCodice'){ state.ricette.draft.codice = t.value; return true; }
     if (t.id === 'recipeNote'){ state.ricette.draft.note = t.value; return true; }
@@ -3490,6 +4135,7 @@
     if (v === 'materie') openRefModal('new', null, null);
     else if (v === 'prodotti'){ if (state.ricette.formOpen) recipeAddComponent(); else newRecipe(); }
     else if (v === 'produzioni') gotoView('produzione');
+    else if (v === 'contrassegni') openStampModal('add');
     else if (v === 'carico'){ state.carico.rows.push(freshCaricoRow()); render(); }
     else if (v === 'scarico'){ state.scarico.rows.push(freshScaricoRow()); render(); }
     else if (v === 'produzione' && !state.produzione.recipeId) prodAddComponent();
@@ -3537,6 +4183,7 @@
       if (gid === 'materie') deleteReference(state.sel[gid]);
       else if (gid === 'prodotti') deleteRecipe(state.sel[gid]);
       else if (gid === 'storico') deleteMovement(state.sel[gid]);
+      else if (gid === 'contrassegni') deleteStamp(state.sel[gid]);
     }
   }
 
@@ -3754,6 +4401,15 @@
   }
 
   function startSync(){
+    window.__fb.onCollectionSnapshot(STAMPS_COLL, function(docs, err){
+      if (err) return;
+      state.stamps = docs.map(function(d){ var o = { id: d.id }; Object.keys(d.data).forEach(function(k){ o[k] = d.data[k]; }); return o; });
+      render();
+    });
+    window.__fb.onDocSnapshot(STAMP_MOVES_DOC, function(data, err){
+      if (err) return;
+      state.stampMoves = (data && data.entries) ? data.entries : [];
+    });
     window.__fb.onDocSnapshot(CONFIG_DOC, function(data, err){
       if (err || cfgTimer || cfgPending) return;
       var c = freshConfig();
