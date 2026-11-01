@@ -1400,7 +1400,8 @@
                   quantita: { type: ['number','null'], description: 'Quantità numerica' },
                   unita: { type: ['string','null'], description: 'Unità di misura come scritta (kg, l, lt, g, ml, pz, ecc.)' },
                   lotto: { type: ['string','null'], description: 'Numero di lotto del prodotto, se indicato' },
-                  scadenza: { type: ['string','null'], description: 'Data di scadenza del prodotto, se indicata, in formato AAAA-MM-GG' }
+                  scadenza: { type: ['string','null'], description: 'Data di scadenza del prodotto, se indicata, in formato AAAA-MM-GG' },
+                  categoria: { type: ['string','null'], description: 'La categoria più adatta tra: ' + categories().map(function(c){ return c.name; }).join('; ') + '. Null se nessuna è adatta.' }
                 },
                 required: ['descrizione','nome_prodotto']
               }
@@ -1414,7 +1415,7 @@
         role: 'user',
         content: [
           { type: contentType, source: { type: 'base64', media_type: d.mediaType, data: d.base64 } },
-          { type: 'text', text: 'Questa è una fattura di un fornitore di materie prime per un\'azienda che produce liquori (alcol, zucchero, aromi, frutta, acqua, ecc.). Estrai ogni riga di prodotto con quantità, unità di misura, numero di lotto, data di scadenza e codice articolo/prodotto del fornitore, se presenti. Ignora totali, IVA, spese di trasporto, sconti e note generiche. Usa lo strumento fornito per rispondere.' }
+          { type: 'text', text: 'Questa è una fattura di un fornitore di materie prime per un\'azienda che produce liquori (alcol, zucchero, aromi, frutta, acqua, ecc.). Estrai ogni riga di prodotto con quantità, unità di misura, numero di lotto, data di scadenza e codice articolo/prodotto del fornitore, se presenti. Ignora totali, IVA, spese di trasporto, sconti e note generiche. Scrivi l\'unità di misura esattamente come appare in fattura. Usa lo strumento fornito per rispondere.' }
         ]
       }]
     };
@@ -1497,14 +1498,23 @@
     });
     return bestScore >= 70 ? best : null;
   }
+  var UNIT_ALIASES = { l:'lt', lt:'lt', litro:'lt', litri:'lt', kg:'kg', chilo:'kg', chili:'kg', chilogrammo:'kg', chilogrammi:'kg', g:'g', gr:'g', grammo:'g', grammi:'g', ml:'ml', millilitri:'ml', cl:'cl', centilitri:'cl', hl:'hl', ettolitri:'hl', q:'q', quintale:'q', quintali:'q' };
+  function guessUnit(unitStr){
+    var u = normalizeForMatch(unitStr);
+    if (!u) return null;
+    var list = unitsList();
+    var exact = list.filter(function(x){ return normalizeForMatch(x.label) === u || x.id === u; })[0];
+    if (exact) return exact;
+    var alias = UNIT_ALIASES[u.replace(/\s+/g, '')] || UNIT_ALIASES[u.split(' ')[0]];
+    return alias ? unitById(alias) : null;
+  }
   function guessQtyFromUnit(unitStr, quantity){
     var out = { qtyLt: '', qtyKg: '' };
     if (quantity === null || quantity === undefined || isNaN(quantity)) return out;
-    var u = normalizeForMatch(unitStr);
-    if (/^(kg|chilogramm|chilo)/.test(u)) out.qtyKg = quantity;
-    else if (/^(l|lt|litr)/.test(u)) out.qtyLt = quantity;
-    else if (/^(g|gr|grammi|grammo)/.test(u)) out.qtyKg = round(quantity / 1000, 3);
-    else if (/^(ml|millilitri)/.test(u)) out.qtyLt = round(quantity / 1000, 3);
+    var u = guessUnit(unitStr);
+    if (!u) return out;
+    var base = round(quantity * u.factor, 3);
+    if (u.kind === 'lt') out.qtyLt = base; else out.qtyKg = base;
     return out;
   }
 
@@ -1522,6 +1532,12 @@
       if (r.codice && String(r.codice).trim().toLowerCase() === norm) return r;
     }
     return null;
+  }
+  function guessCategoryId(name){
+    var n = normalizeForMatch(name);
+    if (!n) return '';
+    var c = categories().filter(function(x){ return normalizeForMatch(x.name) === n; })[0];
+    return c ? c.id : '';
   }
   function openInvoiceReviewModal(result){
     var righe = result.righe || [];
@@ -1548,7 +1564,7 @@
         scadenza: /^\d{4}-\d{2}-\d{2}$/.test(r.scadenza || '') ? r.scadenza : '',
         refMode: match ? 'existing' : 'new',
         refId: match ? match.id : '',
-        newRef: { name: r.nome_prodotto || r.descrizione || '', unit: 'liquido', codice: r.codice_prodotto || '' },
+        newRef: { name: r.nome_prodotto || r.descrizione || '', unit: guessUnit(r.unita) && guessUnit(r.unita).kind === 'kg' ? 'solido' : 'liquido', codice: r.codice_prodotto || '', category: guessCategoryId(r.categoria) },
         qtyLt: qtyLt,
         qtyKg: qtyKg,
         density: matchDensity !== null ? matchDensity : '',
@@ -1568,7 +1584,7 @@
     var overlay = document.getElementById('invoiceModalOverlay');
     var rev = state.invoiceReview;
     if (!rev){ overlay.hidden = true; return; }
-    var html = '<div class="modal-sheet" style="max-width:640px;">';
+    var html = '<div class="modal-sheet wide">';
     html += '<h2 class="modal-title">Revisione fattura</h2>';
     html += '<p class="modal-subtitle">' + (rev.supplierName ? 'Fornitore: ' + escapeHtml(rev.supplierName) + ' — ' : '') + 'controlla ogni riga prima di registrare i carichi.</p>';
     rev.lines.forEach(function(line, idx){ html += renderInvoiceLine(line, idx); });
@@ -1596,6 +1612,7 @@
     if (line.refMode === 'new'){
       html += fieldInput('invNewName_' + idx, 'Nome nuova referenza', 'text', line.newRef.name, '');
       html += fieldInput('invNewCodice_' + idx, 'Codice prodotto (opzionale)', 'text', line.newRef.codice, '');
+      html += '<div class="field"><label for="invNewCat_' + idx + '">Categoria</label><select id="invNewCat_' + idx + '"><option value="">— Nessuna —</option>' + categories().map(function(c){ return '<option value="' + c.id + '"' + (line.newRef.category === c.id ? ' selected' : '') + '>' + escapeHtml(c.name) + '</option>'; }).join('') + '</select></div>';
       html += '<div class="field"><label>Tipo</label><div class="seg">';
       html += '<button type="button" class="seg-btn' + (unit==='liquido'?' active':'') + '" data-action="inv-set-unit" data-idx="' + idx + '" data-unit="liquido">Liquido</button>';
       html += '<button type="button" class="seg-btn' + (unit==='solido'?' active':'') + '" data-action="inv-set-unit" data-idx="' + idx + '" data-unit="solido">Solido</button>';
@@ -1683,9 +1700,9 @@
           var id = uid('ref');
           // Seed the new reference's defaults from this first lot's own
           // density/gradazione, since there is no prior default to use.
-          var docData = { name: l.newRef.name.trim(), unit: l.newRef.unit, codice: (l.newRef.codice || '').trim() || null, density: numOrNull(l.density), grade: l.newRef.unit === 'liquido' ? numOrNull(l.grade) : null, notes: null };
+          var docData = { name: l.newRef.name.trim(), unit: l.newRef.unit, codice: (l.newRef.codice || '').trim() || null, density: numOrNull(l.density), grade: l.newRef.unit === 'liquido' ? numOrNull(l.grade) : null, notes: null, category: l.newRef.category || null, um: null, minQty: null };
           resolveRef = window.__fb.setDoc(REFS_COLL + '/' + id, docData).then(function(){
-            var refObj = { id: id, name: docData.name, unit: docData.unit, codice: docData.codice, density: docData.density, grade: docData.grade, notes: docData.notes };
+            var refObj = Object.assign({ id: id }, docData);
             state.references.push(refObj);
             return refObj;
           });
@@ -3379,6 +3396,7 @@
     if (t.id === 'prodRecipe'){ selectRecipeForProduction(t.value); return true; }
     if (t.id === 'recipeLiquoriProduct'){ state.ricette.draft.liquoriProductId = t.value; return true; }
     if (t.id === 'refCategory'){ state.refModal.draft.category = t.value; return true; }
+    if (t.id && t.id.indexOf('invNewCat_') === 0){ state.invoiceReview.lines[parseInt(t.id.slice('invNewCat_'.length), 10)].newRef.category = t.value; return true; }
     if (t.id === 'refUm'){ state.refModal.draft.um = t.value; return true; }
 
     if (t.hasAttribute('data-cfield')){
