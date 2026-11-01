@@ -546,6 +546,7 @@
   <div class="modal-overlay" id="toolModalOverlay" hidden></div>
   <div class="modal-overlay" id="stampModalOverlay" hidden></div>
   <div class="modal-overlay" id="mergeModalOverlay" hidden></div>
+  <div class="modal-overlay" id="undoModalOverlay" hidden></div>
 </div>
 
 <script type="module">
@@ -671,6 +672,7 @@
     stampMoves: [],
     stampModal: null,
     mergeModal: null,
+    undoModal: null,
     refModal: null,       // { mode:'new'|'edit', draft:{...}, returnTo:null|'carico' }
     lotModal: null,        // { lotId, draft:{qtyLt, qtyKg, density, grade} }
     pushModal: null,      // { productionId, mode:'existing'|'new', productId, newName, location, qty }
@@ -2024,6 +2026,7 @@
     html += '<span class="gt-spacer"></span>';
     html += '<span class="gt-count">' + rows.length + (rows.length === 1 ? ' riga' : ' righe') + (nSel > 1 ? ' · <b>' + nSel + ' selezionate</b>' : '') + '</span>';
     if (o.groupBy) html += '<button type="button" class="btn btn-sm btn-ghost" data-action="grid-group" data-grid="' + gid + '">' + (P.group ? 'Togli raggruppamento' : 'Raggruppa per categoria') + '</button>';
+    html += '<button type="button" class="btn btn-sm btn-ghost" data-action="grid-selall" data-grid="' + gid + '">Seleziona tutte</button>';
     html += '<button type="button" class="btn btn-sm btn-ghost" data-action="grid-cols" data-grid="' + gid + '">Colonne…</button>';
     html += '</div>';
 
@@ -2587,10 +2590,11 @@
     var filters = '<select id="fStoType"><option value="">Tutti i movimenti</option><option value="carico"' + (f.type === 'carico' ? ' selected' : '') + '>Carichi</option><option value="scarico"' + (f.type === 'scarico' ? ' selected' : '') + '>Scarichi manuali</option><option value="scarico_produzione"' + (f.type === 'scarico_produzione' ? ' selected' : '') + '>Scarichi di produzione</option></select>';
     return renderGrid({
       gid:'storico', columns:cols, rows:rows, rowId:function(m){ return m.id; },
-      searchText:function(m){ return [m.refName, m.lotto, m.causale].join(' '); },
+      searchText:function(m){ var lt = lotById(lotDocId(m.refId, m.lotto)); return [m.refName, m.lotto, m.causale, lt ? lt.supplier : ''].join(' '); },
       defaultSort:{ id:'ts', dir:'desc' }, filtersHtml:filters, emptyMsg:'Nessun movimento registrato.',
-      actions:[{ label:'Elimina dallo storico', action:'delete-movement', key:'Canc', multi:true }],
-      bulk:function(rows){ var a = 0; rows.forEach(function(m){ a += m.delta || 0; }); return kvRows([['Movimenti', String(rows.length)]]) + bulkButtons('storico'); }
+      actions:[{ label:'Annulla e storna giacenze…', action:'undo-moves', multi:true, cls:'btn-bad' },
+        { label:'Elimina solo la riga', action:'delete-movement', key:'Canc', multi:true }],
+      bulk:function(rows){ var a = 0; rows.forEach(function(m){ a += m.delta || 0; }); return kvRows([['Movimenti', String(rows.length)]]) + '<div class="side-btns"><button type="button" class="btn btn-sm btn-bad" data-action="undo-moves" data-ids="' + rows.map(function(m){ return m.id; }).join(',') + '">Annulla e storna giacenze…</button></div><p class="hint" style="padding:0 .8rem">«Annulla e storna» toglie i movimenti e scala la merce dai lotti. «Elimina selezionati» toglie solo le righe dallo storico.</p>' + bulkButtons('storico'); }
     });
   }
 
@@ -4463,6 +4467,146 @@
   }
 
   // ==================================================================
+  // ANNULLA MOVIMENTI: toglie i movimenti dallo storico e storna le giacenze dei lotti
+  // ==================================================================
+  function movementById(id){ return state.movements.filter(function(m){ return m.id === id; })[0] || null; }
+  function moveTypeLabel(m){ return m.type === 'carico' ? 'Carico' : (m.type === 'scarico_produzione' ? 'Scarico produzione' : (m.type === 'correzione' ? 'Correzione' : 'Scarico')); }
+
+  // calcola cosa succederebbe: nuove quantità per lotto, lotti da eliminare, materie prime rimaste vuote
+  function undoPlan(ids, opts){
+    var set = {}; ids.forEach(function(i){ set[i] = true; });
+    var moves = state.movements.filter(function(m){ return set[m.id]; });
+    var remainingMoves = state.movements.filter(function(m){ return !set[m.id]; });
+    var perLot = {}, skipped = 0, carichi = 0, scarichi = 0, zero = 0;
+    moves.forEach(function(m){
+      if (m.type === 'carico') carichi++; else scarichi++;
+      if (!opts.storna) return;
+      var lot = lotById(lotDocId(m.refId, m.lotto));
+      if (!lot){ skipped++; return; }
+      if (!m.delta){ zero++; }
+      var e = perLot[lot.id] = perLot[lot.id] || { lot: lot, native: { lt: 0, kg: 0 }, moves: 0 };
+      e.native[m.unit === 'lt' ? 'lt' : 'kg'] -= m.delta;   // si inverte l'effetto del movimento
+      e.moves++;
+    });
+    var lotsOut = [], lotsDel = [], over = 0;
+    Object.keys(perLot).forEach(function(k){
+      var e = perLot[k], l = e.lot, dens = l.density;
+      var newLt = l.qtyLt, newKg = l.qtyKg;
+      if (e.native.lt){
+        newLt = round((l.qtyLt || 0) + e.native.lt, 3);
+        if (dens && l.qtyKg !== null && l.qtyKg !== undefined) newKg = round((l.qtyKg || 0) + e.native.lt * dens, 3);
+      }
+      if (e.native.kg){
+        newKg = round((newKg || 0) + e.native.kg, 3);
+        if (dens && l.qtyLt !== null && l.qtyLt !== undefined && !e.native.lt) newLt = round((newLt || 0) + e.native.kg / dens, 3);
+      }
+      var native = l.unit === 'liquido' ? newLt : newKg;
+      var wasNeg = (newLt !== null && newLt < -0.0005) || (newKg !== null && newKg < -0.0005);
+      if (wasNeg) over++;
+      newLt = newLt === null || newLt === undefined ? null : Math.max(0, newLt);
+      newKg = newKg === null || newKg === undefined ? null : Math.max(0, newKg);
+      // un lotto che non ha più altri movimenti esisteva solo per quelli annullati: si elimina
+      var othersExist = remainingMoves.some(function(x){ return x.refId === l.refId && x.lotto === l.lotto; });
+      if (!othersExist) lotsDel.push(l); else lotsOut.push({ lot: l, qtyLt: newLt, qtyKg: newKg });
+    });
+    // materie prime che resterebbero vuote, senza altro storico e fuori dalle ricette
+    var delLotIds = {}; lotsDel.forEach(function(l){ delLotIds[l.id] = true; });
+    var refIds = {}; moves.forEach(function(m){ refIds[m.refId] = true; });
+    var emptyRefs = Object.keys(refIds).map(referenceById).filter(function(r){
+      if (!r) return false;
+      if (lotsForRef(r.id).some(function(l){ return !delLotIds[l.id]; })) return false;
+      if (remainingMoves.some(function(m){ return m.refId === r.id; })) return false;
+      if (state.recipes.some(function(x){ return (x.components || []).some(function(c){ return c.refId === r.id; }); })) return false;
+      return true;
+    });
+    return { moves: moves, carichi: carichi, scarichi: scarichi, lotsOut: lotsOut, lotsDel: lotsDel, over: over, skipped: skipped, zero: zero, emptyRefs: emptyRefs };
+  }
+
+  function openUndoModal(ids){
+    ids = (ids || []).filter(movementById);
+    if (!ids.length){ showToast('Seleziona prima i movimenti da annullare.'); return; }
+    state.undoModal = { ids: ids, storna: true, clean: true, busy: false };
+    renderUndoModal();
+  }
+  function closeUndoModal(){
+    state.undoModal = null;
+    var o = document.getElementById('undoModalOverlay');
+    o.hidden = true; o.innerHTML = '';
+  }
+  function undoSummaryHtml(){
+    var m = state.undoModal, p = undoPlan(m.ids, m);
+    var h = 'Verranno tolti <b>' + p.moves.length + '</b> movimenti dallo storico (' + p.carichi + ' carichi, ' + p.scarichi + ' scarichi).';
+    if (m.storna){
+      h += '<br>Giacenze: <b>' + p.lotsDel.length + '</b> lotti eliminati' + (p.lotsOut.length ? ', <b>' + p.lotsOut.length + '</b> ridotti/ripristinati' : '') + '.';
+      if (p.over) h += '<br><span style="color:var(--warn)">' + p.over + ' lotti avevano già consumato parte della merce: la giacenza va a zero.</span>';
+      if (p.skipped) h += '<br><span style="color:var(--warn)">' + p.skipped + ' movimenti riguardano lotti che non esistono più: si toglie solo la riga.</span>';
+      if (p.zero) h += '<br><span class="hint">' + p.zero + ' movimenti hanno quantità 0 (solo Kg senza densità): il lotto si elimina se resta vuoto.</span>';
+    } else h += '<br><span class="hint">Le giacenze non vengono toccate.</span>';
+    if (m.clean && m.storna){
+      h += '<br>Materie prime che restano vuote e senza storico: <b>' + p.emptyRefs.length + '</b>' + (p.emptyRefs.length ? ' (' + p.emptyRefs.slice(0, 6).map(function(r){ return escapeHtml(r.name); }).join(', ') + (p.emptyRefs.length > 6 ? '…' : '') + ') — verranno eliminate' : '') + '.';
+    }
+    return h;
+  }
+  function renderUndoModal(){
+    var m = state.undoModal, o = document.getElementById('undoModalOverlay');
+    if (!m){ o.hidden = true; return; }
+    var h = '<div class="modal-sheet wide"><h2 class="modal-title">Annulla movimenti</h2>';
+    h += '<p class="modal-subtitle">Serve per rifare un caricamento da zero (es. le fatture di un fornitore): i movimenti scelti vengono tolti e la merce caricata viene scalata dai lotti.</p>';
+    h += '<label class="chk"><input type="checkbox" data-undo="storna"' + (m.storna ? ' checked' : '') + '> Storna anche le giacenze (se lo togli si cancellano solo le righe dallo storico)</label>';
+    h += '<label class="chk"><input type="checkbox" data-undo="clean"' + (m.clean ? ' checked' : '') + (m.storna ? '' : ' disabled') + '> Elimina le materie prime che restano vuote, senza storico e senza ricette</label>';
+    h += '<div class="readonly-box" id="undoSummary" style="font-family:inherit;font-weight:500;line-height:1.55;margin-top:.5rem">' + undoSummaryHtml() + '</div>';
+    h += '<div class="btn-row" style="margin-top:1rem"><button type="button" class="btn btn-ghost" data-action="undo-close">Annulla</button><button type="button" class="btn btn-bad" data-action="undo-run"' + (m.busy ? ' disabled' : '') + '>' + (m.busy ? 'Operazione in corso…' : 'Annulla i movimenti') + '</button></div></div>';
+    o.innerHTML = h;
+    o.hidden = false;
+  }
+
+  function runUndo(){
+    var m = state.undoModal;
+    if (!m || m.busy) return;
+    var p = undoPlan(m.ids, m);
+    m.busy = true; renderUndoModal();
+    var chain = Promise.resolve(), now = new Date().toISOString();
+    if (m.storna){
+      p.lotsOut.forEach(function(x){
+        chain = chain.then(function(){
+          x.lot.qtyLt = x.qtyLt; x.lot.qtyKg = x.qtyKg;
+          return window.__fb.setDoc(LOTS_COLL + '/' + x.lot.id, { qtyLt: x.qtyLt, qtyKg: x.qtyKg, updatedAt: now }, true);
+        });
+      });
+      p.lotsDel.forEach(function(l){
+        chain = chain.then(function(){
+          return window.__fb.deleteDoc(LOTS_COLL + '/' + l.id).then(function(){ state.lots = state.lots.filter(function(x){ return x.id !== l.id; }); });
+        });
+      });
+    }
+    chain = chain.then(function(){
+      var set = {}; m.ids.forEach(function(i){ set[i] = true; });
+      state.movements = state.movements.filter(function(x){ return !set[x.id]; });
+      return window.__fb.setDoc(MOVES_DOC, { entries: state.movements });
+    });
+    if (m.storna && m.clean){
+      p.emptyRefs.forEach(function(r){
+        chain = chain.then(function(){
+          return window.__fb.deleteDoc(REFS_COLL + '/' + r.id).then(function(){ state.references = state.references.filter(function(x){ return x.id !== r.id; }); });
+        });
+      });
+    }
+    chain.then(function(){
+      var msg = p.moves.length + ' movimenti annullati' + (m.storna ? ': ' + p.lotsDel.length + ' lotti eliminati' + (p.lotsOut.length ? ', ' + p.lotsOut.length + ' ridotti' : '') + (m.clean && p.emptyRefs.length ? ', ' + p.emptyRefs.length + ' materie prime rimosse' : '') : '') + '.';
+      state.multi.storico = {}; state.sel.storico = null;
+      closeUndoModal();
+      showToast(msg);
+      render();
+    }).catch(function(e){
+      console.error(e);
+      m.busy = false;
+      showToast('Operazione interrotta per un errore: controlla lo storico e riprova.');
+      if (state.undoModal) renderUndoModal();
+      render();
+    });
+  }
+
+  // ==================================================================
   // Eventi del nuovo gestionale (restituiscono true se l'evento è gestito)
   // ==================================================================
   var GRID_OF_VIEW = { contrassegni:'contrassegni', materie:'materie', lotti:'lotti', prodotti:'prodotti', produzioni:'produzioni', storico:'storico' };
@@ -4472,13 +4616,14 @@
     return g || null;
   }
   function anyModalOpen(){
-    return !!(state.refModal || state.lotModal || state.pushModal || state.confirmModal || state.settingsModal || state.invoiceReview || state.toolModal || state.stampModal || state.mergeModal);
+    return !!(state.refModal || state.lotModal || state.pushModal || state.confirmModal || state.settingsModal || state.invoiceReview || state.toolModal || state.stampModal || state.mergeModal || state.undoModal);
   }
   function closeTopModal(){
     if (state.confirmModal) closeConfirm();
     else if (state.toolModal) closeTool();
     else if (state.stampModal) closeStampModal();
     else if (state.mergeModal) closeMergeModal();
+    else if (state.undoModal) closeUndoModal();
     else if (state.refModal) closeRefModal();
     else if (state.lotModal) closeLotModal();
     else if (state.pushModal) closePushModal();
@@ -4572,6 +4717,19 @@
       openMergeModal(dsx ? dsx.split(',').filter(Boolean) : (el.getAttribute('data-id') ? [el.getAttribute('data-id')] : selectedIds('materie')));
       return true;
     }
+    if (a === 'grid-selall'){
+      var allIds = gridOrder[gid] || [], allSet = {};
+      allIds.forEach(function(k){ allSet[k] = true; });
+      state.multi[gid] = allSet; state.sel[gid] = allIds[0] || null; state.anchor[gid] = allIds[0] || null;
+      render(); return true;
+    }
+    if (a === 'undo-moves'){
+      var uds = el.getAttribute('data-ids');
+      openUndoModal(uds ? uds.split(',').filter(Boolean) : selectedIds('storico'));
+      return true;
+    }
+    if (a === 'undo-close'){ closeUndoModal(); return true; }
+    if (a === 'undo-run'){ runUndo(); return true; }
     if (a === 'bulk-delete'){ bulkDelete(gid); return true; }
     if (a === 'bulk-cat'){ bulkSetCategory(selectedIds('materie'), (document.getElementById('bulkCat') || {}).value || ''); return true; }
     if (a === 'pref-wheel'){ saveConfig({ prefs:{ wheelSelect: el.getAttribute('data-v') === 'on' } }); renderToolModal(); return true; }
@@ -4601,6 +4759,10 @@
     var t = e.target;
     if (state.toolModal && handleToolInput(t)) return true;
     var f;
+    if (t.hasAttribute('data-undo') && state.undoModal){
+      state.undoModal[t.getAttribute('data-undo')] = t.checked;
+      renderUndoModal(); return true;
+    }
     if (t.hasAttribute('data-mgchk') && state.mergeModal){ mergeToggle(t.getAttribute('data-mgchk'), t.checked); return true; }
     if (t.hasAttribute('data-mgtgt') && state.mergeModal){ state.mergeModal.targetId = t.getAttribute('data-mgtgt'); refreshMergeSummary(); return true; }
     if (t.id === 'prodStampUse'){
