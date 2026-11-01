@@ -695,7 +695,7 @@
     ricette: { editingId: null, formOpen: false, draft: null }
   };
 
-  function freshCaricoDraft(){ return { causale:'', supplier:'', rows:[freshCaricoRow()] }; }
+  function freshCaricoDraft(){ return { causale:'', supplier:'', docNum:'', docDate:'', rows:[freshCaricoRow()] }; }
   function freshScaricoDraft(){ return { causale:'', rows:[freshScaricoRow()] }; }
   function freshProduzioneDraft(){
     return { recipeId:'', quantity:'', components:[], finishedLotto:'', gradeEffective:'', note:'', stamps: freshStampDraft() };
@@ -1210,6 +1210,8 @@
       scadenza: scadenza ? scadenza : (existing ? (existing.scadenza || null) : null),
       supplier: (extra && extra.supplier) ? extra.supplier : (existing ? (existing.supplier || null) : null),
       price: (extra && extra.price !== null && extra.price !== undefined) ? extra.price : (existing && existing.price !== undefined ? existing.price : null),
+      docNum: (extra && extra.docNum) ? extra.docNum : (existing ? (existing.docNum || null) : null),
+      docDate: (extra && extra.docDate) ? extra.docDate : (existing ? (existing.docDate || null) : null),
       qtyLt: hasLt ? round(newQtyLt,3) : null,
       qtyKg: round(newQtyKg,3),
       createdAt: existing ? existing.createdAt : new Date().toISOString(),
@@ -1357,6 +1359,7 @@
     var ai = getAiSettings();
     var d = state.fattura;
     var html = '';
+    html += '<div class="doc-actions" style="margin-bottom:.6rem"><button type="button" class="btn btn-ghost" data-action="manual-invoice">✎ Inserisci una fattura a mano (senza IA)</button><span class="hint">Scrivi tu fornitore, numero, data e righe: stessa registrazione dei carichi.</span></div>';
     html += '<div class="section-title">Carica fatture fornitore</div>';
     html += '<div class="section-sub">Puoi caricare più fatture insieme (foto o PDF): l\'IA le legge una dopo l\'altra e ti propone tutte le righe in un\'unica revisione, da controllare prima di registrare i carichi.</div>';
 
@@ -2866,7 +2869,7 @@
   function renderCaricoView(){
     var d = state.carico;
     var html = '<div class="doc">';
-    html += '<div class="doc-head"><h2>Carico materie prime</h2><div class="field" style="min-width:16rem"><label for="caricoSupplier">Fornitore (valido per tutte le righe)</label><input type="text" id="caricoSupplier" list="supListC" value="' + escapeHtml(d.supplier) + '" placeholder="Es. Distillerie Rossi">' + supplierDatalist('supListC') + '</div><div class="field" style="flex:1;min-width:16rem"><label for="caricoCausale">Causale / documento (valido per tutte le righe)</label><input type="text" id="caricoCausale" placeholder="Es. DDT 123 fornitore XY" value="' + escapeHtml(d.causale) + '"></div></div>';
+    html += '<div class="doc-head"><h2>Carico materie prime / fattura manuale</h2><div class="field" style="min-width:16rem"><label for="caricoSupplier">Fornitore (valido per tutte le righe)</label><input type="text" id="caricoSupplier" list="supListC" value="' + escapeHtml(d.supplier) + '" placeholder="Es. Distillerie Rossi">' + supplierDatalist('supListC') + '</div><div class="field"><label for="caricoDocNum">N. fattura / DDT</label><input type="text" id="caricoDocNum" value="' + escapeHtml(d.docNum) + '" placeholder="Es. 123/2026" style="width:11rem"></div><div class="field"><label for="caricoDocDate">Data documento</label><input type="date" id="caricoDocDate" value="' + escapeHtml(d.docDate) + '"></div><div class="field" style="flex:1;min-width:14rem"><label for="caricoCausale">Causale (se vuota: «Fattura n. … — fornitore»)</label><input type="text" id="caricoCausale" placeholder="Es. arrivo merce" value="' + escapeHtml(d.causale) + '"></div></div>';
     html += '<p class="hint">Una riga per ogni lotto in arrivo. Scrivi la quantità e scegli l\'unità (ml, Lt, g, Kg, …): Lt e Kg si calcolano da soli con la densità; se inserisci sia Lt che Kg la densità si ricava automaticamente.</p>';
     html += '<div class="doc-gridwrap"><table class="doc-grid"><thead><tr><th>' + selHead('carico') + '</th><th style="min-width:15rem">Materia prima</th><th style="width:8rem">Lotto</th><th style="width:7rem">Quantità</th><th style="width:6rem">U.M.</th><th style="width:7rem">Lt</th><th style="width:7rem">Kg</th><th style="width:6rem">Densità</th><th style="width:6rem">Gradaz. %</th><th style="width:6rem">Lt anidri</th><th style="width:9.5rem">Scadenza</th><th style="width:7.5rem">Prezzo €/Lt·Kg</th><th style="width:3rem"></th></tr></thead><tbody>';
     d.rows.forEach(function(row, i){
@@ -2888,7 +2891,7 @@
         '<td><input type="number" step="any" min="0" data-crow="' + i + '" data-cfield="price" value="' + escapeHtml(row.price) + '" placeholder="' + (liq ? '€/Lt' : '€/Kg') + '"' + (ref ? '' : ' disabled') + '></td>' +
         '<td><button type="button" class="x-btn" data-action="carico-del-row" data-idx="' + i + '" title="Rimuovi riga">×</button></td></tr>';
     });
-    html += '</tbody><tfoot><tr><td colspan="5" style="text-align:right">Totali</td><td class="ro" id="cTotLt"></td><td class="ro" id="cTotKg"></td><td></td><td></td><td class="ro" id="cTotAn"></td><td colspan="3"></td></tr></tfoot></table></div>';
+    html += '</tbody><tfoot><tr><td colspan="5" style="text-align:right">Totali</td><td class="ro" id="cTotLt"></td><td class="ro" id="cTotKg"></td><td></td><td></td><td class="ro" id="cTotAn"></td><td></td><td class="ro" id="cTotVal" title="Valore delle righe con prezzo (€)"></td><td></td></tr></tfoot></table></div>';
     html += '<div class="doc-actions"><button type="button" class="btn btn-ghost" data-action="carico-add-row">+ Aggiungi riga (F4)</button>' + delSelBtn('carico') + '<button type="button" class="btn btn-ghost" data-action="carico-clear">Svuota</button><span class="gt-spacer"></span><button type="button" class="btn btn-good" data-action="save-carico">Registra carico (Ctrl+Invio)</button></div>';
     html += '</div>';
     setTimeout(updateCaricoTotals, 0);
@@ -2899,6 +2902,12 @@
     state.carico.rows.forEach(function(r){ lt += numOrNull(r.lt) || 0; kg += numOrNull(r.kg) || 0; an += caricoAnidri(r) || 0; });
     var set = function(id, v){ var el = document.getElementById(id); if (el) el.textContent = v ? fmt(v, 3) : '—'; };
     set('cTotLt', lt); set('cTotKg', kg); set('cTotAn', an);
+    var val = 0, any = false;
+    state.carico.rows.forEach(function(r){
+      var pr = numOrNull(r.price), q = ((referenceById(r.refId) || {}).unit === 'liquido') ? numOrNull(r.lt) : numOrNull(r.kg);
+      if (pr !== null && q){ val += pr * q; any = true; }
+    });
+    var ve = document.getElementById('cTotVal'); if (ve) ve.textContent = any ? '€ ' + fmt(val, 2) : '—';
   }
   function syncCaricoRowDom(i, skip){
     var row = state.carico.rows[i];
@@ -2947,7 +2956,8 @@
 
   function saveCarico(){
     var d = state.carico;
-    var causale = d.causale.trim();
+    var docDateTxt = d.docDate ? new Date(d.docDate + 'T00:00:00').toLocaleDateString('it-IT') : '';
+    var causale = d.causale.trim() || (d.docNum.trim() ? 'Fattura n. ' + d.docNum.trim() + (docDateTxt ? ' del ' + docDateTxt : '') + (d.supplier.trim() ? ' — ' + d.supplier.trim() : '') : '');
     var items = [];
     for (var i = 0; i < d.rows.length; i++){
       var row = d.rows[i];
@@ -2963,7 +2973,7 @@
     if (!items.length){ showToast('Compila almeno una riga.'); return; }
     var chain = Promise.resolve();
     items.forEach(function(it){
-      chain = chain.then(function(){ return commitCarico(it.ref, it.lotto, it.qtyLt, it.qtyKg, it.density, it.grade, causale, it.scadenza, { supplier: d.supplier.trim() || null, price: it.price }); });
+      chain = chain.then(function(){ return commitCarico(it.ref, it.lotto, it.qtyLt, it.qtyKg, it.density, it.grade, causale, it.scadenza, { supplier: d.supplier.trim() || null, price: it.price, docNum: d.docNum.trim() || null, docDate: d.docDate || null }); });
     });
     chain.then(function(){
       showToast(items.length === 1 ? 'Carico registrato: lotto ' + items[0].lotto + '.' : items.length + ' carichi registrati.');
@@ -3548,7 +3558,7 @@
       var e = expiryStatus(l.scadenza);
       h += '<div class="side-lot' + (e.cls === 'expired' ? ' expired' : '') + '"><div style="display:flex;justify-content:space-between;gap:.5rem"><strong>Lotto ' + escapeHtml(l.lotto) + '</strong><span>' + expHtml(l.scadenza) + '</span></div>' +
         '<div class="hint">' + (l.qtyLt !== null && l.qtyLt !== undefined ? fmt(l.qtyLt, 3) + ' Lt' : '') + (l.qtyLt !== null && l.qtyLt !== undefined && l.qtyKg !== null && l.qtyKg !== undefined ? ' · ' : '') + (l.qtyKg !== null && l.qtyKg !== undefined ? fmt(l.qtyKg, 3) + ' Kg' : '') +
-        (l.grade !== null && l.grade !== undefined ? ' · ' + fmt(l.grade, 1) + '%' : '') + (l.supplier ? ' · ' + escapeHtml(l.supplier) : '') + (l.price !== null && l.price !== undefined ? ' · ' + money(l.price) + '/' + priceUnit(r) : '') + '</div>' +
+        (l.grade !== null && l.grade !== undefined ? ' · ' + fmt(l.grade, 1) + '%' : '') + (l.supplier ? ' · ' + escapeHtml(l.supplier) : '') + (l.docNum ? ' · fatt. ' + escapeHtml(l.docNum) : '') + (l.price !== null && l.price !== undefined ? ' · ' + money(l.price) + '/' + priceUnit(r) : '') + '</div>' +
         '<div style="margin-top:.3rem"><button type="button" class="btn btn-sm btn-ghost" data-action="edit-lot" data-lot="' + l.id + '">Correggi</button> <button type="button" class="btn btn-sm btn-ghost" data-action="quick-scarico" data-ref="' + r.id + '" data-lot="' + l.id + '">Scarica</button></div></div>';
     });
     var used = state.recipes.filter(function(x){ return (x.components || []).some(function(c){ return c.refId === r.id; }); });
@@ -4801,6 +4811,7 @@
       return true;
     }
     if (a === 'fattura-reread'){ var rf = state.fattura.files[idx]; if (rf){ rf.status = 'pending'; rf.result = null; rf.warn = ''; rf.error = ''; } render(); return true; }
+    if (a === 'manual-invoice'){ state.carico = freshCaricoDraft(); state.carico.docDate = new Date().toISOString().slice(0, 10); gotoView('carico'); return true; }
     if (a === 'doc-del-sel'){ deleteSelectedDocRows(el.getAttribute('data-kind')); return true; }
     if (a === 'inv-all'){
       var onv = el.getAttribute('data-v') === '1';
@@ -4996,6 +5007,8 @@
     if (t.id === 'refSupplier'){ state.refModal.draft.supplier = t.value; return true; }
     if (t.id === 'refPrice'){ state.refModal.draft.price = t.value; return true; }
     if (t.id === 'caricoSupplier'){ state.carico.supplier = t.value; return true; }
+    if (t.id === 'caricoDocNum'){ state.carico.docNum = t.value; return true; }
+    if (t.id === 'caricoDocDate'){ state.carico.docDate = t.value; return true; }
     if (t.id === 'recipeBottle'){ state.ricette.draft.bottleLt = t.value; return true; }
     if (t.id && t.id.indexOf('invPrice_') === 0){ state.invoiceReview.lines[parseInt(t.id.slice('invPrice_'.length), 10)].price = t.value; return true; }
     if (t.hasAttribute('data-gsearch')){ state.search[t.getAttribute('data-gsearch')] = t.value; withFocusPreserved(render); return true; }
