@@ -477,6 +477,17 @@
   .chk{ display:flex; align-items:center; gap:.5rem; font-weight:600; padding-bottom:.55rem; cursor:pointer; }
   .chk input{ width:1.2rem; height:1.2rem; accent-color:var(--accent); }
   @media (max-width:900px){ .gv{ flex-direction:column; } .side{ width:auto; max-height:55%; } }
+
+  .pick{ position:relative; }
+  .pick-in{ width:100%; }
+  .pick-list{ position:fixed; z-index:90; background:var(--surface); border:1px solid var(--ink); border-radius:.3rem; max-height:18rem; overflow:auto; box-shadow:0 8px 24px rgba(0,0,0,.85); }
+  .pick-item{ padding:.5rem .7rem; cursor:pointer; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:.8rem; align-items:baseline; }
+  .pick-item:last-child{ border-bottom:none; }
+  .pick-item.act, .pick-item:hover{ background:var(--accent); color:var(--terra-ink); }
+  .pick-item.act .hint, .pick-item:hover .hint{ color:var(--terra-ink); }
+  .pick-item mark{ background:transparent; color:inherit; font-weight:800; text-decoration:underline; }
+  .pick-new{ color:var(--accent); font-weight:700; }
+  .pick-item.act.pick-new, .pick-item.pick-new:hover{ color:var(--terra-ink); }
 </style>
 </head>
 <body>
@@ -2608,16 +2619,17 @@
       var base = ref ? draftDoseBase(c) : null;
       var umSel = c.um || (ref ? refUm(ref).id : 'lt');
       html += '<tr><td class="idx">' + (idx + 1) + '</td>';
-      html += '<td><select data-rc-field="refId" data-rc-idx="' + idx + '">' + refOptionsHtml(c.refId) + '</select></td>';
-      html += '<td><input type="number" step="any" min="0" value="' + escapeHtml(c.dose) + '" data-rc-field="dose" data-rc-idx="' + idx + '"' + (ref ? '' : ' disabled') + '></td>';
+      html += '<td>' + refPickerHtml('data-rc-field="refId" data-rc-idx="' + idx + '"', c.refId, { focus:'[data-rc-field="dose"][data-rc-idx="' + idx + '"]' }) + '</td>';
+      html += '<td><input type="text" inputmode="decimal" autocomplete="off" value="' + escapeHtml(c.dose) + '" data-rc-field="dose" data-rc-idx="' + idx + '"' + (ref ? '' : ' disabled') + '></td>';
       html += '<td><select data-rc-field="um" data-rc-idx="' + idx + '"' + (ref ? '' : ' disabled') + '>' + unitOptions(umSel, ref && !ref.density ? baseUnitId(ref.unit) : null) + '</select></td>';
-      html += '<td class="ro">' + (ref && base !== null ? fmt(base, 3) + ' ' + (ref.unit === 'liquido' ? 'Lt' : 'Kg') : '—') + '</td>';
-      html += '<td class="ro">' + (ref && ref.unit === 'liquido' && ref.grade !== null && ref.grade !== undefined ? fmt(ref.grade, 1) + '%' : '—') + '</td>';
-      html += '<td class="ro">' + (ref && ref.unit === 'liquido' && ref.grade && base !== null ? fmt(base * ref.grade / 100, 3) : '—') + '</td>';
+      var rcc = recipeRowCells(c);
+      html += '<td class="ro" data-rcell="eq" data-rc-idx="' + idx + '">' + rcc.eq + '</td>';
+      html += '<td class="ro" data-rcell="grade" data-rc-idx="' + idx + '">' + rcc.grade + '</td>';
+      html += '<td class="ro" data-rcell="an" data-rc-idx="' + idx + '">' + rcc.an + '</td>';
       html += '<td><button type="button" class="x-btn" data-action="recipe-remove-component" data-idx="' + idx + '" title="Rimuovi">×</button></td></tr>';
     });
     var calc = recipeCalc(mergedDraftRecipe(d));
-    html += '</tbody><tfoot><tr><td colspan="6" style="text-align:right">Litri anidri totali / gradazione teorica</td><td class="ro" colspan="2">' + (calc.anidri === null ? '—' : fmt(calc.anidri, 3) + ' Lt') + ' · ' + (calc.gradeTheoretical === null ? '—' : fmt(calc.gradeTheoretical, 2) + '%') + '</td></tr></tfoot></table></div>';
+    html += '</tbody><tfoot><tr><td colspan="6" style="text-align:right">Litri anidri totali / gradazione teorica</td><td class="ro" colspan="2" id="rcTotals">' + (calc.anidri === null ? '—' : fmt(calc.anidri, 3) + ' Lt') + ' · ' + (calc.gradeTheoretical === null ? '—' : fmt(calc.gradeTheoretical, 2) + '%') + '</td></tr></tfoot></table></div>';
     html += '<div class="field"><label for="recipeNote">Note (opz.)</label><input type="text" id="recipeNote" value="' + escapeHtml(d.note) + '"></div>';
     html += '<div class="doc-actions"><button type="button" class="btn btn-ghost" data-action="recipe-add-component">+ Aggiungi componente (F4)</button><span class="gt-spacer"></span>' +
       '<button type="button" class="btn btn-ghost" data-action="cancel-recipe">Annulla</button><button type="button" class="btn btn-primary" data-action="save-recipe">Salva prodotto finito</button></div>';
@@ -2738,7 +2750,7 @@
       var an = caricoAnidri(row);
       html += '<tr>' +
         '<td class="idx">' + (i + 1) + '</td>' +
-        '<td><select data-crow="' + i + '" data-cfield="refId">' + refOptionsHtml(row.refId) + '<option value="__new__">+ Nuova materia prima…</option></select></td>' +
+        '<td>' + refPickerHtml('data-crow="' + i + '" data-cfield="refId"', row.refId, { allowNew:true, focus:'[data-crow="' + i + '"][data-cfield="lotto"]' }) + '</td>' +
         '<td><input type="text" data-crow="' + i + '" data-cfield="lotto" value="' + escapeHtml(row.lotto) + '" placeholder="L2026-001"' + (ref ? ' list="lotlist_' + i + '"' : '') + '>' + (ref ? '<datalist id="lotlist_' + i + '">' + lotsForRef(ref.id).map(function(l){ return '<option value="' + escapeHtml(l.lotto) + '">'; }).join('') + '</datalist>' : '') + '</td>' +
         '<td><input type="number" step="any" min="0" data-crow="' + i + '" data-cfield="qty" value="' + escapeHtml(row.qty) + '"' + (ref ? '' : ' disabled') + '></td>' +
         '<td><select data-crow="' + i + '" data-cfield="um"' + (ref ? '' : ' disabled') + '>' + unitOptions(row.um || 'lt') + '</select></td>' +
@@ -2892,7 +2904,7 @@
     d.rows.forEach(function(row, i){
       var ref = row.refId ? referenceById(row.refId) : null;
       html += '<tr><td class="idx">' + (i + 1) + '</td>';
-      html += '<td><select data-srow="' + i + '" data-sfield="refId">' + refOptionsHtml(row.refId, function(r){ return stockLots(r.id).length || r.id === row.refId; }) + '</select></td>';
+      html += '<td>' + refPickerHtml('data-srow="' + i + '" data-sfield="refId"', row.refId, { filter:'stock', focus:'[data-srow="' + i + '"][data-sfield="qty"]' }) + '</td>';
       html += '<td><select data-srow="' + i + '" data-sfield="lotId"' + (ref ? '' : ' disabled') + '><option value="">— Seleziona lotto —</option>';
       if (ref) lotsByExpiry(ref.id).forEach(function(l){
         var av = [];
@@ -3006,7 +3018,7 @@
         var alt = (um && req !== null && um.id !== (ref.unit === 'liquido' ? 'lt' : 'kg')) ? ' <span class="hint">(' + fmt(req / um.factor, 3) + ' ' + escapeHtml(um.label) + ')</span>' : '';
         html += '<td class="ro">' + (req !== null ? fmt(req, 3) + ' ' + unitLbl + alt : '—') + '</td>';
       } else {
-        html += '<td><select data-pc="' + i + '" data-pf="ref">' + refOptionsHtml(c.refId) + '</select></td>';
+        html += '<td>' + refPickerHtml('data-pc="' + i + '" data-pf="ref"', c.refId, { focus:'[data-pc="' + i + '"][data-pf="req"]' }) + '</td>';
         html += '<td><input type="number" step="any" min="0" data-pc="' + i + '" data-pf="req" value="' + escapeHtml(c.req) + '" placeholder="' + (unitLbl || 'Lt / Kg') + '" style="width:7rem"' + (ref ? '' : ' disabled') + '> ' + unitLbl + '</td>';
       }
       html += '<td>';
@@ -3855,6 +3867,147 @@
     return chain;
   }
 
+
+  // ==================================================================
+  // SELETTORE MATERIE PRIME con ricerca (nome, codice, categoria, fornitore)
+  // ==================================================================
+  function pickHay(r){
+    var c = categoryById(r.category);
+    return normalizeForMatch([r.name, r.codice, c ? c.name : '', r.supplier].join(' '));
+  }
+  // -1 = nessuna corrispondenza; più basso = più pertinente. Tutte le parole cercate devono comparire, in qualunque punto.
+  function pickScore(r, q){
+    var toks = normalizeForMatch(q).split(' ').filter(Boolean);
+    if (!toks.length) return 5;
+    var hay = pickHay(r), flat = hay.replace(/ /g, ''), name = normalizeForMatch(r.name), best = 5;
+    for (var i = 0; i < toks.length; i++){
+      var t = toks[i];
+      if (hay.indexOf(t) === -1 && flat.indexOf(t) === -1) return -1;
+    }
+    if (name.indexOf(toks[0]) === 0) best = 0;
+    else if (name.split(' ').some(function(w){ return w.indexOf(toks[0]) === 0; })) best = 1;
+    else if (name.indexOf(toks[0]) !== -1) best = 2;
+    else if (normalizeForMatch(r.codice || '').indexOf(toks[0]) !== -1) best = 3;
+    else best = 4;
+    return best;
+  }
+  function refPickerHtml(attrs, selectedId, opts){
+    opts = opts || {};
+    var ref = selectedId ? referenceById(selectedId) : null;
+    var nm = ref ? ref.name : '';
+    return '<div class="pick"><input type="hidden" ' + attrs + ' value="' + escapeHtml(selectedId || '') + '">' +
+      '<input type="text" class="pick-in" autocomplete="off" value="' + escapeHtml(nm) + '" placeholder="Scrivi per cercare…" data-pickprev="' + escapeHtml(nm) + '" data-pickfilter="' + (opts.filter || '') + '" data-picknew="' + (opts.allowNew ? 1 : 0) + '" data-pickfocus="' + escapeHtml(opts.focus || '') + '"' + (opts.disabled ? ' disabled' : '') + '>' +
+      '<div class="pick-list" hidden></div></div>';
+  }
+  function pickHidden(inp){ return inp.parentNode.querySelector('input[type=hidden]'); }
+  function pickClose(inp, restore){
+    var list = inp.parentNode.querySelector('.pick-list');
+    if (list) list.hidden = true;
+    if (restore) inp.value = inp.getAttribute('data-pickprev') || '';
+  }
+  function pickRender(inp, q){
+    var list = inp.parentNode.querySelector('.pick-list');
+    var filt = inp.getAttribute('data-pickfilter'), sel = pickHidden(inp).value;
+    var items = state.references.filter(function(r){ return filt !== 'stock' || stockLots(r.id).length || r.id === sel; })
+      .map(function(r){ return { r:r, s:pickScore(r, q) }; }).filter(function(x){ return x.s >= 0; })
+      .sort(function(a, b){ return (a.s - b.s) || a.r.name.localeCompare(b.r.name, 'it'); }).slice(0, 80);
+    var h = '';
+    items.forEach(function(x, i){
+      var c = categoryById(x.r.category);
+      h += '<div class="pick-item' + (i === 0 ? ' act' : '') + '" data-id="' + x.r.id + '"><span>' + escapeHtml(x.r.name) + '</span><span class="hint">' + (x.r.codice ? escapeHtml(x.r.codice) + ' · ' : '') + (c ? escapeHtml(c.name) : '') + '</span></div>';
+    });
+    if (!items.length) h += '<div class="pick-item" style="cursor:default"><span class="hint">Nessun risultato per «' + escapeHtml(q) + '»</span></div>';
+    if (inp.getAttribute('data-picknew') === '1') h += '<div class="pick-item pick-new" data-id="__new__"><span>+ Nuova materia prima…</span></div>';
+    list.innerHTML = h;
+    var r = inp.getBoundingClientRect();
+    var below = window.innerHeight - r.bottom, top = below < 220 && r.top > below ? Math.max(8, r.top - 290) : r.bottom + 2;
+    list.style.left = r.left + 'px'; list.style.top = top + 'px'; list.style.width = Math.max(r.width, 320) + 'px';
+    list.hidden = false;
+  }
+  function pickChoose(inp, id){
+    if (!id) return;
+    var hid = pickHidden(inp), prev = inp.getAttribute('data-pickprev') || '';
+    var focusSel = inp.getAttribute('data-pickfocus');
+    pickClose(inp, false);
+    hid.value = id;
+    if (id === '__new__'){ inp.value = prev; hid.dispatchEvent(new Event('change', { bubbles:true })); return; }
+    var ref = referenceById(id);
+    inp.value = ref ? ref.name : '';
+    inp.setAttribute('data-pickprev', inp.value);
+    hid.dispatchEvent(new Event('change', { bubbles:true }));
+    if (focusSel){
+      var nx = document.querySelector(focusSel);
+      if (nx && !nx.disabled){ nx.focus(); if (nx.select) try { nx.select(); } catch(e){} }
+    }
+  }
+  function bindPickers(){
+    document.addEventListener('focusin', function(e){
+      var t = e.target;
+      if (t.classList && t.classList.contains('pick-in')){ try { t.select(); } catch(x){} pickRender(t, ''); }
+    });
+    document.addEventListener('input', function(e){
+      var t = e.target;
+      if (t.classList && t.classList.contains('pick-in')) pickRender(t, t.value);
+    });
+    document.addEventListener('keydown', function(e){
+      var t = e.target;
+      if (!t.classList || !t.classList.contains('pick-in')) return;
+      var list = t.parentNode.querySelector('.pick-list');
+      var items = Array.prototype.slice.call(list.querySelectorAll('.pick-item[data-id]'));
+      var cur = items.findIndex(function(x){ return x.classList.contains('act'); });
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp'){
+        e.preventDefault();
+        if (list.hidden) pickRender(t, t.value);
+        items = Array.prototype.slice.call(list.querySelectorAll('.pick-item[data-id]'));
+        if (!items.length) return;
+        if (cur >= 0) items[cur].classList.remove('act');
+        cur = e.key === 'ArrowDown' ? Math.min(items.length - 1, cur + 1) : Math.max(0, cur - 1);
+        items[cur].classList.add('act');
+        items[cur].scrollIntoView({ block:'nearest' });
+      } else if (e.key === 'Enter'){
+        if (!list.hidden && cur >= 0){ e.preventDefault(); pickChoose(t, items[cur].getAttribute('data-id')); }
+      } else if (e.key === 'Tab'){
+        if (!list.hidden && cur >= 0 && t.value !== (t.getAttribute('data-pickprev') || '')) pickChoose(t, items[cur].getAttribute('data-id'));
+      } else if (e.key === 'Escape'){
+        pickClose(t, true);
+      }
+    });
+    document.addEventListener('mousedown', function(e){
+      var it = e.target.closest ? e.target.closest('.pick-item[data-id]') : null;
+      if (!it) return;
+      e.preventDefault();
+      var inp = it.closest('.pick').querySelector('.pick-in');
+      pickChoose(inp, it.getAttribute('data-id'));
+    });
+    document.addEventListener('focusout', function(e){
+      var t = e.target;
+      if (t.classList && t.classList.contains('pick-in')) setTimeout(function(){ pickClose(t, true); }, 120);
+    });
+    window.addEventListener('resize', function(){ document.querySelectorAll('.pick-list').forEach(function(l){ l.hidden = true; }); });
+  }
+
+  // righe della ricetta: aggiornamento sul posto (nessun re-render mentre si digita)
+  function recipeRowCells(c){
+    var ref = c.refId ? referenceById(c.refId) : null, base = ref ? draftDoseBase(c) : null;
+    return {
+      eq: ref && base !== null ? fmt(base, 3) + ' ' + (ref.unit === 'liquido' ? 'Lt' : 'Kg') : '—',
+      grade: ref && ref.unit === 'liquido' && ref.grade !== null && ref.grade !== undefined ? fmt(ref.grade, 1) + '%' : '—',
+      an: ref && ref.unit === 'liquido' && ref.grade && base !== null ? fmt(base * ref.grade / 100, 3) : '—'
+    };
+  }
+  function recipeTotalsText(){
+    var calc = recipeCalc(mergedDraftRecipe(state.ricette.draft));
+    return (calc.anidri === null ? '—' : fmt(calc.anidri, 3) + ' Lt') + ' · ' + (calc.gradeTheoretical === null ? '—' : fmt(calc.gradeTheoretical, 2) + '%');
+  }
+  function updateRecipeDom(idx){
+    var c = state.ricette.draft.components[idx], cells = recipeRowCells(c);
+    ['eq', 'grade', 'an'].forEach(function(k){
+      var el = document.querySelector('[data-rcell="' + k + '"][data-rc-idx="' + idx + '"]');
+      if (el) el.textContent = cells[k];
+    });
+    var t = document.getElementById('rcTotals'); if (t) t.textContent = recipeTotalsText();
+  }
+
   // ==================================================================
   // Eventi del nuovo gestionale (restituiscono true se l'evento è gestito)
   // ==================================================================
@@ -4124,7 +4277,7 @@
     }
     if (t.hasAttribute('data-rc-field') && t.getAttribute('data-rc-field') === 'dose'){
       var rc = state.ricette.draft.components[parseInt(t.getAttribute('data-rc-idx'), 10)];
-      if (rc){ rc.dose = t.value; withFocusPreserved(render); }
+      if (rc){ rc.dose = t.value; updateRecipeDom(parseInt(t.getAttribute('data-rc-idx'), 10)); }
       return true;
     }
     return false;
@@ -4355,6 +4508,7 @@
 
     document.addEventListener('keydown', onKeyNew);
     bindGridResize();
+    bindPickers();
   }
 
   // ==================================================================
