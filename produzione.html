@@ -488,6 +488,12 @@
   .pick-item mark{ background:transparent; color:inherit; font-weight:800; text-decoration:underline; }
   .pick-new{ color:var(--accent); font-weight:700; }
   .pick-item.act.pick-new, .pick-item.pick-new:hover{ color:var(--terra-ink); }
+
+  .merge-list{ border:1px solid #6a6a6a; border-radius:.3rem; max-height:20rem; overflow:auto; background:#000; }
+  .merge-row{ display:flex; align-items:center; gap:.8rem; padding:.5rem .7rem; border-bottom:1px solid var(--line); }
+  .merge-row.on{ background:#1d1a0d; }
+  .merge-row.blocked{ opacity:.4; }
+  .merge-row .chk{ align-items:flex-start; }
 </style>
 </head>
 <body>
@@ -538,6 +544,7 @@
   <div class="modal-overlay" id="invoiceModalOverlay" hidden></div>
   <div class="modal-overlay" id="toolModalOverlay" hidden></div>
   <div class="modal-overlay" id="stampModalOverlay" hidden></div>
+  <div class="modal-overlay" id="mergeModalOverlay" hidden></div>
 </div>
 
 <script type="module">
@@ -660,6 +667,7 @@
     stamps: [],
     stampMoves: [],
     stampModal: null,
+    mergeModal: null,
     refModal: null,       // { mode:'new'|'edit', draft:{...}, returnTo:null|'carico' }
     lotModal: null,        // { lotId, draft:{qtyLt, qtyKg, density, grade} }
     pushModal: null,      // { productionId, mode:'existing'|'new', productId, newName, location, qty }
@@ -1445,7 +1453,7 @@
                 type: 'object',
                 properties: {
                   descrizione: { type: 'string', description: 'Testo originale della riga così come scritto in fattura' },
-                  nome_prodotto: { type: 'string', description: 'Nome pulito e breve del prodotto' },
+                  nome_prodotto: { type: 'string', description: 'Nome pulito e breve del prodotto, SENZA numero di lotto, codici, quantità o formato (es. «Alcool etilico 96°», non «Alcool etilico 96° lotto 101020 25 L»)' },
                   codice_prodotto: { type: ['string','null'], description: 'Codice articolo/prodotto del fornitore, se presente in fattura (es. una colonna "Cod." o un codice alfanumerico accanto alla descrizione)' },
                   quantita: { type: ['number','null'], description: 'Quantità numerica' },
                   unita: { type: ['string','null'], description: 'Unità di misura come scritta (kg, l, lt, g, ml, pz, ecc.)' },
@@ -2458,6 +2466,7 @@
         { label:'+ Nuova materia prima', action:'new-reference', key:'F4', cls:'btn-primary' },
         { label:'Modifica', action:'edit-reference', key:'F2', needSel:true },
         { label:'Carica', action:'quick-carico', needSel:true, attrs:function(r){ return ' data-ref="' + r.id + '"'; } },
+        { label:'Unisci duplicati…', action:'merge-open' },
         { label:'Elimina', action:'delete-reference', needSel:true }
       ],
       side:function(r){ return refSideHtml(r); }
@@ -3432,7 +3441,8 @@
     var cat = categoryById(r.category);
     var h = sideHead('materie', escapeHtml(r.name), (r.codice ? 'Codice ' + escapeHtml(r.codice) + ' · ' : '') + tagHtml(st),
       '<button type="button" class="btn btn-sm btn-primary" data-action="edit-reference" data-id="' + r.id + '">Modifica scheda</button>' +
-      '<button type="button" class="btn btn-sm btn-ghost" data-action="quick-carico" data-ref="' + r.id + '">Carica</button>');
+      '<button type="button" class="btn btn-sm btn-ghost" data-action="quick-carico" data-ref="' + r.id + '">Carica</button>' +
+      '<button type="button" class="btn btn-sm btn-ghost" data-action="merge-open" data-id="' + r.id + '">Unisci con…</button>');
     h += '<div class="side-sec">Dati tecnici</div>' + kvRows([
       ['Categoria', cat ? '<span class="cat-dot" style="background:' + cat.color + '"></span>' + escapeHtml(cat.name) : null],
       ['Tipo', r.unit === 'liquido' ? 'Liquido' : 'Solido'],
@@ -4047,6 +4057,242 @@
   }
 
   // ==================================================================
+  // UNISCI MATERIE PRIME (duplicati creati per errore): i lotti si spostano su una sola
+  // ==================================================================
+  function mergeCandidates(){
+    var m = state.mergeModal;
+    var q = normalizeForMatch(m.query);
+    var toks = q.split(' ').filter(Boolean);
+    var base = state.references.slice().sort(function(a, b){ return a.name.localeCompare(b.name, 'it', { sensitivity:'base' }); });
+    if (!toks.length) return base;
+    return base.filter(function(r){
+      var hay = pickHay(r), flat = hay.replace(/ /g, '');
+      return toks.every(function(t){ return hay.indexOf(t) !== -1 || flat.indexOf(t) !== -1; }) || m.ids.indexOf(r.id) !== -1;
+    });
+  }
+  // gruppi di materie prime con nomi molto simili (stesso tipo)
+  function mergeClusters(){
+    var refs = state.references, parent = {};
+    function find(x){ while (parent[x] !== x) x = parent[x] = parent[parent[x]]; return x; }
+    refs.forEach(function(r){ parent[r.id] = r.id; });
+    function words(r){ return normalizeForMatch(r.name).split(' ').filter(function(w){ return w && !/^\d{3,}$/.test(w); }); }
+    for (var i = 0; i < refs.length; i++){
+      for (var j = i + 1; j < refs.length; j++){
+        if (refs[i].unit !== refs[j].unit) continue;
+        var a = words(refs[i]), b = words(refs[j]);
+        if (!a.length || !b.length) continue;
+        var hit = a.filter(function(w){ return b.some(function(x){ return tokensMatch(w, x); }); }).length;
+        var score = hit / Math.max(a.length, b.length);
+        var sameCode = refs[i].codice && refs[j].codice && String(refs[i].codice).toLowerCase() === String(refs[j].codice).toLowerCase();
+        if (score >= 0.6 || sameCode) parent[find(refs[i].id)] = find(refs[j].id);
+      }
+    }
+    var groups = {};
+    refs.forEach(function(r){ var k = find(r.id); (groups[k] = groups[k] || []).push(r); });
+    return Object.keys(groups).map(function(k){ return groups[k]; }).filter(function(g){ return g.length > 1; })
+      .sort(function(a, b){ return b.length - a.length; });
+  }
+  function mergeStockText(r){
+    var t = totalStock(r.id), n = lotsForRef(r.id).length, parts = [];
+    if (t.lt !== null) parts.push(fmt(t.lt, 3) + ' Lt');
+    if (t.kg !== null) parts.push(fmt(t.kg, 3) + ' Kg');
+    return (parts.join(' · ') || 'nessuna giacenza') + ' · ' + n + (n === 1 ? ' lotto' : ' lotti');
+  }
+  function openMergeModal(refId){
+    state.mergeModal = { ids: refId ? [refId] : [], targetId: refId || '', name: '', nameEdited: false, query: '', busy: false };
+    renderMergeModal();
+  }
+  function closeMergeModal(){
+    state.mergeModal = null;
+    var o = document.getElementById('mergeModalOverlay');
+    o.hidden = true; o.innerHTML = '';
+  }
+  function mergeListHtml(){
+    var m = state.mergeModal, h = '';
+    var type = m.ids.length ? (referenceById(m.ids[0]) || {}).unit : null;
+    mergeCandidates().forEach(function(r){
+      var on = m.ids.indexOf(r.id) !== -1, blocked = type && r.unit !== type;
+      var c = categoryById(r.category);
+      h += '<div class="merge-row' + (on ? ' on' : '') + (blocked ? ' blocked' : '') + '"><label class="chk" style="padding:0;flex:1;min-width:0"><input type="checkbox" data-mgchk="' + r.id + '"' + (on ? ' checked' : '') + (blocked ? ' disabled' : '') + '>' +
+        '<span style="min-width:0"><strong>' + escapeHtml(r.name) + '</strong> <span class="hint">' + (r.codice ? escapeHtml(r.codice) + ' · ' : '') + (r.unit === 'liquido' ? 'liquido' : 'solido') + (c ? ' · ' + escapeHtml(c.name) : '') + '</span><br><span class="hint">' + escapeHtml(mergeStockText(r)) + '</span></span></label>' +
+        (on ? '<label class="hint" style="white-space:nowrap;cursor:pointer"><input type="radio" name="mgtgt" data-mgtgt="' + r.id + '"' + (m.targetId === r.id ? ' checked' : '') + '> mantieni questa</label>' : '') + '</div>';
+    });
+    return h || '<p class="hint" style="padding:1rem">Nessuna materia prima trovata.</p>';
+  }
+  function mergePlan(){
+    var m = state.mergeModal;
+    var sources = m.ids.filter(function(id){ return id !== m.targetId; });
+    var lots = [];
+    sources.forEach(function(id){ lots = lots.concat(lotsForRef(id)); });
+    var lt = 0, kg = 0;
+    lots.forEach(function(l){ lt += l.qtyLt || 0; kg += l.qtyKg || 0; });
+    var clash = lots.filter(function(l){ return !!lotById(lotDocId(m.targetId, l.lotto)); }).length;
+    return { sources: sources, lots: lots, lt: lt, kg: kg, clash: clash };
+  }
+  function mergeSummaryHtml(){
+    var m = state.mergeModal;
+    if (m.ids.length < 2) return '<span class="hint">Spunta almeno due materie prime da unire.</span>';
+    var p = mergePlan(), tgt = referenceById(m.targetId);
+    return 'Verranno unite <b>' + m.ids.length + '</b> materie prime in <b>«' + escapeHtml(m.name || (tgt ? tgt.name : '')) + '»</b>: si spostano <b>' + p.lots.length + '</b> lotti (' + fmt(p.lt, 3) + ' Lt · ' + fmt(p.kg, 3) + ' Kg) e restano separati.' +
+      (p.clash ? ' <span style="color:var(--warn)">' + p.clash + ' lotti hanno lo stesso numero di uno già presente: le quantità si sommano.</span>' : '') +
+      ' Ricette e storico passano alla materia prima unita; le altre voci vengono eliminate.';
+  }
+  function renderMergeModal(){
+    var m = state.mergeModal, o = document.getElementById('mergeModalOverlay');
+    if (!m){ o.hidden = true; return; }
+    var clusters = mergeClusters();
+    var h = '<div class="modal-sheet wide"><h2 class="modal-title">Unisci materie prime uguali</h2>';
+    h += '<p class="modal-subtitle">Spunta i prodotti che sono in realtà lo stesso (es. gli alcol creati più volte): le giacenze vengono sommate sul prodotto che mantieni, <b>ogni lotto resta separato</b> con la sua scadenza e il suo prezzo.</p>';
+    if (clusters.length){
+      h += '<div class="hint" style="margin-bottom:.3rem">Possibili duplicati:</div><div style="display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.7rem">';
+      clusters.slice(0, 8).forEach(function(g, i){
+        h += '<button type="button" class="btn btn-sm btn-ghost" data-action="merge-suggest" data-idx="' + i + '">' + escapeHtml(g[0].name) + ' <span class="hint">(' + g.length + ')</span></button>';
+      });
+      h += '</div>';
+    }
+    h += '<div class="modal-field"><label>Cerca</label><input type="search" id="mergeQuery" value="' + escapeHtml(m.query) + '" placeholder="Es. alcol"></div>';
+    h += '<div class="merge-list" id="mergeList">' + mergeListHtml() + '</div>';
+    h += '<div class="modal-field" style="margin-top:.8rem"><label>Nome finale</label><input type="text" id="mergeName" value="' + escapeHtml(m.name || (referenceById(m.targetId) || {}).name || '') + '" placeholder="Nome della materia prima unita"></div>';
+    h += '<div class="readonly-box" id="mergeSummary" style="font-family:inherit;font-weight:500;line-height:1.5">' + mergeSummaryHtml() + '</div>';
+    h += '<div class="btn-row" style="margin-top:1rem"><button type="button" class="btn btn-ghost" data-action="merge-close">Annulla</button><button type="button" class="btn btn-primary" id="mergeRunBtn" data-action="merge-run"' + (m.ids.length < 2 || m.busy ? ' disabled' : '') + '>' + (m.busy ? 'Unione in corso…' : 'Unisci') + '</button></div></div>';
+    o.innerHTML = h;
+    o.hidden = false;
+  }
+  function refreshMergeSummary(){
+    var m = state.mergeModal;
+    var s = document.getElementById('mergeSummary'); if (s) s.innerHTML = mergeSummaryHtml();
+    var b = document.getElementById('mergeRunBtn'); if (b) b.disabled = m.ids.length < 2 || m.busy;
+    var n = document.getElementById('mergeName');
+    if (n && !m.nameEdited && document.activeElement !== n){ var t = referenceById(m.targetId); n.value = t ? t.name : ''; m.name = ''; }
+  }
+  function mergeToggle(id, on){
+    var m = state.mergeModal;
+    var at = m.ids.indexOf(id);
+    if (on && at === -1) m.ids.push(id);
+    if (!on && at !== -1) m.ids.splice(at, 1);
+    if (m.ids.indexOf(m.targetId) === -1) m.targetId = m.ids[0] || '';
+    var l = document.getElementById('mergeList'), top = l ? l.scrollTop : 0;
+    if (l){ l.innerHTML = mergeListHtml(); l.scrollTop = top; }
+    refreshMergeSummary();
+  }
+  function mergeSuggest(idx){
+    var g = mergeClusters()[idx];
+    if (!g) return;
+    var m = state.mergeModal;
+    m.ids = g.map(function(r){ return r.id; });
+    // tiene come principale quello con più giacenza/lotti
+    var best = g.slice().sort(function(a, b){ return lotsForRef(b.id).length - lotsForRef(a.id).length; })[0];
+    m.targetId = best.id; m.name = ''; m.nameEdited = false;
+    renderMergeModal();
+  }
+
+  function earlierDate(a, b){ if (!a) return b || null; if (!b) return a; return a < b ? a : b; }
+  function runMerge(){
+    var m = state.mergeModal;
+    if (!m || m.ids.length < 2 || m.busy) return;
+    var target = referenceById(m.targetId);
+    if (!target){ showToast('Scegli quale materia prima mantenere.'); return; }
+    var finalName = (m.name || '').trim() || target.name;
+    var p = mergePlan();
+    m.busy = true; refreshMergeSummary();
+    var chain = Promise.resolve();
+
+    // 1) lotti: si spostano sul prodotto principale (stesso numero = si sommano)
+    p.lots.forEach(function(l){
+      chain = chain.then(function(){
+        var newId = lotDocId(target.id, l.lotto), ex = lotById(newId);
+        var doc;
+        if (ex && ex.id !== l.id){
+          var lt = (ex.qtyLt === null || ex.qtyLt === undefined) && (l.qtyLt === null || l.qtyLt === undefined) ? null : round((ex.qtyLt || 0) + (l.qtyLt || 0), 3);
+          var kg = (ex.qtyKg === null || ex.qtyKg === undefined) && (l.qtyKg === null || l.qtyKg === undefined) ? null : round((ex.qtyKg || 0) + (l.qtyKg || 0), 3);
+          doc = { qtyLt: lt, qtyKg: kg, scadenza: earlierDate(ex.scadenza, l.scadenza), density: ex.density !== null && ex.density !== undefined ? ex.density : (l.density !== undefined ? l.density : null),
+            grade: ex.grade !== null && ex.grade !== undefined ? ex.grade : (l.grade !== undefined ? l.grade : null), supplier: ex.supplier || l.supplier || null,
+            price: ex.price !== null && ex.price !== undefined ? ex.price : (l.price !== undefined ? l.price : null), refName: finalName, updatedAt: new Date().toISOString() };
+          return window.__fb.setDoc(LOTS_COLL + '/' + newId, doc, true).then(function(){
+            Object.keys(doc).forEach(function(k){ ex[k] = doc[k]; });
+            return window.__fb.deleteDoc(LOTS_COLL + '/' + l.id);
+          }).then(function(){ state.lots = state.lots.filter(function(x){ return x.id !== l.id; }); });
+        }
+        doc = {};
+        Object.keys(l).forEach(function(k){ if (k !== 'id') doc[k] = l[k]; });
+        doc.refId = target.id; doc.refName = finalName; doc.unit = target.unit; doc.updatedAt = new Date().toISOString();
+        return window.__fb.setDoc(LOTS_COLL + '/' + newId, doc).then(function(){
+          state.lots = state.lots.filter(function(x){ return x.id !== l.id; });
+          state.lots.push(Object.assign({ id: newId }, doc));
+          return newId === l.id ? null : window.__fb.deleteDoc(LOTS_COLL + '/' + l.id);
+        });
+      });
+    });
+
+    // 2) lotti già del prodotto principale: aggiorna il nome se cambia
+    if (finalName !== target.name){
+      lotsForRef(target.id).forEach(function(l){
+        chain = chain.then(function(){ l.refName = finalName; return window.__fb.setDoc(LOTS_COLL + '/' + l.id, { refName: finalName }, true); });
+      });
+    }
+
+    // 3) storico movimenti
+    chain = chain.then(function(){
+      var changed = false;
+      state.movements.forEach(function(mv){ if (p.sources.indexOf(mv.refId) !== -1 || (mv.refId === target.id && mv.refName !== finalName)){ mv.refId = target.id; mv.refName = finalName; changed = true; } });
+      return changed ? window.__fb.setDoc(MOVES_DOC, { entries: state.movements }) : null;
+    });
+
+    // 4) prodotti finiti: le distinte puntano alla materia prima unita
+    state.recipes.forEach(function(r){
+      if (!(r.components || []).some(function(c){ return p.sources.indexOf(c.refId) !== -1; })) return;
+      chain = chain.then(function(){
+        var merged = [];
+        r.components.forEach(function(c){
+          var id = p.sources.indexOf(c.refId) !== -1 ? target.id : c.refId;
+          var ex = merged.filter(function(x){ return x.refId === id; })[0];
+          if (ex){ ex.doseLt = (ex.doseLt === null && c.doseLt === null) ? null : round((ex.doseLt || 0) + (c.doseLt || 0), 4); ex.doseKg = (ex.doseKg === null && c.doseKg === null) ? null : round((ex.doseKg || 0) + (c.doseKg || 0), 4); }
+          else merged.push({ refId: id, doseLt: c.doseLt === undefined ? null : c.doseLt, doseKg: c.doseKg === undefined ? null : c.doseKg });
+        });
+        r.components = merged;
+        return window.__fb.setDoc(RECIPES_COLL + '/' + r.id, { components: merged }, true);
+      });
+    });
+
+    // 5) anagrafica principale: nome e dati mancanti presi dalle altre
+    chain = chain.then(function(){
+      var patch = {};
+      if (finalName !== target.name) patch.name = finalName;
+      ['codice', 'supplier', 'price', 'density', 'grade', 'category', 'um', 'minQty', 'notes'].forEach(function(k){
+        if (target[k] === null || target[k] === undefined || target[k] === ''){
+          for (var i = 0; i < p.sources.length; i++){
+            var sr = referenceById(p.sources[i]);
+            if (sr && sr[k] !== null && sr[k] !== undefined && sr[k] !== ''){ patch[k] = sr[k]; break; }
+          }
+        }
+      });
+      Object.keys(patch).forEach(function(k){ target[k] = patch[k]; });
+      return Object.keys(patch).length ? window.__fb.setDoc(REFS_COLL + '/' + target.id, patch, true) : null;
+    });
+
+    // 6) elimina le materie prime duplicate
+    p.sources.forEach(function(id){
+      chain = chain.then(function(){
+        return window.__fb.deleteDoc(REFS_COLL + '/' + id).then(function(){ state.references = state.references.filter(function(x){ return x.id !== id; }); });
+      });
+    });
+
+    chain.then(function(){
+      var n = p.sources.length;
+      showToast('Unite ' + (n + 1) + ' materie prime in «' + finalName + '»: ' + p.lots.length + ' lotti spostati.');
+      state.sel.materie = target.id;
+      closeMergeModal();
+      render();
+    }).catch(function(e){
+      console.error(e);
+      m.busy = false;
+      showToast('Unione interrotta per un errore: controlla le giacenze e riprova (i lotti già spostati restano al loro posto).');
+      render();
+      if (state.mergeModal) renderMergeModal();
+    });
+  }
+
+  // ==================================================================
   // Eventi del nuovo gestionale (restituiscono true se l'evento è gestito)
   // ==================================================================
   var GRID_OF_VIEW = { contrassegni:'contrassegni', materie:'materie', lotti:'lotti', prodotti:'prodotti', produzioni:'produzioni', storico:'storico' };
@@ -4056,12 +4302,13 @@
     return g || null;
   }
   function anyModalOpen(){
-    return !!(state.refModal || state.lotModal || state.pushModal || state.confirmModal || state.settingsModal || state.invoiceReview || state.toolModal || state.stampModal);
+    return !!(state.refModal || state.lotModal || state.pushModal || state.confirmModal || state.settingsModal || state.invoiceReview || state.toolModal || state.stampModal || state.mergeModal);
   }
   function closeTopModal(){
     if (state.confirmModal) closeConfirm();
     else if (state.toolModal) closeTool();
     else if (state.stampModal) closeStampModal();
+    else if (state.mergeModal) closeMergeModal();
     else if (state.refModal) closeRefModal();
     else if (state.lotModal) closeLotModal();
     else if (state.pushModal) closePushModal();
@@ -4145,6 +4392,10 @@
     if (a === 'prod-realloc'){ autoAllocate(state.produzione.components[parseInt(el.getAttribute('data-comp-idx'), 10)]); refreshProdComps(); return true; }
     if (a === 'prod-realloc-all'){ autoAllocateAll(); refreshProdComps(); return true; }
     if (a === 'prod-reset'){ state.produzione = freshProduzioneDraft(); render(); return true; }
+    if (a === 'merge-open'){ openMergeModal(el.getAttribute('data-id') || state.sel.materie || ''); return true; }
+    if (a === 'merge-close'){ closeMergeModal(); return true; }
+    if (a === 'merge-run'){ runMerge(); return true; }
+    if (a === 'merge-suggest'){ mergeSuggest(parseInt(el.getAttribute('data-idx'), 10)); return true; }
     if (a === 'side-close'){ state.sel[gid] = null; render(); return true; }
     if (a === 'stamp-add'){ openStampModal('add'); return true; }
     if (a === 'stamp-edit'){ openStampModal('edit', el.getAttribute('data-id')); return true; }
@@ -4168,6 +4419,8 @@
     var t = e.target;
     if (state.toolModal && handleToolInput(t)) return true;
     var f;
+    if (t.hasAttribute('data-mgchk') && state.mergeModal){ mergeToggle(t.getAttribute('data-mgchk'), t.checked); return true; }
+    if (t.hasAttribute('data-mgtgt') && state.mergeModal){ state.mergeModal.targetId = t.getAttribute('data-mgtgt'); refreshMergeSummary(); return true; }
     if (t.id === 'prodStampUse'){
       var ss = state.produzione.stamps; ss.use = t.checked;
       if (ss.use){ if (!ss.bottlesManual) ss.bottles = bottlesFromLt(); autoAllocateStamps(); }
@@ -4244,6 +4497,8 @@
   function onInputNew(e){
     var t = e.target;
     if (state.toolModal && handleToolInput(t)) return true;
+    if (t.id === 'mergeQuery' && state.mergeModal){ state.mergeModal.query = t.value; var ml = document.getElementById('mergeList'); if (ml) ml.innerHTML = mergeListHtml(); return true; }
+    if (t.id === 'mergeName' && state.mergeModal){ state.mergeModal.name = t.value; state.mergeModal.nameEdited = !!t.value.trim(); var ms = document.getElementById('mergeSummary'); if (ms) ms.innerHTML = mergeSummaryHtml(); return true; }
     if (t.hasAttribute('data-st') && state.stampModal){
       var i2 = parseInt(t.getAttribute('data-st'), 10), f2 = t.getAttribute('data-stf');
       state.stampModal.rows[i2][f2] = t.value;
