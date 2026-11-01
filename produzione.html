@@ -681,7 +681,7 @@
   }
 
   function freshFatturaDraft(){
-    return { file: null, fileName: '', mediaType: '', base64: '', previewUrl: '', analyzing: false };
+    return { files: [], analyzing: false };
   }
 
   // ---------- utils ----------
@@ -1335,26 +1335,32 @@
     var ai = getAiSettings();
     var d = state.fattura;
     var html = '';
-    html += '<div class="section-title">Carica fattura fornitore</div>';
-    html += '<div class="section-sub">Carica una foto o un PDF della fattura: l\'IA propone le righe (prodotto, quantità, lotto) da controllare prima di registrare i carichi.</div>';
+    html += '<div class="section-title">Carica fatture fornitore</div>';
+    html += '<div class="section-sub">Puoi caricare più fatture insieme (foto o PDF): l\'IA le legge una dopo l\'altra e ti propone tutte le righe in un\'unica revisione, da controllare prima di registrare i carichi.</div>';
 
     if (!ai.apiKey){
       html += '<div class="ai-warning">Per usare questa funzione serve prima una chiave API. <button type="button" class="link-btn" data-action="open-settings">Impostala qui</button>.</div>';
     }
 
     html += '<div class="form-card">';
-    if (!d.base64){
-      html += '<div class="file-picker-row">';
-      html += '<label class="file-picker-btn">' + iconCamera() + '<span>Scatta foto</span><input type="file" accept="image/*" capture="environment" id="fatturaCameraInput" hidden></label>';
-      html += '<label class="file-picker-btn">' + iconUpload() + '<span>Carica file</span><input type="file" accept="image/*,application/pdf" id="fatturaFileInput" hidden></label>';
-      html += '</div>';
-    } else {
+    html += '<div class="file-picker-row">';
+    html += '<label class="file-picker-btn">' + iconCamera() + '<span>Scatta foto</span><input type="file" accept="image/*" capture="environment" id="fatturaCameraInput" hidden></label>';
+    html += '<label class="file-picker-btn">' + iconUpload() + '<span>Carica file (anche più di uno)</span><input type="file" accept="image/*,application/pdf" multiple id="fatturaFileInput" hidden></label>';
+    html += '</div>';
+    d.files.forEach(function(f, i){
+      var st = f.status === 'done' ? '<span class="tag ok">Letta · ' + ((f.result && f.result.righe) ? f.result.righe.length : 0) + ' righe</span>' :
+        f.status === 'analyzing' ? '<span class="tag warn">Lettura in corso…</span>' :
+        f.status === 'error' ? '<span class="tag bad" title="' + escapeHtml(f.error || '') + '">Errore</span>' : '<span class="tag">Da leggere</span>';
       html += '<div class="file-chosen">';
-      if (d.previewUrl) html += '<img src="' + d.previewUrl + '" alt="" style="width:2.6rem;height:2.6rem;object-fit:cover;border-radius:.4rem;flex:none;">';
-      html += '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(d.fileName) + '</span>';
-      html += '<button type="button" class="file-chosen-remove" data-action="remove-fattura-file">' + iconTrash() + '</button>';
+      if (f.previewUrl) html += '<img src="' + f.previewUrl + '" alt="" style="width:2.6rem;height:2.6rem;object-fit:cover;border-radius:.4rem;flex:none;">';
+      html += '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(f.name) + (f.status === 'error' ? ' <span class="hint">— ' + escapeHtml(f.error || '') + '</span>' : '') + '</span>' + st;
+      html += '<button type="button" class="file-chosen-remove" data-action="remove-fattura-file" data-idx="' + i + '"' + (d.analyzing ? ' disabled' : '') + '>' + iconTrash() + '</button>';
       html += '</div>';
-      html += '<div class="btn-row" style="margin-top:.8rem;"><button type="button" class="btn btn-primary btn-block" data-action="analyze-fattura"' + ((d.analyzing || !ai.apiKey) ? ' disabled' : '') + '>' + (d.analyzing ? 'Analisi in corso…' : 'Analizza con IA') + '</button></div>';
+    });
+    if (d.files.length){
+      var pending = d.files.filter(function(f){ return f.status !== 'done'; }).length;
+      var label = d.analyzing ? 'Analisi in corso…' : (pending ? 'Analizza ' + pending + (pending === 1 ? ' fattura' : ' fatture') + ' con IA' : 'Rivedi le righe lette');
+      html += '<div class="btn-row" style="margin-top:.8rem;"><button type="button" class="btn btn-ghost" data-action="remove-fattura-file"' + (d.analyzing ? ' disabled' : '') + '>Svuota elenco</button><button type="button" class="btn btn-primary" data-action="analyze-fattura"' + ((d.analyzing || !ai.apiKey) ? ' disabled' : '') + '>' + label + '</button></div>';
     }
     html += '</div>';
     return html;
@@ -1398,30 +1404,29 @@
     });
   }
 
-  function handleFatturaFileSelected(file){
-    if (!file) return;
-    var isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
-    state.fattura.fileName = file.name || (isPdf ? 'fattura.pdf' : 'fattura.jpg');
-    var task = isPdf ? readFileAsBase64(file) : compressImageForInvoice(file);
-    task.then(function(res){
-      state.fattura.base64 = res.base64;
-      state.fattura.mediaType = res.mediaType;
-      state.fattura.previewUrl = isPdf ? '' : res.dataUrl;
+  var INVOICE_MAX_FILES = 20;
+  function handleFatturaFilesSelected(list){
+    var files = Array.prototype.slice.call(list || []);
+    if (!files.length) return;
+    var room = INVOICE_MAX_FILES - state.fattura.files.length;
+    if (files.length > room){ showToast('Massimo ' + INVOICE_MAX_FILES + ' fatture per volta.'); files = files.slice(0, Math.max(0, room)); }
+    var chain = Promise.resolve(), failed = 0;
+    files.forEach(function(file){
+      chain = chain.then(function(){
+        var isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+        var task = isPdf ? readFileAsBase64(file) : compressImageForInvoice(file);
+        return task.then(function(res){
+          state.fattura.files.push({ name: file.name || (isPdf ? 'fattura.pdf' : 'fattura.jpg'), base64: res.base64, mediaType: res.mediaType, previewUrl: isPdf ? '' : res.dataUrl, status:'pending', result:null, error:'' });
+        }).catch(function(err){ console.error(err); failed++; });
+      });
+    });
+    chain.then(function(){
+      if (failed) showToast(failed === 1 ? 'Un file non si legge: prova con un\'altra foto o un altro PDF.' : failed + ' file non si leggono.');
       render();
-    }).catch(function(err){
-      console.error(err);
-      showToast('Non riesco a leggere questo file. Prova con un\'altra foto o un altro PDF.');
     });
   }
 
-  function analyzeFattura(){
-    var d = state.fattura;
-    var ai = getAiSettings();
-    if (!ai.apiKey){ showToast('Imposta prima la chiave API.'); openSettingsModal(); return; }
-    if (!d.base64){ showToast('Carica prima una foto o un PDF della fattura.'); return; }
-    d.analyzing = true;
-    render();
-
+  function analyzeInvoiceFile(d, ai){
     var contentType = d.mediaType === 'application/pdf' ? 'document' : 'image';
     var body = {
       model: ai.model,
@@ -1466,7 +1471,7 @@
       }]
     };
 
-    fetch('https://api.anthropic.com/v1/messages', {
+    return fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'x-api-key': ai.apiKey,
@@ -1486,16 +1491,42 @@
     }).then(function(data){
       var toolUse = (data.content || []).filter(function(b){ return b.type === 'tool_use'; })[0];
       if (!toolUse || !toolUse.input){ throw new Error('Risposta IA non valida.'); }
-      openInvoiceReviewModal(toolUse.input);
-    }).catch(function(e){
-      console.error(e);
-      var msg = e.message || 'Analisi non riuscita.';
-      if (/401|invalid.*api.*key|authentication/i.test(msg)) msg = 'Chiave API non valida. Controlla le impostazioni.';
-      else if (/429|rate.?limit/i.test(msg)) msg = 'Limite di richieste raggiunto sul tuo account Anthropic. Riprova tra poco.';
-      showToast(msg);
-    }).finally(function(){
+      return toolUse.input;
+    });
+  }
+
+  function aiErrorMessage(e){
+    var msg = (e && e.message) || 'Analisi non riuscita.';
+    if (/401|invalid.*api.*key|authentication/i.test(msg)) msg = 'Chiave API non valida. Controlla le impostazioni.';
+    else if (/429|rate.?limit/i.test(msg)) msg = 'Limite di richieste raggiunto sul tuo account Anthropic. Riprova tra poco.';
+    return msg;
+  }
+
+  function analyzeFattura(){
+    var d = state.fattura;
+    var ai = getAiSettings();
+    if (!ai.apiKey){ showToast('Imposta prima la chiave API.'); openSettingsModal(); return; }
+    if (!d.files.length){ showToast('Carica prima una o più fatture (foto o PDF).'); return; }
+    var todo = d.files.filter(function(f){ return f.status !== 'done'; });
+    d.analyzing = true;
+    render();
+    var chain = Promise.resolve();
+    todo.forEach(function(f){
+      chain = chain.then(function(){
+        f.status = 'analyzing'; f.error = '';
+        render();
+        return analyzeInvoiceFile(f, ai).then(function(res){ f.status = 'done'; f.result = res; })
+          .catch(function(e){ console.error(e); f.status = 'error'; f.error = aiErrorMessage(e); });
+      });
+    });
+    chain.then(function(){
       d.analyzing = false;
+      var ok = d.files.filter(function(f){ return f.status === 'done' && f.result; });
+      var errs = d.files.filter(function(f){ return f.status === 'error'; });
       render();
+      if (!ok.length){ showToast(errs.length ? 'Nessuna fattura letta: ' + errs[0].error : 'Nessuna riga trovata.'); return; }
+      if (errs.length) showToast(errs.length + (errs.length === 1 ? ' fattura non è stata letta' : ' fatture non sono state lette') + ': le altre sono pronte per la revisione.');
+      openInvoiceReviewModal(ok.map(function(f){ return { name: f.name, fornitore: f.result.fornitore || null, righe: f.result.righe || [] }; }));
     });
   }
 
@@ -1586,8 +1617,9 @@
     return c ? c.id : '';
   }
   function openInvoiceReviewModal(result){
-    var righe = result.righe || [];
-    var lines = righe.map(function(r){
+    var docs = Array.isArray(result) ? result : [result];
+    var lines = [];
+    docs.forEach(function(doc){ (doc.righe || []).forEach(function(r){ lines.push((function(){
       var match = guessReferenceMatchByCode(r.codice_prodotto) || guessReferenceMatch(r.nome_prodotto || r.descrizione);
       var qtyGuess = guessQtyFromUnit(r.unita, r.quantita);
       var matchDensity = match && match.density !== null && match.density !== undefined ? match.density : null;
@@ -1602,6 +1634,8 @@
       }
       return {
         include: true,
+        supplier: doc.fornitore || null,
+        source: doc.name || '',
         rawDescription: r.descrizione || '',
         extractedName: r.nome_prodotto || r.descrizione || '',
         extractedUnit: r.unita || '',
@@ -1617,9 +1651,9 @@
         density: matchDensity !== null ? matchDensity : '',
         grade: match && match.grade !== null && match.grade !== undefined ? match.grade : ''
       };
-    });
-    if (!lines.length){ showToast('Non ho trovato righe di prodotto in questa fattura.'); return; }
-    state.invoiceReview = { supplierName: result.fornitore || null, lines: lines };
+    })()); }); });
+    if (!lines.length){ showToast('Non ho trovato righe di prodotto nelle fatture.'); return; }
+    state.invoiceReview = { supplierName: null, docs: docs.length, lines: lines };
     renderInvoiceReviewModal();
   }
   function closeInvoiceReviewModal(){
@@ -1633,8 +1667,11 @@
     if (!rev){ overlay.hidden = true; return; }
     var html = '<div class="modal-sheet wide">';
     html += '<h2 class="modal-title">Revisione fattura</h2>';
-    html += '<p class="modal-subtitle">' + (rev.supplierName ? 'Fornitore: ' + escapeHtml(rev.supplierName) + ' — ' : '') + 'controlla ogni riga prima di registrare i carichi.</p>';
-    rev.lines.forEach(function(line, idx){ html += renderInvoiceLine(line, idx); });
+    html += '<p class="modal-subtitle">' + rev.lines.length + (rev.lines.length === 1 ? ' riga' : ' righe') + ' da ' + rev.docs + (rev.docs === 1 ? ' fattura' : ' fatture') + ' — controlla ogni riga prima di registrare i carichi.</p>';
+    rev.lines.forEach(function(line, idx){
+      if (idx === 0 || line.source !== rev.lines[idx - 1].source || line.supplier !== rev.lines[idx - 1].supplier) html += '<div class="side-sec" style="margin:.8rem 0 .5rem;border-radius:.3rem;text-transform:none;font-size:.85rem">Fattura: ' + escapeHtml(line.source || '') + (line.supplier ? ' — ' + escapeHtml(line.supplier) : '') + '</div>';
+      html += renderInvoiceLine(line, idx);
+    });
     var includedCount = rev.lines.filter(function(l){ return l.include; }).length;
     html += '<div class="btn-row"><button type="button" class="btn btn-ghost" data-action="close-invoice-modal">Annulla</button><button type="button" class="btn btn-good" data-action="confirm-invoice-import">Conferma e carica (' + includedCount + ')</button></div>';
     html += '</div>';
@@ -1759,7 +1796,7 @@
         }
         return resolveRef.then(function(ref){
           if (!ref) return;
-          return commitCarico(ref, l.lotto.trim(), numOrNull(l.qtyLt), numOrNull(l.qtyKg), numOrNull(l.density), ref.unit === 'liquido' ? numOrNull(l.grade) : null, causale, l.scadenza || null, { supplier: rev.supplierName || null, price: numOrNull(l.price) });
+          return commitCarico(ref, l.lotto.trim(), numOrNull(l.qtyLt), numOrNull(l.qtyKg), numOrNull(l.density), ref.unit === 'liquido' ? numOrNull(l.grade) : null, 'Import da fattura' + (l.supplier ? ' — ' + l.supplier : ''), l.scadenza || null, { supplier: l.supplier || null, price: numOrNull(l.price) });
         });
       });
     });
@@ -1767,7 +1804,8 @@
     chain.then(function(){
       showToast(included.length + (included.length === 1 ? ' carico registrato' : ' carichi registrati') + ' dalla fattura.');
       closeInvoiceReviewModal();
-      state.fattura = freshFatturaDraft();
+      state.fattura.files = state.fattura.files.filter(function(f){ return f.status === 'error'; });
+      state.fattura.analyzing = false;
       render();
     }).catch(function(e){
       console.error(e);
@@ -4413,7 +4451,11 @@
       if (action === 'open-settings'){ openSettingsModal(); return; }
       if (action === 'close-settings-modal'){ closeSettingsModal(); return; }
       if (action === 'save-settings'){ saveSettingsModal(); return; }
-      if (action === 'remove-fattura-file'){ state.fattura = freshFatturaDraft(); render(); return; }
+      if (action === 'remove-fattura-file'){
+        var rix = el.getAttribute('data-idx');
+        if (rix === null) state.fattura = freshFatturaDraft(); else state.fattura.files.splice(parseInt(rix, 10), 1);
+        render(); return;
+      }
       if (action === 'analyze-fattura'){ analyzeFattura(); return; }
       if (action === 'close-invoice-modal'){ closeInvoiceReviewModal(); return; }
       if (action === 'confirm-invoice-import'){ confirmInvoiceImport(); return; }
@@ -4433,9 +4475,9 @@
       if (t.id === 'pushProductId'){ state.pushModal.productId = t.value; return; }
       if (t.id === 'pushLocation'){ state.pushModal.location = t.value; return; }
       if (t.id === 'fatturaCameraInput' || t.id === 'fatturaFileInput'){
-        var fFile = t.files && t.files[0];
+        var fList = Array.prototype.slice.call(t.files || []);
         t.value = '';
-        if (fFile) handleFatturaFileSelected(fFile);
+        handleFatturaFilesSelected(fList);
         return;
       }
       if (t.id && t.id.indexOf('invRef_') === 0){
