@@ -677,6 +677,7 @@
     menuOpen: null,
     toolModal: null,
     stamps: [],
+    invoices: [],
     stampMoves: [],
     stampModal: null,
     mergeModal: null,
@@ -695,7 +696,7 @@
     ricette: { editingId: null, formOpen: false, draft: null }
   };
 
-  function freshCaricoDraft(){ return { causale:'', supplier:'', docNum:'', docDate:'', rows:[freshCaricoRow()] }; }
+  function freshCaricoDraft(){ return { causale:'', supplier:'', docNum:'', docDate:'', declared:'', vatDef:22, rows:[freshCaricoRow()] }; }
   function freshScaricoDraft(){ return { causale:'', rows:[freshScaricoRow()] }; }
   function freshProduzioneDraft(){
     return { recipeId:'', quantity:'', components:[], finishedLotto:'', gradeEffective:'', note:'', stamps: freshStampDraft() };
@@ -773,12 +774,13 @@
 
   function totalStock(refId){
     var lots = lotsForRef(refId);
-    var lt = 0, kg = 0, hasLt = false, hasKg = false;
+    var lt = 0, kg = 0, pz = 0, hasLt = false, hasKg = false, hasPz = false;
     lots.forEach(function(l){
       if (l.qtyLt !== null && l.qtyLt !== undefined){ lt += l.qtyLt; hasLt = true; }
       if (l.qtyKg !== null && l.qtyKg !== undefined){ kg += l.qtyKg; hasKg = true; }
+      if (l.qtyPz !== null && l.qtyPz !== undefined){ pz += l.qtyPz; hasPz = true; }
     });
-    return { lt: hasLt ? round(lt,3) : null, kg: hasKg ? round(kg,3) : null };
+    return { lt: hasLt ? round(lt,3) : null, kg: hasKg ? round(kg,3) : null, pz: hasPz ? round(pz,3) : null };
   }
 
   function anidriFor(qtyLt, grade){
@@ -787,19 +789,22 @@
   }
 
   function consumeFromLot(lot, qty, unit){
-    var newLt = lot.qtyLt, newKg = lot.qtyKg;
-    if (unit === 'lt'){
+    var newLt = lot.qtyLt, newKg = lot.qtyKg, newPz = lot.qtyPz === undefined ? null : lot.qtyPz;
+    if (unit === 'pz'){
+      newPz = round(Math.max(0, (lot.qtyPz || 0) - qty), 3);
+    } else if (unit === 'lt'){
       newLt = round(Math.max(0, (lot.qtyLt || 0) - qty), 3);
       if (lot.density) newKg = round(Math.max(0, (lot.qtyKg || 0) - qty * lot.density), 3);
     } else {
       newKg = round(Math.max(0, (lot.qtyKg || 0) - qty), 3);
       if (lot.density) newLt = round(Math.max(0, (lot.qtyLt || 0) - qty / lot.density), 3);
     }
-    return { qtyLt: newLt, qtyKg: newKg };
+    return { qtyLt: newLt === undefined ? null : newLt, qtyKg: newKg === undefined ? null : newKg, qtyPz: newPz };
   }
 
   function availableQty(lot, unit){
     if (unit === 'lt') return lot.qtyLt || 0;
+    if (unit === 'pz') return lot.qtyPz || 0;
     return lot.qtyKg || 0;
   }
 
@@ -832,7 +837,7 @@
   // RENDER: top-level
   // ==================================================================
   var lastRenderedView = null;
-  var GRID_VIEWS = ['materie', 'lotti', 'produzioni', 'storico', 'contrassegni'];
+  var GRID_VIEWS = ['materie', 'lotti', 'produzioni', 'storico', 'contrassegni', 'fatture'];
   function render(){
     applyPrefs();
     renderMenus();
@@ -854,6 +859,7 @@
     else if (v === 'produzioni') html = renderProduzioniView();
     else if (v === 'storico') html = renderStoricoView();
     else if (v === 'contrassegni') html = renderContrassegniView();
+    else if (v === 'fatture') html = renderFattureView();
     else if (v === 'carico') html = renderCaricoView();
     else if (v === 'scarico') html = renderScaricoView();
     else if (v === 'produzione') html = renderProduzioneView();
@@ -944,7 +950,7 @@
       html += '<td>' + (c.refCodice ? escapeHtml(c.refCodice) : '—') + '</td>';
       html += '<td>' + escapeHtml(c.lotto) + '</td>';
       html += '<td>' + (exp.label ? '<span class="expiry-tag ' + exp.cls + '">' + exp.label + '</span>' : '—') + '</td>';
-      html += '<td class="num">' + fmt(c.qty,3) + ' ' + (c.unit==='lt'?'Lt':'Kg') + '</td>';
+      html += '<td class="num">' + fmt(c.qty,3) + ' ' + ul(c.unit) + '</td>';
       html += '</tr>';
     });
     html += '</tbody></table></div>';
@@ -974,6 +980,7 @@
       draft: {
         qtyLt: lot.qtyLt === null || lot.qtyLt === undefined ? '' : lot.qtyLt,
         qtyKg: lot.qtyKg === null || lot.qtyKg === undefined ? '' : lot.qtyKg,
+        qtyPz: lot.qtyPz === null || lot.qtyPz === undefined ? '' : lot.qtyPz,
         density: lot.density === null || lot.density === undefined ? '' : lot.density,
         grade: lot.grade === null || lot.grade === undefined ? '' : lot.grade,
         scadenza: lot.scadenza || ''
@@ -1000,11 +1007,15 @@
     html += '<p class="modal-subtitle">' + escapeHtml(lot.refName) + ' — Lotto ' + escapeHtml(lot.lotto) + '</p>';
     html += '<p class="modal-hint">Corregge direttamente la quantità disponibile di questo lotto, senza registrare un carico o uno scarico.</p>';
 
-    html += '<div class="row-split3">';
-    html += '<div class="modal-field"><label>Quantità (Lt)</label><input type="number" step="0.001" min="0" id="lotQtyLt" value="' + escapeHtml(d.qtyLt) + '"></div>';
-    html += '<div class="modal-field"><label>Quantità (Kg)</label><input type="number" step="0.001" min="0" id="lotQtyKg" value="' + escapeHtml(d.qtyKg) + '"></div>';
-    html += '<div class="modal-field"><label>Densità (kg/Lt)</label><input type="number" step="0.0001" min="0" id="lotDensity" value="' + escapeHtml(d.density) + '"></div>';
-    html += '</div>';
+    if (ref && ref.unit === 'materiale'){
+      html += '<div class="modal-field"><label>Quantità (pezzi)</label><input type="number" step="1" min="0" id="lotQtyPz" value="' + escapeHtml(d.qtyPz) + '"></div>';
+    } else {
+      html += '<div class="row-split3">';
+      html += '<div class="modal-field"><label>Quantità (Lt)</label><input type="number" step="0.001" min="0" id="lotQtyLt" value="' + escapeHtml(d.qtyLt) + '"></div>';
+      html += '<div class="modal-field"><label>Quantità (Kg)</label><input type="number" step="0.001" min="0" id="lotQtyKg" value="' + escapeHtml(d.qtyKg) + '"></div>';
+      html += '<div class="modal-field"><label>Densità (kg/Lt)</label><input type="number" step="0.0001" min="0" id="lotDensity" value="' + escapeHtml(d.density) + '"></div>';
+      html += '</div>';
+    }
     if (ref && ref.unit === 'liquido'){
       html += '<div class="modal-field"><label>Gradazione (%)</label><input type="number" step="0.1" min="0" max="100" id="lotGrade" value="' + escapeHtml(d.grade) + '"></div>';
     }
@@ -1063,22 +1074,26 @@
     var lot = lotById(m.lotId);
     if (!lot) return;
     var ref = referenceById(lot.refId);
-    var newQtyLt = numOrNull(document.getElementById('lotQtyLt').value);
-    var newQtyKg = numOrNull(document.getElementById('lotQtyKg').value);
-    var newDensity = numOrNull(document.getElementById('lotDensity').value);
+    var ltEl = document.getElementById('lotQtyLt'), kgEl = document.getElementById('lotQtyKg'), pzEl = document.getElementById('lotQtyPz'), dnEl = document.getElementById('lotDensity');
+    var newQtyLt = ltEl ? numOrNull(ltEl.value) : (lot.qtyLt === undefined ? null : lot.qtyLt);
+    var newQtyKg = kgEl ? numOrNull(kgEl.value) : (lot.qtyKg === undefined ? null : lot.qtyKg);
+    var newQtyPz = pzEl ? numOrNull(pzEl.value) : (lot.qtyPz === undefined ? null : lot.qtyPz);
+    var newDensity = dnEl ? numOrNull(dnEl.value) : (lot.density === undefined ? null : lot.density);
     var gradeInput = document.getElementById('lotGrade');
     var newGrade = gradeInput ? numOrNull(gradeInput.value) : (lot.grade === undefined ? null : lot.grade);
     var newScadenza = document.getElementById('lotScadenza').value || null;
 
-    var oldPrimary = ref && ref.unit === 'liquido' ? (lot.qtyLt || 0) : (lot.qtyKg || 0);
+    var uk = unitKeyOf(ref ? ref.unit : 'solido');
+    var oldPrimary = uk === 'lt' ? (lot.qtyLt || 0) : (uk === 'pz' ? (lot.qtyPz || 0) : (lot.qtyKg || 0));
     var patch = {
       qtyLt: newQtyLt === null ? null : round(newQtyLt, 3),
       qtyKg: newQtyKg === null ? null : round(newQtyKg, 3),
+      qtyPz: newQtyPz === null ? null : round(newQtyPz, 3),
       density: newDensity,
       grade: newGrade,
       scadenza: newScadenza
     };
-    var newPrimary = ref && ref.unit === 'liquido' ? (patch.qtyLt || 0) : (patch.qtyKg || 0);
+    var newPrimary = uk === 'lt' ? (patch.qtyLt || 0) : (uk === 'pz' ? (patch.qtyPz || 0) : (patch.qtyKg || 0));
     var delta = round(newPrimary - oldPrimary, 3);
 
     window.__fb.setDoc(LOTS_COLL + '/' + lot.id, patch, true).then(function(){
@@ -1086,7 +1101,7 @@
       if (delta !== 0){
         logProdMovement({
           type:'correzione', refId: lot.refId, refName: lot.refName, lotto: lot.lotto,
-          unit: ref && ref.unit === 'liquido' ? 'lt' : 'kg',
+          unit: uk,
           delta: delta,
           causale: 'Correzione manuale giacenza'
         });
@@ -1213,7 +1228,10 @@
       docNum: (extra && extra.docNum) ? extra.docNum : (existing ? (existing.docNum || null) : null),
       docDate: (extra && extra.docDate) ? extra.docDate : (existing ? (existing.docDate || null) : null),
       qtyLt: hasLt ? round(newQtyLt,3) : null,
-      qtyKg: round(newQtyKg,3),
+      qtyKg: ref.unit === 'materiale' ? null : round(newQtyKg,3),
+      qtyPz: ref.unit === 'materiale' ? round(((existing && existing.qtyPz) || 0) + ((extra && extra.qtyPz) || 0), 3) : null,
+      vat: (extra && extra.vat !== undefined && extra.vat !== null) ? extra.vat : (existing && existing.vat !== undefined ? existing.vat : null),
+      invoiceId: (extra && extra.invoiceId) ? extra.invoiceId : (existing && existing.invoiceId ? existing.invoiceId : null),
       createdAt: existing ? existing.createdAt : new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -1222,8 +1240,8 @@
       else { state.lots.push(Object.assign({ id: lotId }, docData)); }
       logProdMovement({
         type:'carico', refId: ref.id, refName: ref.name, lotto: lotto,
-        unit: ref.unit === 'liquido' ? 'lt' : 'kg',
-        delta: ref.unit === 'liquido' ? (qtyLt || 0) : (qtyKg || 0),
+        unit: unitKeyOf(ref.unit),
+        delta: ref.unit === 'liquido' ? (qtyLt || 0) : (ref.unit === 'materiale' ? ((extra && extra.qtyPz) || 0) : (qtyKg || 0)),
         causale: causale || null
       });
     });
@@ -1466,6 +1484,9 @@
           properties: {
             righe_totali_in_fattura: { type: 'integer', description: 'Numero totale di righe di articolo che vedi nella fattura (tutte le pagine). Contale PRIMA di compilare l\'elenco: righe deve avere lo stesso numero di voci.' },
             fornitore: { type: ['string','null'], description: 'Nome del fornitore, se presente' },
+            numero_fattura: { type: ['string','null'], description: 'Numero della fattura / documento' },
+            data_fattura: { type: ['string','null'], description: 'Data della fattura in formato AAAA-MM-GG' },
+            totale_fattura: { type: ['number','null'], description: 'Totale del documento (IVA inclusa), se indicato' },
             righe: {
               type: 'array',
               description: 'Una voce per ogni prodotto/materia prima in fattura, escludendo totali, IVA, spese di trasporto o sconti',
@@ -1563,7 +1584,7 @@
       var warns = ok.filter(function(f){ return f.warn; });
       if (warns.length) showToast('Attenzione: ' + warns[0].name + ' — ' + warns[0].warn + '. Controlla la revisione o rileggi la fattura.');
       else if (errs.length) showToast(errs.length + (errs.length === 1 ? ' fattura non è stata letta' : ' fatture non sono state lette') + ': le altre sono pronte per la revisione.');
-      openInvoiceReviewModal(ok.map(function(f){ return { name: f.name, fornitore: f.result.fornitore || null, righe: f.result.righe || [], warn: f.warn || '' }; }));
+      openInvoiceReviewModal(ok.map(function(f){ return { name: f.name, fornitore: f.result.fornitore || null, righe: f.result.righe || [], warn: f.warn || '', numero: f.result.numero_fattura || '', data: f.result.data_fattura || '', totale: f.result.totale_fattura }; }));
     });
   }
 
@@ -1612,7 +1633,7 @@
     });
     return bestScore >= 70 ? best : null;
   }
-  var UNIT_ALIASES = { l:'lt', lt:'lt', litro:'lt', litri:'lt', kg:'kg', chilo:'kg', chili:'kg', chilogrammo:'kg', chilogrammi:'kg', g:'g', gr:'g', grammo:'g', grammi:'g', ml:'ml', millilitri:'ml', cl:'cl', centilitri:'cl', hl:'hl', ettolitri:'hl', q:'q', quintale:'q', quintali:'q' };
+  var UNIT_ALIASES = { cf:'pz', conf:'pz', confezione:'pz', confezioni:'pz', pz:'pz', pezzi:'pz', pezzo:'pz', nr:'pz', n:'pz', cad:'pz', cadauno:'pz', l:'lt', lt:'lt', litro:'lt', litri:'lt', kg:'kg', chilo:'kg', chili:'kg', chilogrammo:'kg', chilogrammi:'kg', g:'g', gr:'g', grammo:'g', grammi:'g', ml:'ml', millilitri:'ml', cl:'cl', centilitri:'cl', hl:'hl', ettolitri:'hl', q:'q', quintale:'q', quintali:'q' };
   function guessUnit(unitStr){
     var u = normalizeForMatch(unitStr);
     if (!u) return null;
@@ -1623,12 +1644,12 @@
     return alias ? unitById(alias) : null;
   }
   function guessQtyFromUnit(unitStr, quantity){
-    var out = { qtyLt: '', qtyKg: '' };
+    var out = { qtyLt: '', qtyKg: '', qtyPz: '' };
     if (quantity === null || quantity === undefined || isNaN(quantity)) return out;
     var u = guessUnit(unitStr);
     if (!u) return out;
     var base = round(quantity * u.factor, 3);
-    if (u.kind === 'lt') out.qtyLt = base; else out.qtyKg = base;
+    if (u.kind === 'lt') out.qtyLt = base; else if (u.kind === 'pz') out.qtyPz = base; else out.qtyKg = base;
     return out;
   }
 
@@ -1683,9 +1704,13 @@
         price: (function(){ var u = guessUnit(r.unita); return (u && r.prezzo_unitario) ? round(r.prezzo_unitario / u.factor, 4) : ''; })(),
         refMode: match ? 'existing' : 'new',
         refId: match ? match.id : '',
-        newRef: { name: r.nome_prodotto || r.descrizione || '', unit: guessUnit(r.unita) && guessUnit(r.unita).kind === 'kg' ? 'solido' : 'liquido', codice: r.codice_prodotto || '', category: guessCategoryId(r.categoria) },
+        newRef: { name: r.nome_prodotto || r.descrizione || '', unit: guessUnit(r.unita) && guessUnit(r.unita).kind === 'kg' ? 'solido' : (guessUnit(r.unita) && guessUnit(r.unita).kind === 'pz' ? 'materiale' : 'liquido'), codice: r.codice_prodotto || '', category: guessCategoryId(r.categoria) },
         qtyLt: qtyLt,
         qtyKg: qtyKg,
+        qtyPz: qtyGuess.qtyPz,
+        docNum: doc.numero || '',
+        docDate: /^\d{4}-\d{2}-\d{2}$/.test(doc.data || '') ? doc.data : '',
+        docTotal: typeof doc.totale === 'number' ? doc.totale : null,
         density: matchDensity !== null ? matchDensity : '',
         grade: match && match.grade !== null && match.grade !== undefined ? match.grade : ''
       };
@@ -1708,7 +1733,7 @@
     html += '<p class="modal-subtitle">' + rev.lines.length + (rev.lines.length === 1 ? ' riga' : ' righe') + ' da ' + rev.docs + (rev.docs === 1 ? ' fattura' : ' fatture') + ' — controlla ogni riga prima di registrare i carichi.</p>';
     html += '<div class="btn-row" style="justify-content:flex-start;margin-bottom:.4rem"><button type="button" class="btn btn-sm btn-ghost" data-action="inv-all" data-v="1">Includi tutte</button><button type="button" class="btn btn-sm btn-ghost" data-action="inv-all" data-v="0">Escludi tutte</button></div>';
     rev.lines.forEach(function(line, idx){
-      if (idx === 0 || line.source !== rev.lines[idx - 1].source || line.supplier !== rev.lines[idx - 1].supplier) html += '<div class="side-sec" style="margin:.8rem 0 .5rem;border-radius:.3rem;text-transform:none;font-size:.85rem">Fattura: ' + escapeHtml(line.source || '') + (line.supplier ? ' — ' + escapeHtml(line.supplier) : '') + (line.srcWarn ? ' <span style="color:var(--warn)">⚠ ' + escapeHtml(line.srcWarn) + '</span>' : '') + '</div>';
+      if (idx === 0 || line.source !== rev.lines[idx - 1].source || line.supplier !== rev.lines[idx - 1].supplier) html += '<div class="side-sec" style="margin:.8rem 0 .5rem;border-radius:.3rem;text-transform:none;font-size:.85rem">Fattura: ' + escapeHtml(line.source || '') + (line.supplier ? ' — ' + escapeHtml(line.supplier) : '') + (line.docNum ? ' · n. ' + escapeHtml(line.docNum) : '') + (line.docDate ? ' del ' + escapeHtml(new Date(line.docDate + 'T00:00:00').toLocaleDateString('it-IT')) : '') + (line.srcWarn ? ' <span style="color:var(--warn)">⚠ ' + escapeHtml(line.srcWarn) + '</span>' : '') + '</div>';
       html += renderInvoiceLine(line, idx);
     });
     var includedCount = rev.lines.filter(function(l){ return l.include; }).length;
@@ -1739,6 +1764,7 @@
       html += '<div class="field"><label>Tipo</label><div class="seg">';
       html += '<button type="button" class="seg-btn' + (unit==='liquido'?' active':'') + '" data-action="inv-set-unit" data-idx="' + idx + '" data-unit="liquido">Liquido</button>';
       html += '<button type="button" class="seg-btn' + (unit==='solido'?' active':'') + '" data-action="inv-set-unit" data-idx="' + idx + '" data-unit="solido">Solido</button>';
+      html += '<button type="button" class="seg-btn' + (unit==='materiale'?' active':'') + '" data-action="inv-set-unit" data-idx="' + idx + '" data-unit="materiale">Materiale (pezzi)</button>';
       html += '</div></div>';
     }
 
@@ -1747,11 +1773,15 @@
     html += '<div class="field"><label for="invScadenza_' + idx + '">Scadenza (opzionale)</label><input type="date" id="invScadenza_' + idx + '" value="' + escapeHtml(line.scadenza) + '"></div>';
     html += '</div>';
 
+    if (unit === 'materiale'){
+      html += fieldInput('invPz_' + idx, 'Quantità (pezzi)', 'number', line.qtyPz, 'step="1" min="0"');
+    } else {
     html += '<div class="row-split3">';
     html += fieldInput('invLt_' + idx, 'Quantità (Lt)', 'number', line.qtyLt, 'step="0.001" min="0"');
     html += fieldInput('invKg_' + idx, 'Quantità (Kg)', 'number', line.qtyKg, 'step="0.001" min="0"');
     html += fieldInput('invDensity_' + idx, 'Densità (kg/Lt)', 'number', line.density, 'step="0.0001" min="0"');
     html += '</div>';
+    }
 
     if (unit === 'liquido'){
       html += fieldInput('invGrade_' + idx, 'Gradazione (%) — opzionale', 'number', line.grade, 'step="0.1" min="0" max="100"');
@@ -1810,21 +1840,24 @@
     for (var i = 0; i < included.length; i++){
       var l = included[i];
       if (!l.lotto || !l.lotto.trim()){ showToast('Inserisci il lotto per tutte le righe incluse.'); return; }
-      var qLt = numOrNull(l.qtyLt), qKg = numOrNull(l.qtyKg);
-      if ((!qLt || qLt <= 0) && (!qKg || qKg <= 0)){ showToast('Inserisci una quantità per tutte le righe incluse.'); return; }
+      var typ = l.refMode === 'new' ? l.newRef.unit : ((referenceById(l.refId) || {}).unit);
+      var qLt = numOrNull(l.qtyLt), qKg = numOrNull(l.qtyKg), qPz = numOrNull(l.qtyPz);
+      var ok = typ === 'materiale' ? (qPz && qPz > 0) : ((qLt && qLt > 0) || (qKg && qKg > 0));
+      if (!ok){ showToast('Inserisci una quantità per tutte le righe incluse.'); return; }
       if (l.refMode === 'new' && (!l.newRef.name || !l.newRef.name.trim())){ showToast('Inserisci il nome per le nuove referenze.'); return; }
     }
-
-    var causale = 'Import da fattura' + (rev.supplierName ? ' — ' + rev.supplierName : '');
+    var invIds = {}, invRows = {};
+    included.forEach(function(l){
+      var k = (l.source || '') + '|' + (l.supplier || '');
+      if (!invIds[k]){ invIds[k] = uid('inv'); invRows[k] = { supplier: l.supplier || null, docNum: l.docNum || null, docDate: l.docDate || null, declared: l.docTotal === undefined ? null : l.docTotal, rows: [] }; }
+    });
     var chain = Promise.resolve();
     included.forEach(function(l){
       chain = chain.then(function(){
         var resolveRef;
         if (l.refMode === 'new'){
-          var id = uid('ref');
-          // Seed the new reference's defaults from this first lot's own
-          // density/gradazione, since there is no prior default to use.
-          var docData = { name: l.newRef.name.trim(), unit: l.newRef.unit, codice: (l.newRef.codice || '').trim() || null, density: numOrNull(l.density), grade: l.newRef.unit === 'liquido' ? numOrNull(l.grade) : null, notes: null, category: l.newRef.category || null, um: null, minQty: null };
+          var id = uid('ref'), mat = l.newRef.unit === 'materiale';
+          var docData = { name: l.newRef.name.trim(), unit: l.newRef.unit, codice: (l.newRef.codice || '').trim() || null, density: mat ? null : numOrNull(l.density), grade: l.newRef.unit === 'liquido' ? numOrNull(l.grade) : null, notes: null, category: l.newRef.category || null, um: null, minQty: null };
           resolveRef = window.__fb.setDoc(REFS_COLL + '/' + id, docData).then(function(){
             var refObj = Object.assign({ id: id }, docData);
             state.references.push(refObj);
@@ -1835,8 +1868,20 @@
         }
         return resolveRef.then(function(ref){
           if (!ref) return;
-          return commitCarico(ref, l.lotto.trim(), numOrNull(l.qtyLt), numOrNull(l.qtyKg), numOrNull(l.density), ref.unit === 'liquido' ? numOrNull(l.grade) : null, 'Import da fattura' + (l.supplier ? ' — ' + l.supplier : ''), l.scadenza || null, { supplier: l.supplier || null, price: numOrNull(l.price) });
+          var mat2 = ref.unit === 'materiale', k = (l.source || '') + '|' + (l.supplier || '');
+          invRows[k].rows.push({ refId: ref.id, refName: ref.name, lotto: l.lotto.trim(), qty: mat2 ? numOrNull(l.qtyPz) : (ref.unit === 'liquido' ? numOrNull(l.qtyLt) : numOrNull(l.qtyKg)), unit: unitKeyOf(ref.unit), price: numOrNull(l.price), amount: null, vat: null });
+          return commitCarico(ref, l.lotto.trim(), mat2 ? null : numOrNull(l.qtyLt), mat2 ? null : numOrNull(l.qtyKg), mat2 ? null : numOrNull(l.density), ref.unit === 'liquido' ? numOrNull(l.grade) : null,
+            'Import da fattura' + (l.docNum ? ' n. ' + l.docNum : '') + (l.supplier ? ' — ' + l.supplier : ''), l.scadenza || null,
+            { supplier: l.supplier || null, price: numOrNull(l.price), docNum: l.docNum || null, docDate: l.docDate || null, qtyPz: mat2 ? numOrNull(l.qtyPz) : null, invoiceId: invIds[k] });
         });
+      });
+    });
+    // archivio fatture: una scheda per ogni fattura letta
+    Object.keys(invIds).forEach(function(k){
+      chain = chain.then(function(){
+        var r = invRows[k];
+        var doc = { supplier: r.supplier, docNum: r.docNum, docDate: r.docDate, imponibile: null, iva: null, vat: {}, total: null, declared: r.declared, source: 'ia', createdAt: new Date().toISOString(), rows: r.rows };
+        return window.__fb.setDoc(INVOICES_COLL + '/' + invIds[k], doc).then(function(){ state.invoices.push(Object.assign({ id: invIds[k] }, doc)); });
       });
     });
 
@@ -1870,6 +1915,7 @@
     { id:'cl', label:'cl',  kind:'lt', factor:0.01 },
     { id:'hl', label:'hl',  kind:'lt', factor:100 },
     { id:'kg', label:'Kg',  kind:'kg', factor:1,     base:true },
+    { id:'pz', label:'Pz',  kind:'pz', factor:1,     base:true },
     { id:'g',  label:'g',   kind:'kg', factor:0.001 },
     { id:'q',  label:'q',   kind:'kg', factor:100 }
   ];
@@ -1882,13 +1928,17 @@
   function unitsList(){
     var u = state.config.units;
     var list = (u && u.length) ? u.slice() : DEFAULT_UNITS.slice();
-    ['lt','kg'].forEach(function(b){
+    ['lt','kg','pz'].forEach(function(b){
       if (!list.some(function(x){ return x.id === b; })) list.unshift(DEFAULT_UNITS.filter(function(x){ return x.id === b; })[0]);
     });
     return list;
   }
   function unitById(id){ return unitsList().filter(function(u){ return u.id === id; })[0] || null; }
-  function baseUnitId(refType){ return refType === 'liquido' ? 'lt' : 'kg'; }
+  function unitKeyOf(t){ return t === 'liquido' ? 'lt' : (t === 'materiale' ? 'pz' : 'kg'); }
+  function baseUnitId(refType){ return unitKeyOf(refType); }
+  function ul(u){ return u === 'lt' ? 'Lt' : (u === 'pz' ? 'Pz' : 'Kg'); }
+  function typeName(t){ return t === 'liquido' ? 'Liquido' : (t === 'materiale' ? 'Materiale (pezzi)' : 'Solido'); }
+  function doseOf(c, ref){ return ref.unit === 'liquido' ? c.doseLt : (ref.unit === 'materiale' ? c.dosePz : c.doseKg); }
   function refUm(ref){ return (ref && ref.um && unitById(ref.um)) || unitById(baseUnitId(ref ? ref.unit : 'liquido')); }
 
   // Converte una quantità tra due unità; fra volume e massa serve la densità (kg/Lt).
@@ -1897,6 +1947,7 @@
     if (!f || !t || value === null || value === undefined || isNaN(value)) return null;
     var base = value * f.factor;
     if (f.kind !== t.kind){
+      if (f.kind === 'pz' || t.kind === 'pz') return null;
       if (!density) return null;
       base = f.kind === 'lt' ? base * density : base / density;
     }
@@ -2153,6 +2204,7 @@
     { id:'produzioni', label:'Produzioni',      group:'Archivi',    key:'4', icon:function(){ return iconPrinter(); } },
     { id:'storico',    label:'Storico',         group:'Archivi',    key:'5', icon:function(){ return ico('<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 8v4l3 2"/>'); } },
     { id:'contrassegni', label:'Contrassegni',  group:'Archivi',    key:'', icon:function(){ return ico('<rect x="3" y="6" width="18" height="12" rx="1.5"/><path d="M7 10h2M7 14h6M13 10h4"/>'); } },
+    { id:'fatture',    label:'Fatture',         group:'Archivi',    key:'', icon:function(){ return iconReceipt(); } },
     { id:'carico',     label:'Carico',          group:'Operazioni', key:'6', icon:function(){ return iconPlus(); } },
     { id:'scarico',    label:'Scarico',         group:'Operazioni', key:'7', icon:function(){ return iconMinus(); } },
     { id:'produzione', label:'Produzione',      group:'Operazioni', key:'8', icon:function(){ return iconFlask(); } },
@@ -2237,6 +2289,7 @@
     if (kind === 'unita') m.draft = unitsList().map(function(u){ return { id:u.id, label:u.label, kind:u.kind, factor:u.factor, base:!!u.base }; });
     if (kind === 'conv') m.draft = { value:'1', from:'lt', to:'ml', density:'', refId:'' };
     if (kind === 'cols') m.gid = extra;
+    if (kind === 'newunit'){ m.draft = { label:'', kind:'lt', factor:'1' }; m.apply = extra; }
     state.toolModal = m;
     state.menuOpen = null;
     renderToolModal();
@@ -2248,10 +2301,10 @@
     render();
   }
 
-  function unitOptions(selected, onlyKind){
+  function unitOptions(selected, onlyKind, allowNew){
     return unitsList().filter(function(u){ return !onlyKind || u.kind === onlyKind; }).map(function(u){
       return '<option value="' + escapeHtml(u.id) + '"' + (u.id === selected ? ' selected' : '') + '>' + escapeHtml(u.label) + '</option>';
-    }).join('');
+    }).join('') + (allowNew ? '<option value="__newunit__">+ Nuova unità di misura…</option>' : '');
   }
 
   function renderToolModal(){
@@ -2275,12 +2328,19 @@
       html += '<table class="tool-table"><thead><tr><th>Nome / sigla</th><th style="width:9rem">Tipo</th><th style="width:9rem">1 unità = … (Lt o Kg)</th><th style="width:2.5rem"></th></tr></thead><tbody>';
       m.draft.forEach(function(u, i){
         html += '<tr><td><input type="text" value="' + escapeHtml(u.label) + '" data-tun="' + i + '" data-tf="label"' + (u.base ? ' disabled' : '') + '></td>' +
-          '<td><select data-tun="' + i + '" data-tf="kind"' + (u.base ? ' disabled' : '') + '><option value="lt"' + (u.kind === 'lt' ? ' selected' : '') + '>Volume (Lt)</option><option value="kg"' + (u.kind === 'kg' ? ' selected' : '') + '>Massa (Kg)</option></select></td>' +
+          '<td><select data-tun="' + i + '" data-tf="kind"' + (u.base ? ' disabled' : '') + '><option value="lt"' + (u.kind === 'lt' ? ' selected' : '') + '>Volume (Lt)</option><option value="kg"' + (u.kind === 'kg' ? ' selected' : '') + '>Massa (Kg)</option><option value="pz"' + (u.kind === 'pz' ? ' selected' : '') + '>Pezzi (Pz)</option></select></td>' +
           '<td><input type="number" step="any" min="0" value="' + u.factor + '" data-tun="' + i + '" data-tf="factor"' + (u.base ? ' disabled' : '') + '></td>' +
           '<td>' + (u.base ? '' : '<button type="button" class="x-btn" data-action="tool-un-del" data-idx="' + i + '" title="Elimina">×</button>') + '</td></tr>';
       });
       html += '</tbody></table><button type="button" class="add-toggle" data-action="tool-un-add">+ Nuova unità di misura</button>';
       html += '<div class="btn-row"><button type="button" class="btn btn-ghost" data-action="tool-close">Annulla</button><button type="button" class="btn btn-primary" data-action="tool-save">Salva</button></div>';
+    } else if (m.kind === 'newunit'){
+      var nu = m.draft;
+      html += '<h2 class="modal-title">Nuova unità di misura</h2><p class="modal-subtitle">Es. «Damigiana 54 Lt»: tipo Volume e 54. «Sacco 25 Kg»: tipo Massa e 25. «Cartone da 6»: tipo Pezzi e 6. Resta salvata e la ritrovi in tutte le liste.</p>';
+      html += '<div class="row-split3"><div class="modal-field"><label>Nome / sigla</label><input type="text" id="nuLabel" value="' + escapeHtml(nu.label) + '" placeholder="Es. Damigiana 54 Lt"></div>' +
+        '<div class="modal-field"><label>Tipo</label><select id="nuKind"><option value="lt"' + (nu.kind === 'lt' ? ' selected' : '') + '>Volume (Lt)</option><option value="kg"' + (nu.kind === 'kg' ? ' selected' : '') + '>Massa (Kg)</option><option value="pz"' + (nu.kind === 'pz' ? ' selected' : '') + '>Pezzi (Pz)</option></select></div>' +
+        '<div class="modal-field"><label>1 unità vale (in Lt, Kg o Pz)</label><input type="number" step="any" min="0" id="nuFactor" value="' + escapeHtml(nu.factor) + '"></div></div>';
+      html += '<div class="btn-row"><button type="button" class="btn btn-ghost" data-action="tool-close">Annulla</button><button type="button" class="btn btn-primary" data-action="tool-save">Salva e usa</button></div>';
     } else if (m.kind === 'conv'){
       var d = m.draft;
       html += '<h2 class="modal-title">Convertitore</h2><p class="modal-subtitle">Converte fra qualsiasi unità. Da volume a massa (e viceversa) serve la densità.</p>';
@@ -2356,6 +2416,20 @@
 
   function saveToolModal(){
     var m = state.toolModal;
+    if (m.kind === 'newunit'){
+      var nl = (m.draft.label || '').trim(), nf = parseFloat(String(m.draft.factor).replace(',', '.'));
+      if (!nl){ showToast('Scrivi il nome dell\'unità.'); return; }
+      if (!(nf > 0)){ showToast('Il valore deve essere maggiore di zero.'); return; }
+      var lst = unitsList().slice();
+      var dup = lst.filter(function(u){ return normalizeForMatch(u.label) === normalizeForMatch(nl); })[0];
+      var newId = dup ? dup.id : uid('um');
+      if (!dup){ lst.push({ id:newId, label:nl, kind:m.draft.kind, factor:nf }); saveConfig({ units: lst }); flushConfig(); }
+      var ap = m.apply;
+      state.toolModal = null; document.getElementById('toolModalOverlay').hidden = true; document.getElementById('toolModalOverlay').innerHTML = '';
+      showToast(dup ? 'L\'unità «' + nl + '» esiste già: la uso.' : 'Unità «' + nl + '» aggiunta.');
+      if (ap) ap(newId); else render();
+      return;
+    }
     if (m.kind === 'categorie'){
       var cats = [];
       for (var i = 0; i < m.draft.length; i++){
@@ -2392,6 +2466,13 @@
     if (!m) return false;
     if (t.hasAttribute('data-tcat')){ m.draft[+t.getAttribute('data-tcat')][t.getAttribute('data-tf')] = t.value; return true; }
     if (t.hasAttribute('data-tun')){ m.draft[+t.getAttribute('data-tun')][t.getAttribute('data-tf')] = t.value; return true; }
+    if (m.kind === 'newunit'){
+      if (t.id === 'nuLabel') m.draft.label = t.value;
+      else if (t.id === 'nuKind') m.draft.kind = t.value;
+      else if (t.id === 'nuFactor') m.draft.factor = t.value;
+      else return false;
+      return true;
+    }
     if (m.kind === 'conv'){
       if (t.id === 'convValue') m.draft.value = t.value;
       else if (t.id === 'convFrom') m.draft.from = t.value;
@@ -2408,7 +2489,7 @@
   // ==================================================================
   // Helper di dominio
   // ==================================================================
-  function hasStock(l){ return (l.qtyLt || 0) > 0.0005 || (l.qtyKg || 0) > 0.0005; }
+  function hasStock(l){ return (l.qtyLt || 0) > 0.0005 || (l.qtyKg || 0) > 0.0005 || (l.qtyPz || 0) > 0.0005; }
   function stockLots(refId){ return lotsForRef(refId).filter(hasStock); }
   function sortRefs(list){ return list.slice().sort(function(a, b){ return a.name.localeCompare(b.name, 'it', { sensitivity:'base' }); }); }
   function groupOfCategory(catId){
@@ -2423,8 +2504,8 @@
   function stockInUm(ref){
     var t = totalStock(ref.id);
     var um = refUm(ref);
-    var base = um.kind === 'lt' ? t.lt : t.kg;
-    if (base === null){
+    var base = um.kind === 'lt' ? t.lt : (um.kind === 'pz' ? t.pz : t.kg);
+    if (base === null && um.kind !== 'pz'){
       var other = um.kind === 'lt' ? t.kg : t.lt;
       if (other !== null && ref.density) base = um.kind === 'lt' ? other / ref.density : other * ref.density;
     }
@@ -2514,9 +2595,10 @@
       { id:'codice', label:'Codice', w:110, val:function(r){ return r.codice || null; } },
       { id:'name', label:'Materia prima', w:280, val:function(r){ return r.name; }, html:function(r){ return '<strong>' + escapeHtml(r.name) + '</strong>'; } },
       { id:'cat', label:'Categoria', w:190, val:function(r){ var c = categoryById(r.category); return c ? c.name : null; }, html:function(r){ return catHtml(r.category); } },
-      { id:'tipo', label:'Tipo', w:80, val:function(r){ return r.unit === 'liquido' ? 'Liquido' : 'Solido'; } },
+      { id:'tipo', label:'Tipo', w:80, val:function(r){ return typeName(r.unit); } },
       { id:'lt', label:'Giacenza Lt', w:120, num:true, sum:true, val:function(r){ return totalStock(r.id).lt; } },
       { id:'kg', label:'Giacenza Kg', w:120, num:true, sum:true, val:function(r){ return totalStock(r.id).kg; } },
+      { id:'pz', label:'Giacenza Pz', w:120, num:true, sum:true, dec:0, val:function(r){ return totalStock(r.id).pz; } },
       { id:'um', label:'Giacenza (U.M.)', w:150, num:true, val:function(r){ return stockInUm(r); }, html:function(r){ var v = stockInUm(r); return v === null ? '—' : fmt(v, 3) + ' ' + escapeHtml(refUm(r).label); } },
       { id:'dens', label:'Densità', w:90, num:true, def:false, val:function(r){ return r.density === undefined ? null : r.density; } },
       { id:'grade', label:'Gradazione', w:105, num:true, val:function(r){ return r.grade === undefined ? null : r.grade; }, html:function(r){ return r.grade !== null && r.grade !== undefined ? fmt(r.grade, 1) + '%' : '—'; } },
@@ -2578,6 +2660,7 @@
       { id:'scad', label:'Scadenza', w:170, val:function(l){ return dateVal(l.scadenza); }, html:function(l){ return expHtml(l.scadenza); } },
       { id:'lt', label:'Lt', w:100, num:true, sum:true, val:function(l){ return l.qtyLt === undefined ? null : l.qtyLt; } },
       { id:'kg', label:'Kg', w:100, num:true, sum:true, val:function(l){ return l.qtyKg === undefined ? null : l.qtyKg; } },
+      { id:'pz', label:'Pz', w:90, num:true, sum:true, dec:0, val:function(l){ return l.qtyPz === undefined ? null : l.qtyPz; } },
       { id:'dens', label:'Densità', w:90, num:true, val:function(l){ return l.density === undefined ? null : l.density; } },
       { id:'grade', label:'Gradazione', w:105, num:true, val:function(l){ return l.grade === undefined ? null : l.grade; }, html:function(l){ return l.grade !== null && l.grade !== undefined ? fmt(l.grade, 1) + '%' : '—'; } },
       { id:'anidri', label:'Lt anidri', w:100, num:true, sum:true, val:function(l){ return l.qtyLt && l.grade ? round(l.qtyLt * l.grade / 100, 3) : null; } },
@@ -2614,7 +2697,7 @@
       { id:'ref', label:'Materia prima', w:260, val:function(m){ return m.refName; } },
       { id:'cat', label:'Categoria', w:170, def:false, val:function(m){ var r = referenceById(m.refId); var c = r && categoryById(r.category); return c ? c.name : null; } },
       { id:'lotto', label:'Lotto', w:120, val:function(m){ return m.lotto; } },
-      { id:'qty', label:'Quantità', w:130, num:true, val:function(m){ return m.delta; }, html:function(m){ return '<span style="color:' + (m.delta > 0 ? 'var(--good)' : 'var(--bad)') + '">' + (m.delta > 0 ? '+' : '') + fmt(m.delta, 3) + ' ' + (m.unit === 'lt' ? 'Lt' : 'Kg') + '</span>'; } },
+      { id:'qty', label:'Quantità', w:130, num:true, val:function(m){ return m.delta; }, html:function(m){ return '<span style="color:' + (m.delta > 0 ? 'var(--good)' : 'var(--bad)') + '">' + (m.delta > 0 ? '+' : '') + fmt(m.delta, 3) + ' ' + ul(m.unit) + '</span>'; } },
       { id:'causale', label:'Causale', w:300, val:function(m){ return m.causale || null; } }
     ];
     var filters = '<select id="fStoType"><option value="">Tutti i movimenti</option><option value="carico"' + (f.type === 'carico' ? ' selected' : '') + '>Carichi</option><option value="scarico"' + (f.type === 'scarico' ? ' selected' : '') + '>Scarichi manuali</option><option value="scarico_produzione"' + (f.type === 'scarico_produzione' ? ' selected' : '') + '>Scarichi di produzione</option></select>';
@@ -2722,7 +2805,7 @@
       baseLt: numOrNull(d.baseLt) || 1,
       components: d.components.filter(function(c){ return c.refId; }).map(function(c){
         var ref = referenceById(c.refId), b = draftDoseBase(c);
-        return { refId: c.refId, doseLt: ref && ref.unit === 'liquido' ? b : null, doseKg: ref && ref.unit === 'solido' ? b : null };
+        return { refId: c.refId, doseLt: ref && ref.unit === 'liquido' ? b : null, doseKg: ref && ref.unit === 'solido' ? b : null, dosePz: ref && ref.unit === 'materiale' ? b : null };
       })
     };
   }
@@ -2749,7 +2832,7 @@
       html += '<tr><td class="idx">' + selCell('recipe', idx, c) + '</td>';
       html += '<td>' + refPickerHtml('data-rc-field="refId" data-rc-idx="' + idx + '"', c.refId, { focus:'[data-rc-field="dose"][data-rc-idx="' + idx + '"]' }) + '</td>';
       html += '<td><input type="text" inputmode="decimal" autocomplete="off" value="' + escapeHtml(c.dose) + '" data-rc-field="dose" data-rc-idx="' + idx + '"' + (ref ? '' : ' disabled') + '></td>';
-      html += '<td><select data-rc-field="um" data-rc-idx="' + idx + '"' + (ref ? '' : ' disabled') + '>' + unitOptions(umSel, ref && !ref.density ? baseUnitId(ref.unit) : null) + '</select></td>';
+      html += '<td><select data-rc-field="um" data-rc-idx="' + idx + '"' + (ref ? '' : ' disabled') + '>' + unitOptions(umSel, ref && (!ref.density || ref.unit === 'materiale') ? baseUnitId(ref.unit) : null, true) + '</select></td>';
       var rcc = recipeRowCells(c);
       html += '<td class="ro" data-rcell="eq" data-rc-idx="' + idx + '">' + rcc.eq + '</td>';
       html += '<td class="ro" data-rcell="grade" data-rc-idx="' + idx + '">' + rcc.grade + '</td>';
@@ -2781,7 +2864,7 @@
       name: r.name, codice: r.codice || '', baseLt: r.baseLt, note: r.note || '',
       components: (r.components || []).map(function(c){
         var ref = referenceById(c.refId);
-        var base = ref ? (ref.unit === 'liquido' ? c.doseLt : c.doseKg) : null;
+        var base = ref ? (doseOf(c, ref)) : null;
         var um = ref ? refUm(ref) : null;
         var shown = (base === null || base === undefined || !um) ? '' : round(base / um.factor, 4);
         return { refId:c.refId, dose: shown, um: um ? um.id : '' };
@@ -2816,7 +2899,7 @@
       var ref = referenceById(c.refId);
       var base = draftDoseBase(c);
       if (base === null || base <= 0){ showToast('Riga ' + (i + 1) + ': indica la dose' + (ref && !ref.density ? ' (per convertire fra Lt e Kg serve la densità della materia prima).' : '.')); return; }
-      components.push({ refId: c.refId, doseLt: ref.unit === 'liquido' ? round(base, 4) : null, doseKg: ref.unit === 'solido' ? round(base, 4) : null });
+      components.push({ refId: c.refId, doseLt: ref.unit === 'liquido' ? round(base, 4) : null, doseKg: ref.unit === 'solido' ? round(base, 4) : null, dosePz: ref.unit === 'materiale' ? round(base, 4) : null });
     }
     if (!components.length){ showToast('Aggiungi almeno un componente.'); return; }
     var id = state.ricette.editingId || uid('recipe');
@@ -2831,157 +2914,6 @@
         showToast('Prodotto finito eliminato.');
         closeConfirm();
       }).catch(function(e){ console.error(e); showToast('Eliminazione non riuscita.'); });
-    });
-  }
-
-  // ==================================================================
-  // VIEW: Carico (documento a righe)
-  // ==================================================================
-  function freshCaricoRow(refId){
-    var row = { refId:'', lotto:'', qty:'', um:'', lt:'', kg:'', density:'', grade:'', scadenza:'', price:'' };
-    if (refId) setCaricoRef(row, refId);
-    return row;
-  }
-  function setCaricoRef(row, refId){
-    row.refId = refId;
-    var ref = referenceById(refId);
-    if (ref){
-      row.density = ref.density === null || ref.density === undefined ? '' : ref.density;
-      row.grade = ref.unit === 'liquido' && ref.grade !== null && ref.grade !== undefined ? ref.grade : '';
-      row.um = refUm(ref).id;
-      var ep = effectivePrice(ref);
-      row.price = ep === null || ep === undefined ? '' : ep;
-      applyQtyUm(row);
-    }
-  }
-  function applyQtyUm(row){
-    var q = numOrNull(row.qty), u = unitById(row.um);
-    if (q === null || !u){ if (q === null && row.qty === '') { /* nulla da derivare */ } return; }
-    var base = q * u.factor, dens = numOrNull(row.density);
-    if (u.kind === 'lt'){ row.lt = round(base, 3); row.kg = dens ? round(base * dens, 3) : ''; }
-    else { row.kg = round(base, 3); row.lt = dens ? round(base / dens, 3) : ''; }
-  }
-  function caricoAnidri(row){
-    var lt = numOrNull(row.lt), g = numOrNull(row.grade);
-    return (lt !== null && g !== null) ? round(lt * g / 100, 3) : null;
-  }
-
-  function renderCaricoView(){
-    var d = state.carico;
-    var html = '<div class="doc">';
-    html += '<div class="doc-head"><h2>Carico materie prime / fattura manuale</h2><div class="field" style="min-width:16rem"><label for="caricoSupplier">Fornitore (valido per tutte le righe)</label><input type="text" id="caricoSupplier" list="supListC" value="' + escapeHtml(d.supplier) + '" placeholder="Es. Distillerie Rossi">' + supplierDatalist('supListC') + '</div><div class="field"><label for="caricoDocNum">N. fattura / DDT</label><input type="text" id="caricoDocNum" value="' + escapeHtml(d.docNum) + '" placeholder="Es. 123/2026" style="width:11rem"></div><div class="field"><label for="caricoDocDate">Data documento</label><input type="date" id="caricoDocDate" value="' + escapeHtml(d.docDate) + '"></div><div class="field" style="flex:1;min-width:14rem"><label for="caricoCausale">Causale (se vuota: «Fattura n. … — fornitore»)</label><input type="text" id="caricoCausale" placeholder="Es. arrivo merce" value="' + escapeHtml(d.causale) + '"></div></div>';
-    html += '<p class="hint">Una riga per ogni lotto in arrivo. Scrivi la quantità e scegli l\'unità (ml, Lt, g, Kg, …): Lt e Kg si calcolano da soli con la densità; se inserisci sia Lt che Kg la densità si ricava automaticamente.</p>';
-    html += '<div class="doc-gridwrap"><table class="doc-grid"><thead><tr><th>' + selHead('carico') + '</th><th style="min-width:15rem">Materia prima</th><th style="width:8rem">Lotto</th><th style="width:7rem">Quantità</th><th style="width:6rem">U.M.</th><th style="width:7rem">Lt</th><th style="width:7rem">Kg</th><th style="width:6rem">Densità</th><th style="width:6rem">Gradaz. %</th><th style="width:6rem">Lt anidri</th><th style="width:9.5rem">Scadenza</th><th style="width:7.5rem">Prezzo €/Lt·Kg</th><th style="width:3rem"></th></tr></thead><tbody>';
-    d.rows.forEach(function(row, i){
-      var ref = row.refId ? referenceById(row.refId) : null;
-      var liq = ref && ref.unit === 'liquido';
-      var an = caricoAnidri(row);
-      html += '<tr>' +
-        '<td class="idx">' + selCell('carico', i, row) + '</td>' +
-        '<td>' + refPickerHtml('data-crow="' + i + '" data-cfield="refId"', row.refId, { allowNew:true, focus:'[data-crow="' + i + '"][data-cfield="lotto"]' }) + '</td>' +
-        '<td><input type="text" data-crow="' + i + '" data-cfield="lotto" value="' + escapeHtml(row.lotto) + '" placeholder="L2026-001"' + (ref ? ' list="lotlist_' + i + '"' : '') + '>' + (ref ? '<datalist id="lotlist_' + i + '">' + lotsForRef(ref.id).map(function(l){ return '<option value="' + escapeHtml(l.lotto) + '">'; }).join('') + '</datalist>' : '') + '</td>' +
-        '<td><input type="number" step="any" min="0" data-crow="' + i + '" data-cfield="qty" value="' + escapeHtml(row.qty) + '"' + (ref ? '' : ' disabled') + '></td>' +
-        '<td><select data-crow="' + i + '" data-cfield="um"' + (ref ? '' : ' disabled') + '>' + unitOptions(row.um || 'lt') + '</select></td>' +
-        '<td><input type="number" step="any" min="0" data-crow="' + i + '" data-cfield="lt" value="' + escapeHtml(row.lt) + '"' + (ref ? '' : ' disabled') + '></td>' +
-        '<td><input type="number" step="any" min="0" data-crow="' + i + '" data-cfield="kg" value="' + escapeHtml(row.kg) + '"' + (ref ? '' : ' disabled') + '></td>' +
-        '<td><input type="number" step="any" min="0" data-crow="' + i + '" data-cfield="density" value="' + escapeHtml(row.density) + '"' + (ref ? '' : ' disabled') + '></td>' +
-        '<td><input type="number" step="any" min="0" max="100" data-crow="' + i + '" data-cfield="grade" value="' + escapeHtml(row.grade) + '"' + (liq ? '' : ' disabled') + '></td>' +
-        '<td class="ro" data-ccell="anidri" data-crow="' + i + '">' + (an === null ? '—' : fmt(an, 3)) + '</td>' +
-        '<td><input type="date" data-crow="' + i + '" data-cfield="scadenza" value="' + escapeHtml(row.scadenza) + '"></td>' +
-        '<td><input type="number" step="any" min="0" data-crow="' + i + '" data-cfield="price" value="' + escapeHtml(row.price) + '" placeholder="' + (liq ? '€/Lt' : '€/Kg') + '"' + (ref ? '' : ' disabled') + '></td>' +
-        '<td><button type="button" class="x-btn" data-action="carico-del-row" data-idx="' + i + '" title="Rimuovi riga">×</button></td></tr>';
-    });
-    html += '</tbody><tfoot><tr><td colspan="5" style="text-align:right">Totali</td><td class="ro" id="cTotLt"></td><td class="ro" id="cTotKg"></td><td></td><td></td><td class="ro" id="cTotAn"></td><td></td><td class="ro" id="cTotVal" title="Valore delle righe con prezzo (€)"></td><td></td></tr></tfoot></table></div>';
-    html += '<div class="doc-actions"><button type="button" class="btn btn-ghost" data-action="carico-add-row">+ Aggiungi riga (F4)</button>' + delSelBtn('carico') + '<button type="button" class="btn btn-ghost" data-action="carico-clear">Svuota</button><span class="gt-spacer"></span><button type="button" class="btn btn-good" data-action="save-carico">Registra carico (Ctrl+Invio)</button></div>';
-    html += '</div>';
-    setTimeout(updateCaricoTotals, 0);
-    return html;
-  }
-  function updateCaricoTotals(){
-    var lt = 0, kg = 0, an = 0;
-    state.carico.rows.forEach(function(r){ lt += numOrNull(r.lt) || 0; kg += numOrNull(r.kg) || 0; an += caricoAnidri(r) || 0; });
-    var set = function(id, v){ var el = document.getElementById(id); if (el) el.textContent = v ? fmt(v, 3) : '—'; };
-    set('cTotLt', lt); set('cTotKg', kg); set('cTotAn', an);
-    var val = 0, any = false;
-    state.carico.rows.forEach(function(r){
-      var pr = numOrNull(r.price), q = ((referenceById(r.refId) || {}).unit === 'liquido') ? numOrNull(r.lt) : numOrNull(r.kg);
-      if (pr !== null && q){ val += pr * q; any = true; }
-    });
-    var ve = document.getElementById('cTotVal'); if (ve) ve.textContent = any ? '€ ' + fmt(val, 2) : '—';
-  }
-  function syncCaricoRowDom(i, skip){
-    var row = state.carico.rows[i];
-    ['lt', 'kg', 'qty', 'density'].forEach(function(f){
-      if (f === skip) return;
-      var el = document.querySelector('[data-crow="' + i + '"][data-cfield="' + f + '"]');
-      if (el) el.value = row[f];
-    });
-    var cell = document.querySelector('[data-ccell="anidri"][data-crow="' + i + '"]');
-    if (cell){ var an = caricoAnidri(row); cell.textContent = an === null ? '—' : fmt(an, 3); }
-    updateCaricoTotals();
-  }
-  function handleCaricoRowInput(el){
-    var i = parseInt(el.getAttribute('data-crow'), 10), f = el.getAttribute('data-cfield');
-    var row = state.carico.rows[i];
-    if (!row) return;
-    row[f] = el.value;
-    var dens = numOrNull(row.density), lt = numOrNull(row.lt), kg = numOrNull(row.kg);
-    if (f === 'qty' || f === 'um'){
-      if (row.qty === ''){ row.lt = ''; row.kg = ''; } else applyQtyUm(row);
-    } else if (f === 'lt'){
-      row.qty = '';
-      row.kg = (dens && lt !== null) ? round(lt * dens, 3) : (dens ? '' : row.kg);
-    } else if (f === 'kg'){
-      row.qty = '';
-      row.lt = (dens && kg !== null) ? round(kg / dens, 3) : (dens ? '' : row.lt);
-    } else if (f === 'density'){
-      if (dens && lt !== null) row.kg = round(lt * dens, 3);
-      else if (dens && kg !== null) row.lt = round(kg / dens, 3);
-    }
-    syncCaricoRowDom(i, f);
-  }
-  // Densità derivata solo a fine digitazione (non a ogni tasto), altrimenti un numero a metà blocca un valore sbagliato.
-  function handleCaricoRowChange(el){
-    var i = parseInt(el.getAttribute('data-crow'), 10), f = el.getAttribute('data-cfield');
-    var row = state.carico.rows[i];
-    if (!row) return;
-    if (f === 'lt' || f === 'kg'){
-      var lt = numOrNull(row.lt), kg = numOrNull(row.kg);
-      if (numOrNull(row.density) === null && lt && lt > 0 && kg !== null){
-        row.density = round(kg / lt, 4);
-        syncCaricoRowDom(i);
-      }
-    }
-  }
-
-  function saveCarico(){
-    var d = state.carico;
-    var docDateTxt = d.docDate ? new Date(d.docDate + 'T00:00:00').toLocaleDateString('it-IT') : '';
-    var causale = d.causale.trim() || (d.docNum.trim() ? 'Fattura n. ' + d.docNum.trim() + (docDateTxt ? ' del ' + docDateTxt : '') + (d.supplier.trim() ? ' — ' + d.supplier.trim() : '') : '');
-    var items = [];
-    for (var i = 0; i < d.rows.length; i++){
-      var row = d.rows[i];
-      if (!row.refId && !row.lotto && !row.qty && !row.lt && !row.kg) continue;
-      var ref = referenceById(row.refId);
-      if (!ref){ showToast('Riga ' + (i + 1) + ': scegli la materia prima.'); return; }
-      var lotto = row.lotto.trim();
-      if (!lotto){ showToast('Riga ' + (i + 1) + ': inserisci il numero di lotto.'); return; }
-      var qtyLt = numOrNull(row.lt), qtyKg = numOrNull(row.kg);
-      if ((!qtyLt || qtyLt <= 0) && (!qtyKg || qtyKg <= 0)){ showToast('Riga ' + (i + 1) + ': inserisci una quantità maggiore di zero.'); return; }
-      items.push({ price: numOrNull(row.price), ref:ref, lotto:lotto, qtyLt:qtyLt, qtyKg:qtyKg, density:numOrNull(row.density), grade: ref.unit === 'liquido' ? numOrNull(row.grade) : null, scadenza: row.scadenza || null });
-    }
-    if (!items.length){ showToast('Compila almeno una riga.'); return; }
-    var chain = Promise.resolve();
-    items.forEach(function(it){
-      chain = chain.then(function(){ return commitCarico(it.ref, it.lotto, it.qtyLt, it.qtyKg, it.density, it.grade, causale, it.scadenza, { supplier: d.supplier.trim() || null, price: it.price, docNum: d.docNum.trim() || null, docDate: d.docDate || null }); });
-    });
-    chain.then(function(){
-      showToast(items.length === 1 ? 'Carico registrato: lotto ' + items[0].lotto + '.' : items.length + ' carichi registrati.');
-      state.carico = freshCaricoDraft();
-      render();
-    }).catch(function(e){
-      console.error(e);
-      showToast('Salvataggio non riuscito. Riprova.', saveCarico);
     });
   }
 
@@ -3010,13 +2942,13 @@
     if (!ref || !real || q === null || q <= 0 || !um) return { incomplete:true };
     var lot = sim[real.id] = sim[real.id] || Object.assign({}, real);
     var unit = um.kind, qty = q * um.factor;
-    var native = unit === 'lt' ? lot.qtyLt : lot.qtyKg;
-    if ((native === null || native === undefined) && lot.density){
+    var native = unit === 'lt' ? lot.qtyLt : (unit === 'pz' ? lot.qtyPz : lot.qtyKg);
+    if (unit !== 'pz' && (native === null || native === undefined) && lot.density){
       if (unit === 'lt'){ unit = 'kg'; qty = qty * lot.density; } else { unit = 'lt'; qty = qty / lot.density; }
     }
     qty = round(qty, 3);
     var avail = availableQty(lot, unit);
-    if (qty > avail + 0.0005) return { err:'disponibili solo ' + fmt(avail, 3) + ' ' + (unit === 'lt' ? 'Lt' : 'Kg') + ' nel lotto ' + real.lotto + '.' };
+    if (qty > avail + 0.0005) return { err:'disponibili solo ' + fmt(avail, 3) + ' ' + ul(unit) + ' nel lotto ' + real.lotto + '.' };
     return { ref:ref, real:real, simLot:lot, unit:unit, qty:qty };
   }
   function scaricoEquivText(row){
@@ -3025,8 +2957,8 @@
     if (res.err) return '<span class="alloc-bad">' + escapeHtml(res.err) + '</span>';
     var other = '';
     var lot = res.real;
-    if (lot.density) other = res.unit === 'lt' ? ' (≈ ' + fmt(res.qty * lot.density, 3) + ' Kg)' : ' (≈ ' + fmt(res.qty / lot.density, 3) + ' Lt)';
-    return '<span class="alloc-ok">' + fmt(res.qty, 3) + ' ' + (res.unit === 'lt' ? 'Lt' : 'Kg') + '</span>' + other;
+    if (lot.density && res.unit !== 'pz') other = res.unit === 'lt' ? ' (≈ ' + fmt(res.qty * lot.density, 3) + ' Kg)' : ' (≈ ' + fmt(res.qty / lot.density, 3) + ' Lt)';
+    return '<span class="alloc-ok">' + fmt(res.qty, 3) + ' ' + ul(res.unit) + '</span>' + other;
   }
 
   function renderScaricoView(){
@@ -3045,12 +2977,13 @@
         var av = [];
         if (l.qtyLt !== null && l.qtyLt !== undefined) av.push(fmt(l.qtyLt, 3) + ' Lt');
         if (l.qtyKg !== null && l.qtyKg !== undefined) av.push(fmt(l.qtyKg, 3) + ' Kg');
+        if (l.qtyPz) av.push(fmt(l.qtyPz, 0) + ' Pz');
         var e = expiryStatus(l.scadenza);
         html += '<option value="' + l.id + '"' + (l.id === row.lotId ? ' selected' : '') + '>Lotto ' + escapeHtml(l.lotto) + ' — disp. ' + av.join(' / ') + (e.label ? ' — scad. ' + e.label : '') + '</option>';
       });
       html += '</select></td>';
       html += '<td><input type="number" step="any" min="0" data-srow="' + i + '" data-sfield="qty" value="' + escapeHtml(row.qty) + '"' + (row.lotId ? '' : ' disabled') + '></td>';
-      html += '<td><select data-srow="' + i + '" data-sfield="um"' + (row.lotId ? '' : ' disabled') + '>' + unitOptions(row.um || 'lt') + '</select></td>';
+      html += '<td><select data-srow="' + i + '" data-sfield="um"' + (row.lotId ? '' : ' disabled') + '>' + unitOptions(row.um || 'lt', null, true) + '</select></td>';
       html += '<td data-scell="eq" data-srow="' + i + '">' + scaricoEquivText(row) + '</td>';
       html += '<td><button type="button" class="x-btn" data-action="scarico-del-row" data-idx="' + i + '" title="Rimuovi riga">×</button></td></tr>';
     });
@@ -3070,7 +3003,7 @@
       if (res.incomplete){ showToast('Riga ' + (i + 1) + ': scegli materia prima, lotto e quantità.'); return; }
       if (res.err){ showToast('Riga ' + (i + 1) + ': ' + res.err); return; }
       var upd = consumeFromLot(res.simLot, res.qty, res.unit);
-      res.simLot.qtyLt = upd.qtyLt; res.simLot.qtyKg = upd.qtyKg;
+      res.simLot.qtyLt = upd.qtyLt; res.simLot.qtyKg = upd.qtyKg; res.simLot.qtyPz = upd.qtyPz;
       items.push(res);
     }
     if (!items.length){ showToast('Compila almeno una riga.'); return; }
@@ -3079,14 +3012,14 @@
       chain = chain.then(function(){
         var lot = it.real;
         var updated = consumeFromLot(lot, it.qty, it.unit);
-        lot.qtyLt = updated.qtyLt; lot.qtyKg = updated.qtyKg;
-        return window.__fb.setDoc(LOTS_COLL + '/' + lot.id, { qtyLt: updated.qtyLt, qtyKg: updated.qtyKg, updatedAt: new Date().toISOString() }, true).then(function(){
+        lot.qtyLt = updated.qtyLt; lot.qtyKg = updated.qtyKg; lot.qtyPz = updated.qtyPz;
+        return window.__fb.setDoc(LOTS_COLL + '/' + lot.id, { qtyLt: updated.qtyLt, qtyKg: updated.qtyKg, qtyPz: updated.qtyPz, updatedAt: new Date().toISOString() }, true).then(function(){
           logProdMovement({ type:'scarico', refId: it.ref.id, refName: it.ref.name, lotto: lot.lotto, unit: it.unit, delta: -it.qty, causale: causale || null });
         });
       });
     });
     chain.then(function(){
-      showToast(items.length === 1 ? 'Scarico registrato: -' + fmt(items[0].qty, 3) + ' ' + (items[0].unit === 'lt' ? 'Lt' : 'Kg') + '.' : items.length + ' scarichi registrati.');
+      showToast(items.length === 1 ? 'Scarico registrato: -' + fmt(items[0].qty, 3) + ' ' + ul(items[0].unit) + '.' : items.length + ' scarichi registrati.');
       state.scarico = freshScaricoDraft();
       render();
     }).catch(function(e){
@@ -3110,7 +3043,7 @@
     if (recipe){
       var qty = numOrNull(d.quantity);
       if (!qty || !recipe.baseLt) return null;
-      var dose = ref.unit === 'liquido' ? c.doseLt : c.doseKg;
+      var dose = doseOf(c, ref);
       if (dose === null || dose === undefined) return null;
       return round(dose * qty / recipe.baseLt, 3);
     }
@@ -3123,7 +3056,7 @@
     if (!ref) return;
     var req = prodRequired(c);
     if (!req || req <= 0) return;
-    var unit = ref.unit === 'liquido' ? 'lt' : 'kg';
+    var unit = unitKeyOf(ref.unit);
     var left = req;
     lotsByExpiry(ref.id).forEach(function(l){
       if (left <= 0.0005) return;
@@ -3144,13 +3077,13 @@
     var html = '';
     d.components.forEach(function(c, i){
       var ref = c.refId ? referenceById(c.refId) : null;
-      var unitLbl = ref ? (ref.unit === 'liquido' ? 'Lt' : 'Kg') : '';
+      var unitLbl = ref ? ul(unitKeyOf(ref.unit)) : '';
       var req = ref ? prodRequired(c) : null;
       html += '<tr data-pcrow="' + i + '"><td class="idx">' + (recipe ? (i + 1) : selCell('prod', i, c)) + '</td>';
       if (recipe){
         html += '<td><strong>' + (ref ? escapeHtml(ref.name) : '?') + '</strong>' + (ref && ref.category && categoryById(ref.category) ? '<div class="hint">' + escapeHtml(categoryById(ref.category).name) + '</div>' : '') + '</td>';
         var um = ref ? refUm(ref) : null;
-        var alt = (um && req !== null && um.id !== (ref.unit === 'liquido' ? 'lt' : 'kg')) ? ' <span class="hint">(' + fmt(req / um.factor, 3) + ' ' + escapeHtml(um.label) + ')</span>' : '';
+        var alt = (um && req !== null && um.id !== unitKeyOf(ref.unit)) ? ' <span class="hint">(' + fmt(req / um.factor, 3) + ' ' + escapeHtml(um.label) + ')</span>' : '';
         html += '<td class="ro">' + (req !== null ? fmt(req, 3) + ' ' + unitLbl + alt : '—') + '</td>';
       } else {
         html += '<td>' + refPickerHtml('data-pc="' + i + '" data-pf="ref"', c.refId, { focus:'[data-pc="' + i + '"][data-pf="req"]' }) + '</td>';
@@ -3161,7 +3094,7 @@
         var lots = ref ? lotsByExpiry(ref.id) : [];
         html += '<div style="display:flex;gap:.3rem;margin-bottom:.25rem;align-items:center"><select data-pc="' + i + '" data-pa="' + j + '" data-pf="alot" style="flex:1;min-width:13rem">';
         lots.forEach(function(l){
-          var av = ref && ref.unit === 'liquido' ? l.qtyLt : l.qtyKg;
+          var av = ref ? availableQty(l, unitKeyOf(ref.unit)) : 0;
           var e = expiryStatus(l.scadenza);
           html += '<option value="' + l.id + '"' + (l.id === a.lotId ? ' selected' : '') + '>Lotto ' + escapeHtml(l.lotto) + ' — disp. ' + fmt(av, 3) + (e.label ? ' — ' + e.label : '') + '</option>';
         });
@@ -3178,7 +3111,7 @@
   function prodCoverText(c){
     var ref = c.refId ? referenceById(c.refId) : null;
     if (!ref) return '—';
-    var req = prodRequired(c), tot = allocTotal(c), u = ref.unit === 'liquido' ? 'Lt' : 'Kg';
+    var req = prodRequired(c), tot = allocTotal(c), u = ul(unitKeyOf(ref.unit));
     if (req === null || req <= 0) return tot > 0 ? fmt(tot, 3) + ' ' + u : '—';
     var diff = round(req - tot, 3);
     if (Math.abs(diff) < 0.001) return '<span class="alloc-ok">✓ coperto</span>';
@@ -3250,7 +3183,7 @@
     if (recipeId){
       var recipe = recipeById(recipeId);
       d.components = (recipe.components || []).map(function(c){
-        return { refId: c.refId, doseLt: c.doseLt, doseKg: c.doseKg, req:'', allocations: [] };
+        return { refId: c.refId, doseLt: c.doseLt, doseKg: c.doseKg, dosePz: c.dosePz === undefined ? null : c.dosePz, req:'', allocations: [] };
       });
       if (!d.quantity) d.quantity = recipe.baseLt;
     } else {
@@ -3295,7 +3228,7 @@
       var c = d.components[i];
       var ref = referenceById(c.refId);
       if (!ref){ showToast('Riga ' + (i + 1) + ': scegli la materia prima.'); return; }
-      var unit = ref.unit === 'liquido' ? 'lt' : 'kg';
+      var unit = unitKeyOf(ref.unit);
       var tot = 0;
       for (var j = 0; j < c.allocations.length; j++){
         var a = c.allocations[j];
@@ -3306,14 +3239,14 @@
         used[lot.id] = (used[lot.id] || 0) + q;
         var avail = availableQty(lot, unit);
         if (used[lot.id] > avail + 0.0005){
-          showToast('Disponibili solo ' + fmt(avail, 3) + ' ' + (unit === 'lt' ? 'Lt' : 'Kg') + ' nel lotto ' + lot.lotto + ' di ' + ref.name + '.');
+          showToast('Disponibili solo ' + fmt(avail, 3) + ' ' + ul(unit) + ' nel lotto ' + lot.lotto + ' di ' + ref.name + '.');
           return;
         }
         tot += q;
         consumptions.push({ lot: lot, qty: q, unit: unit, refName: ref.name, refCodice: ref.codice || null });
       }
       var req = prodRequired(c);
-      if (req !== null && req > 0 && tot < req - 0.001) shortages.push(ref.name + ' (mancano ' + fmt(req - tot, 3) + ' ' + (unit === 'lt' ? 'Lt' : 'Kg') + ')');
+      if (req !== null && req > 0 && tot < req - 0.001) shortages.push(ref.name + ' (mancano ' + fmt(req - tot, 3) + ' ' + ul(unit) + ')');
       if (!(req > 0) && tot <= 0) shortages.push(ref.name + ' (nessuna quantità)');
     }
     if (!consumptions.length){ showToast('Non c\'è nessuna quantità da scaricare: controlla le giacenze.'); return; }
@@ -3334,8 +3267,8 @@
       chain = chain.then(function(){
         var updated = consumeFromLot(cons.lot, cons.qty, cons.unit);
         cons.lot.qtyLt = updated.qtyLt;
-        cons.lot.qtyKg = updated.qtyKg;
-        return window.__fb.setDoc(LOTS_COLL + '/' + cons.lot.id, { qtyLt: updated.qtyLt, qtyKg: updated.qtyKg, updatedAt: new Date().toISOString() }, true).then(function(){
+        cons.lot.qtyKg = updated.qtyKg; cons.lot.qtyPz = updated.qtyPz;
+        return window.__fb.setDoc(LOTS_COLL + '/' + cons.lot.id, { qtyLt: updated.qtyLt, qtyKg: updated.qtyKg, qtyPz: updated.qtyPz, updatedAt: new Date().toISOString() }, true).then(function(){
           logProdMovement({ type:'scarico_produzione', refId: cons.lot.refId, refName: cons.refName, lotto: cons.lot.lotto, unit: cons.unit, delta: -cons.qty, causale: 'Produzione lotto ' + finishedLotto });
           componentsSnapshot.push({ refId: cons.lot.refId, refName: cons.refName, refCodice: cons.refCodice, lotto: cons.lot.lotto, scadenza: cons.lot.scadenza || null, qty: cons.qty, unit: cons.unit });
         });
@@ -3424,20 +3357,22 @@
     html += '<div class="modal-field"><label>Tipo</label><div class="seg">';
     html += '<button type="button" class="seg-btn' + (d.unit === 'liquido' ? ' active' : '') + '" data-action="ref-set-unit" data-unit="liquido">Liquido</button>';
     html += '<button type="button" class="seg-btn' + (d.unit === 'solido' ? ' active' : '') + '" data-action="ref-set-unit" data-unit="solido">Solido</button>';
+    html += '<button type="button" class="seg-btn' + (d.unit === 'materiale' ? ' active' : '') + '" data-action="ref-set-unit" data-unit="materiale">Materiale (pezzi)</button>';
     html += '</div></div></div>';
 
     html += '<div class="row-split3">';
-    html += '<div class="modal-field"><label>Densità (kg/Lt) — opzionale</label><input type="number" step="any" min="0" id="refDensity" value="' + escapeHtml(d.density) + '"></div>';
+    if (d.unit !== 'materiale') html += '<div class="modal-field"><label>Densità (kg/Lt) — opzionale</label><input type="number" step="any" min="0" id="refDensity" value="' + escapeHtml(d.density) + '"></div>';
+    else html += '<div></div>';
     if (d.unit === 'liquido') html += '<div class="modal-field"><label>Gradazione (%) — opzionale</label><input type="number" step="any" min="0" max="100" id="refGrade" value="' + escapeHtml(d.grade) + '"></div>';
     else html += '<div></div>';
     html += '<div></div></div>';
 
     var effUm = d.um || baseUnitId(d.unit);
-    html += '<div class="row-split"><div class="modal-field"><label>Unità di misura preferita</label><select id="refUm">' + unitOptions(effUm) + '</select></div>';
+    html += '<div class="row-split"><div class="modal-field"><label>Unità di misura preferita</label><select id="refUm">' + unitOptions(effUm, d.unit === 'materiale' ? 'pz' : null, true) + '</select></div>';
     html += '<div class="modal-field"><label>Scorta minima (nell\'unità preferita)</label><input type="number" step="any" min="0" id="refMin" value="' + escapeHtml(d.minQty) + '" placeholder="Avvisa se scende sotto"></div></div>';
 
     html += '<div class="row-split"><div class="modal-field"><label>Fornitore abituale</label><input type="text" id="refSupplier" list="supList" value="' + escapeHtml(d.supplier) + '">' + supplierDatalist('supList') + '</div>';
-    html += '<div class="modal-field"><label>Prezzo di acquisto (€ per ' + (d.unit === 'liquido' ? 'Lt' : 'Kg') + ')</label><input type="number" step="any" min="0" id="refPrice" value="' + escapeHtml(d.price) + '"></div></div>';
+    html += '<div class="modal-field"><label>Prezzo di acquisto (€ per ' + ul(unitKeyOf(d.unit)) + ')</label><input type="number" step="any" min="0" id="refPrice" value="' + escapeHtml(d.price) + '"></div></div>';
     html += '<div class="modal-field"><label>Note (opzionale)</label><input type="text" id="refNotes" value="' + escapeHtml(d.notes) + '"></div>';
 
     html += '<div class="btn-row">';
@@ -3457,7 +3392,8 @@
     if (!name){ showToast('Inserisci il nome della materia prima.'); return; }
     var unit = d.unit;
     var codice = document.getElementById('refCodice').value.trim();
-    var density = numOrNull(document.getElementById('refDensity').value);
+    var densEl = document.getElementById('refDensity');
+    var density = densEl && unit !== 'materiale' ? numOrNull(densEl.value) : null;
     var gradeEl = document.getElementById('refGrade');
     var grade = unit === 'liquido' && gradeEl ? numOrNull(gradeEl.value) : null;
     var notes = document.getElementById('refNotes').value.trim();
@@ -3513,7 +3449,7 @@
     if (ref.price !== null && ref.price !== undefined) return ref.price;
     return lastLotPrice(ref.id);
   }
-  function priceUnit(ref){ return ref.unit === 'liquido' ? 'Lt' : 'Kg'; }
+  function priceUnit(ref){ return ul(unitKeyOf(ref.unit)); }
   function allSuppliers(){
     var m = {};
     state.references.forEach(function(r){ if (r.supplier) m[r.supplier] = 1; });
@@ -3525,7 +3461,7 @@
   function refSideHtml(r){
     var tot = totalStock(r.id), st = refStatus(r), um = refUm(r);
     var price = effectivePrice(r), lots = stockLots(r.id).sort(function(a, b){ return (a.scadenza || '9999').localeCompare(b.scadenza || '9999'); });
-    var qtyBase = r.unit === 'liquido' ? tot.lt : tot.kg;
+    var qtyBase = tot[unitKeyOf(r.unit)];
     var cat = categoryById(r.category);
     var h = sideHead('materie', escapeHtml(r.name), (r.codice ? 'Codice ' + escapeHtml(r.codice) + ' · ' : '') + tagHtml(st),
       '<button type="button" class="btn btn-sm btn-primary" data-action="edit-reference" data-id="' + r.id + '">Modifica scheda</button>' +
@@ -3533,7 +3469,7 @@
       '<button type="button" class="btn btn-sm btn-ghost" data-action="merge-open" data-id="' + r.id + '">Unisci con…</button>');
     h += '<div class="side-sec">Dati tecnici</div>' + kvRows([
       ['Categoria', cat ? '<span class="cat-dot" style="background:' + cat.color + '"></span>' + escapeHtml(cat.name) : null],
-      ['Tipo', r.unit === 'liquido' ? 'Liquido' : 'Solido'],
+      ['Tipo', typeName(r.unit)],
       ['Fornitore', r.supplier ? escapeHtml(r.supplier) : null],
       ['Prezzo €/' + priceUnit(r), r.price !== null && r.price !== undefined ? money(r.price) : null],
       ['Ultimo acquisto', lastLotPrice(r.id) !== null ? money(lastLotPrice(r.id)) + '/' + priceUnit(r) : null],
@@ -3547,6 +3483,7 @@
     h += '<div class="side-sec">Giacenza</div>' + kvRows([
       ['Litri', tot.lt !== null ? fmt(tot.lt, 3) + ' Lt' : null],
       ['Chili', tot.kg !== null ? fmt(tot.kg, 3) + ' Kg' : null],
+      ['Pezzi', tot.pz !== null ? fmt(tot.pz, 0) + ' Pz' : null],
       ['In ' + um.label, inUm !== null ? fmt(inUm, 3) + ' ' + escapeHtml(um.label) : null],
       ['Litri anidri', an !== null ? fmt(an, 3) + ' Lt' : null],
       ['Valore', (price !== null && qtyBase !== null) ? money(price * qtyBase) : null],
@@ -3557,19 +3494,19 @@
     lots.forEach(function(l){
       var e = expiryStatus(l.scadenza);
       h += '<div class="side-lot' + (e.cls === 'expired' ? ' expired' : '') + '"><div style="display:flex;justify-content:space-between;gap:.5rem"><strong>Lotto ' + escapeHtml(l.lotto) + '</strong><span>' + expHtml(l.scadenza) + '</span></div>' +
-        '<div class="hint">' + (l.qtyLt !== null && l.qtyLt !== undefined ? fmt(l.qtyLt, 3) + ' Lt' : '') + (l.qtyLt !== null && l.qtyLt !== undefined && l.qtyKg !== null && l.qtyKg !== undefined ? ' · ' : '') + (l.qtyKg !== null && l.qtyKg !== undefined ? fmt(l.qtyKg, 3) + ' Kg' : '') +
+        '<div class="hint">' + (l.qtyLt !== null && l.qtyLt !== undefined ? fmt(l.qtyLt, 3) + ' Lt' : '') + (l.qtyLt !== null && l.qtyLt !== undefined && l.qtyKg !== null && l.qtyKg !== undefined ? ' · ' : '') + (l.qtyKg !== null && l.qtyKg !== undefined ? fmt(l.qtyKg, 3) + ' Kg' : '') + (l.qtyPz ? fmt(l.qtyPz, 0) + ' Pz' : '') +
         (l.grade !== null && l.grade !== undefined ? ' · ' + fmt(l.grade, 1) + '%' : '') + (l.supplier ? ' · ' + escapeHtml(l.supplier) : '') + (l.docNum ? ' · fatt. ' + escapeHtml(l.docNum) : '') + (l.price !== null && l.price !== undefined ? ' · ' + money(l.price) + '/' + priceUnit(r) : '') + '</div>' +
         '<div style="margin-top:.3rem"><button type="button" class="btn btn-sm btn-ghost" data-action="edit-lot" data-lot="' + l.id + '">Correggi</button> <button type="button" class="btn btn-sm btn-ghost" data-action="quick-scarico" data-ref="' + r.id + '" data-lot="' + l.id + '">Scarica</button></div></div>';
     });
     var used = state.recipes.filter(function(x){ return (x.components || []).some(function(c){ return c.refId === r.id; }); });
     h += '<div class="side-sec">Usata in</div>' + (used.length ? '<div class="side-pad">' + used.map(function(x){
       var c = x.components.filter(function(c){ return c.refId === r.id; })[0];
-      var dose = r.unit === 'liquido' ? c.doseLt : c.doseKg;
+      var dose = doseOf(c, r);
       return escapeHtml(x.name) + ' <span class="hint">(' + fmt(dose, 3) + ' ' + priceUnit(r) + ' per ' + fmt(x.baseLt, 2) + ' Lt)</span>';
     }).join('<br>') + '</div>' : '<p class="hint" style="padding:0 .8rem">Non è in nessuna distinta.</p>');
     var mv = state.movements.filter(function(m){ return m.refId === r.id; }).sort(function(a, b){ return (b.ts || '').localeCompare(a.ts || ''); }).slice(0, 8);
     h += '<div class="side-sec">Ultimi movimenti</div>' + (mv.length ? '<div class="side-pad">' + mv.map(function(m){
-      return '<div style="display:flex;justify-content:space-between;gap:.5rem"><span class="hint">' + formatDateTime(m.ts) + ' · ' + escapeHtml(m.lotto) + '</span><span style="color:' + (m.delta > 0 ? 'var(--good)' : 'var(--bad)') + '">' + (m.delta > 0 ? '+' : '') + fmt(m.delta, 3) + ' ' + (m.unit === 'lt' ? 'Lt' : 'Kg') + '</span></div>';
+      return '<div style="display:flex;justify-content:space-between;gap:.5rem"><span class="hint">' + formatDateTime(m.ts) + ' · ' + escapeHtml(m.lotto) + '</span><span style="color:' + (m.delta > 0 ? 'var(--good)' : 'var(--bad)') + '">' + (m.delta > 0 ? '+' : '') + fmt(m.delta, 3) + ' ' + ul(m.unit) + '</span></div>';
     }).join('') + '</div>' : '<p class="hint" style="padding:0 .8rem">Nessun movimento.</p>');
     return '<aside class="side">' + h + '</aside>';
   }
@@ -3580,9 +3517,9 @@
     (r.components || []).forEach(function(c){
       var ref = referenceById(c.refId);
       if (!ref) return;
-      var dose = ref.unit === 'liquido' ? c.doseLt : c.doseKg;
+      var dose = doseOf(c, ref);
       if (!dose) return;
-      var unit = ref.unit === 'liquido' ? 'lt' : 'kg';
+      var unit = unitKeyOf(ref.unit);
       var av = 0;
       stockLots(ref.id).forEach(function(l){ if (expiryStatus(l.scadenza).cls !== 'expired') av += availableQty(l, unit); });
       var lt = av / dose * r.baseLt;
@@ -3595,7 +3532,7 @@
     (r.components || []).forEach(function(c){
       var ref = referenceById(c.refId);
       if (!ref) return;
-      var dose = ref.unit === 'liquido' ? c.doseLt : c.doseKg;
+      var dose = doseOf(c, ref);
       var p = effectivePrice(ref);
       if (p === null || p === undefined){ missing++; return; }
       tot += dose * p;
@@ -3626,8 +3563,8 @@
     (r.components || []).forEach(function(c){
       var ref = referenceById(c.refId);
       if (!ref){ h += '<tr><td>?</td><td></td><td></td></tr>'; return; }
-      var dose = ref.unit === 'liquido' ? c.doseLt : c.doseKg, t = totalStock(ref.id);
-      var s = ref.unit === 'liquido' ? t.lt : t.kg;
+      var dose = doseOf(c, ref), t = totalStock(ref.id);
+      var s = t[unitKeyOf(ref.unit)];
       var ok = s !== null && s >= dose;
       h += '<tr><td>' + escapeHtml(ref.name) + '<div class="hint">' + (effectivePrice(ref) !== null ? money(effectivePrice(ref)) + '/' + priceUnit(ref) : 'prezzo n/d') + (ref.supplier ? ' · ' + escapeHtml(ref.supplier) : '') + '</div></td><td class="num">' + fmt(dose, 3) + ' ' + priceUnit(ref) + '</td><td class="num" style="color:' + (ok ? 'var(--good)' : 'var(--bad)') + '">' + (s === null ? '0' : fmt(s, 3)) + ' ' + priceUnit(ref) + '</td></tr>';
     });
@@ -4127,7 +4064,7 @@
   function recipeRowCells(c){
     var ref = c.refId ? referenceById(c.refId) : null, base = ref ? draftDoseBase(c) : null;
     return {
-      eq: ref && base !== null ? fmt(base, 3) + ' ' + (ref.unit === 'liquido' ? 'Lt' : 'Kg') : '—',
+      eq: ref && base !== null ? fmt(base, 3) + ' ' + ul(unitKeyOf(ref.unit)) : '—',
       grade: ref && ref.unit === 'liquido' && ref.grade !== null && ref.grade !== undefined ? fmt(ref.grade, 1) + '%' : '—',
       an: ref && ref.unit === 'liquido' && ref.grade && base !== null ? fmt(base * ref.grade / 100, 3) : '—'
     };
@@ -4297,7 +4234,7 @@
         if (ex && ex.id !== l.id){
           var lt = (ex.qtyLt === null || ex.qtyLt === undefined) && (l.qtyLt === null || l.qtyLt === undefined) ? null : round((ex.qtyLt || 0) + (l.qtyLt || 0), 3);
           var kg = (ex.qtyKg === null || ex.qtyKg === undefined) && (l.qtyKg === null || l.qtyKg === undefined) ? null : round((ex.qtyKg || 0) + (l.qtyKg || 0), 3);
-          doc = { qtyLt: lt, qtyKg: kg, scadenza: earlierDate(ex.scadenza, l.scadenza), density: ex.density !== null && ex.density !== undefined ? ex.density : (l.density !== undefined ? l.density : null),
+          doc = { qtyLt: lt, qtyKg: kg, qtyPz: ((ex.qtyPz === null || ex.qtyPz === undefined) && (l.qtyPz === null || l.qtyPz === undefined)) ? null : round((ex.qtyPz || 0) + (l.qtyPz || 0), 3), scadenza: earlierDate(ex.scadenza, l.scadenza), density: ex.density !== null && ex.density !== undefined ? ex.density : (l.density !== undefined ? l.density : null),
             grade: ex.grade !== null && ex.grade !== undefined ? ex.grade : (l.grade !== undefined ? l.grade : null), supplier: ex.supplier || l.supplier || null,
             price: ex.price !== null && ex.price !== undefined ? ex.price : (l.price !== undefined ? l.price : null), refName: finalName, updatedAt: new Date().toISOString() };
           return window.__fb.setDoc(LOTS_COLL + '/' + newId, doc, true).then(function(){
@@ -4338,8 +4275,8 @@
         r.components.forEach(function(c){
           var id = p.sources.indexOf(c.refId) !== -1 ? target.id : c.refId;
           var ex = merged.filter(function(x){ return x.refId === id; })[0];
-          if (ex){ ex.doseLt = (ex.doseLt === null && c.doseLt === null) ? null : round((ex.doseLt || 0) + (c.doseLt || 0), 4); ex.doseKg = (ex.doseKg === null && c.doseKg === null) ? null : round((ex.doseKg || 0) + (c.doseKg || 0), 4); }
-          else merged.push({ refId: id, doseLt: c.doseLt === undefined ? null : c.doseLt, doseKg: c.doseKg === undefined ? null : c.doseKg });
+          if (ex){ ex.doseLt = (ex.doseLt === null && c.doseLt === null) ? null : round((ex.doseLt || 0) + (c.doseLt || 0), 4); ex.doseKg = (ex.doseKg === null && c.doseKg === null) ? null : round((ex.doseKg || 0) + (c.doseKg || 0), 4); ex.dosePz = ((ex.dosePz === null || ex.dosePz === undefined) && (c.dosePz === null || c.dosePz === undefined)) ? null : round((ex.dosePz || 0) + (c.dosePz || 0), 4); }
+          else merged.push({ refId: id, doseLt: c.doseLt === undefined ? null : c.doseLt, doseKg: c.doseKg === undefined ? null : c.doseKg, dosePz: c.dosePz === undefined ? null : c.dosePz });
         });
         r.components = merged;
         return window.__fb.setDoc(RECIPES_COLL + '/' + r.id, { components: merged }, true);
@@ -4402,6 +4339,7 @@
     if (gid === 'produzioni') return 'Lotto ' + r.finishedLotto + (r.recipeName ? ' — ' + r.recipeName : '');
     if (gid === 'storico') return formatDateTime(r.ts) + ' — ' + r.refName;
     if (gid === 'contrassegni') return stampLabel(r, r.inizio) + ' (' + r.remaining + ' residui)';
+    if (gid === 'fatture') return 'Fattura ' + (r.docNum || '—') + (r.supplier ? ' — ' + r.supplier : '');
     return String(r.id);
   }
   function bulkButtons(gid, extra){
@@ -4411,7 +4349,7 @@
     var lt = 0, kg = 0, val = 0, hasVal = false;
     rows.forEach(function(r){
       var t = totalStock(r.id); lt += t.lt || 0; kg += t.kg || 0;
-      var p = effectivePrice(r), q = r.unit === 'liquido' ? t.lt : t.kg;
+      var p = effectivePrice(r), q = t[unitKeyOf(r.unit)];
       if (p !== null && p !== undefined && q){ val += p * q; hasVal = true; }
     });
     var same = rows.every(function(r){ return r.unit === rows[0].unit; });
@@ -4469,6 +4407,13 @@
         Promise.all(ids.map(function(id){ return window.__fb.deleteDoc(PRODUCTIONS_COLL + '/' + id); })).then(function(){
           state.productions = state.productions.filter(function(p){ return ids.indexOf(p.id) === -1; });
           done(ids.length + ' produzioni eliminate.');
+        }).catch(fail);
+      });
+    } else if (gid === 'fatture'){
+      openConfirm('Eliminare ' + ids.length + (ids.length === 1 ? ' fattura' : ' fatture') + ' dall\'archivio?', 'Si toglie solo la scheda della fattura: i movimenti e le giacenze restano. Per stornare la merce usa «Movimenti collegati» e poi «Annulla e storna giacenze» nello Storico.', function(){
+        Promise.all(ids.map(function(id){ return window.__fb.deleteDoc(INVOICES_COLL + '/' + id); })).then(function(){
+          state.invoices = state.invoices.filter(function(f){ return ids.indexOf(f.id) === -1; });
+          done(ids.length + ' fatture eliminate dall\'archivio.');
         }).catch(fail);
       });
     } else if (gid === 'prodotti'){
@@ -4689,9 +4634,316 @@
   }
 
   // ==================================================================
+  // VIEW: Carico / fattura manuale (con IVA e totali) + archivio fatture
+  // ==================================================================
+  var INVOICES_COLL = 'invoices_produzione';
+  var VAT_RATES = [22, 10, 4, 0];
+
+  function vatLabel(v){ return Number(v) === 0 ? 'Esente' : (v + '%'); }
+  function vatOptions(sel){
+    return VAT_RATES.map(function(v){ return '<option value="' + v + '"' + (String(sel) === String(v) ? ' selected' : '') + '>' + vatLabel(v) + '</option>'; }).join('');
+  }
+
+  function freshCaricoRow(refId, vat){
+    var row = { refId:'', lotto:'', qty:'', um:'', lt:'', kg:'', pz:'', density:'', grade:'', scadenza:'', price:'', amount:'', vat: vat === undefined ? '' : vat, vatManual:false };
+    if (refId) setCaricoRef(row, refId);
+    return row;
+  }
+  function setCaricoRef(row, refId){
+    row.refId = refId;
+    var ref = referenceById(refId);
+    if (ref){
+      row.density = ref.density === null || ref.density === undefined ? '' : ref.density;
+      row.grade = ref.unit === 'liquido' && ref.grade !== null && ref.grade !== undefined ? ref.grade : '';
+      row.um = refUm(ref).id;
+      var ep = effectivePrice(ref);
+      row.price = ep === null || ep === undefined ? '' : ep;
+      applyQtyUm(row);
+      recomputeAmount(row);
+    }
+  }
+  // quantità nell'unità di magazzino della materia (Lt, Kg o Pz)
+  function rowQtyBase(row){
+    var ref = referenceById(row.refId);
+    if (!ref) return null;
+    return numOrNull(ref.unit === 'liquido' ? row.lt : (ref.unit === 'materiale' ? row.pz : row.kg));
+  }
+  function applyQtyUm(row){
+    var q = numOrNull(row.qty), u = unitById(row.um), ref = referenceById(row.refId);
+    if (q === null || !u || !ref) return;
+    var base = q * u.factor, dens = numOrNull(row.density);
+    if (ref.unit === 'materiale'){ if (u.kind === 'pz') row.pz = round(base, 3); return; }
+    if (u.kind === 'pz') return;
+    if (u.kind === 'lt'){ row.lt = round(base, 3); row.kg = dens ? round(base * dens, 3) : ''; }
+    else { row.kg = round(base, 3); row.lt = dens ? round(base / dens, 3) : ''; }
+  }
+  function recomputeAmount(row){
+    var pr = numOrNull(row.price), q = rowQtyBase(row);
+    if (pr !== null && q !== null) row.amount = round(pr * q, 2);
+    else if (pr === null) row.amount = row.amount === '' ? '' : row.amount;
+  }
+  function caricoAnidri(row){
+    var lt = numOrNull(row.lt), g = numOrNull(row.grade);
+    return (lt !== null && g !== null) ? round(lt * g / 100, 3) : null;
+  }
+  function rowVat(d, row){ return row.vat === '' || row.vat === undefined ? (d.vatDef === undefined ? 22 : d.vatDef) : Number(row.vat); }
+
+  // totali del documento: imponibile, IVA per aliquota, totale, differenza con l'importo dichiarato
+  function caricoInvoiceTotals(){
+    var d = state.carico, imp = 0, byRate = {}, any = false;
+    d.rows.forEach(function(r){
+      var a = numOrNull(r.amount);
+      if (a === null) return;
+      var v = rowVat(d, r);
+      imp += a; any = true;
+      byRate[v] = (byRate[v] || 0) + a;
+    });
+    var ivaTot = 0, rates = Object.keys(byRate).map(Number).sort(function(a, b){ return b - a; }).map(function(v){
+      var iva = round(byRate[v] * v / 100, 2); ivaTot += iva;
+      return { rate: v, base: round(byRate[v], 2), iva: iva };
+    });
+    var total = round(imp + ivaTot, 2), declared = numOrNull(d.declared);
+    return { any: any, imponibile: round(imp, 2), rates: rates, iva: round(ivaTot, 2), total: total, declared: declared, diff: declared === null ? null : round(declared - total, 2) };
+  }
+  function caricoSummaryHtml(){
+    var t = caricoInvoiceTotals();
+    if (!t.any && t.declared === null) return '<span class="hint">Inserisci prezzo o importo nelle righe per vedere imponibile, IVA e totale.</span>';
+    var h = '<div style="display:flex;flex-wrap:wrap;gap:.4rem 1.6rem;align-items:baseline">';
+    h += '<span>Imponibile <b>' + money(t.imponibile) + '</b></span>';
+    t.rates.forEach(function(r){ h += '<span>IVA ' + vatLabel(r.rate) + ' su ' + money(r.base) + ' = <b>' + money(r.iva) + '</b></span>'; });
+    h += '<span style="font-size:1.1rem">Totale fattura <b>' + money(t.total) + '</b></span>';
+    if (t.declared !== null){
+      var ok = Math.abs(t.diff) < 0.02;
+      h += '<span>Importo dichiarato <b>' + money(t.declared) + '</b> ' + (ok ? '<span class="alloc-ok">✓ coincide</span>' : '<span class="alloc-bad">differenza ' + (t.diff > 0 ? '+' : '') + money(t.diff).replace('€ ', '€ ') + '</span>') + '</span>';
+    }
+    return h + '</div>';
+  }
+
+  function renderCaricoView(){
+    var d = state.carico;
+    var html = '<div class="doc">';
+    html += '<div class="doc-head"><h2>Carico materie prime / fattura manuale</h2></div>';
+    html += '<div class="doc-head">';
+    html += '<div class="field" style="min-width:15rem;flex:1"><label for="caricoSupplier">Fornitore</label><input type="text" id="caricoSupplier" list="supListC" value="' + escapeHtml(d.supplier) + '" placeholder="Es. Distillerie Rossi">' + supplierDatalist('supListC') + '</div>';
+    html += '<div class="field"><label for="caricoDocNum">N. fattura / DDT</label><input type="text" id="caricoDocNum" value="' + escapeHtml(d.docNum) + '" placeholder="Es. 123/2026" style="width:10rem"></div>';
+    html += '<div class="field"><label for="caricoDocDate">Data fattura</label><input type="date" id="caricoDocDate" value="' + escapeHtml(d.docDate) + '"></div>';
+    html += '<div class="field"><label for="caricoDeclared">Importo fattura (€, con IVA)</label><input type="number" step="any" min="0" id="caricoDeclared" value="' + escapeHtml(d.declared) + '" placeholder="Totale in fattura" style="width:11rem"></div>';
+    html += '<div class="field"><label for="caricoVatDef">IVA predefinita</label><select id="caricoVatDef">' + vatOptions(d.vatDef) + '</select></div>';
+    html += '<div class="field" style="min-width:13rem;flex:1"><label for="caricoCausale">Causale (se vuota: «Fattura n. … — fornitore»)</label><input type="text" id="caricoCausale" placeholder="Es. arrivo merce" value="' + escapeHtml(d.causale) + '"></div>';
+    html += '</div>';
+    html += '<p class="hint">Una riga per ogni prodotto. Materie prime a Lt/Kg e materiali (bottiglie, tappi, etichette…) a pezzi. Prezzo e importo sono IVA esclusa: scrivi uno dei due e l\'altro si calcola. L\'IVA si sceglie per riga (22%, 10%, …).</p>';
+    html += '<div class="doc-gridwrap"><table class="doc-grid" style="min-width:86rem"><thead><tr><th>' + selHead('carico') + '</th><th style="min-width:15rem">Materia prima / materiale</th><th style="width:8rem">Lotto</th><th style="width:6.5rem">Quantità</th><th style="width:5.5rem">U.M.</th><th style="width:6rem">Lt</th><th style="width:6rem">Kg</th><th style="width:6rem">Pz</th><th style="width:5.5rem">Densità</th><th style="width:5.5rem">Gradaz. %</th><th style="width:5.5rem">Lt anidri</th><th style="width:9.5rem">Scadenza</th><th style="width:7rem">Prezzo €/Lt·Kg·Pz</th><th style="width:5.5rem">IVA</th><th style="width:7rem">Importo € (netto)</th><th style="width:3rem"></th></tr></thead><tbody>';
+    d.rows.forEach(function(row, i){
+      var ref = row.refId ? referenceById(row.refId) : null;
+      var liq = ref && ref.unit === 'liquido', mat = ref && ref.unit === 'materiale';
+      var an = caricoAnidri(row);
+      var ph = !ref ? '€' : '€/' + ul(unitKeyOf(ref.unit));
+      var inp = function(f, extra, dis){ return '<td><input type="number" step="any" min="0" data-crow="' + i + '" data-cfield="' + f + '" value="' + escapeHtml(row[f]) + '"' + (dis ? ' disabled' : '') + (extra || '') + '></td>'; };
+      html += '<tr>' +
+        '<td class="idx">' + selCell('carico', i, row) + '</td>' +
+        '<td>' + refPickerHtml('data-crow="' + i + '" data-cfield="refId"', row.refId, { allowNew:true, focus:'[data-crow="' + i + '"][data-cfield="lotto"]' }) + '</td>' +
+        '<td><input type="text" data-crow="' + i + '" data-cfield="lotto" value="' + escapeHtml(row.lotto) + '" placeholder="L2026-001"' + (ref ? ' list="lotlist_' + i + '"' : '') + '>' + (ref ? '<datalist id="lotlist_' + i + '">' + lotsForRef(ref.id).map(function(l){ return '<option value="' + escapeHtml(l.lotto) + '">'; }).join('') + '</datalist>' : '') + '</td>' +
+        inp('qty', '', !ref) +
+        '<td><select data-crow="' + i + '" data-cfield="um"' + (ref ? '' : ' disabled') + '>' + unitOptions(row.um || (mat ? 'pz' : 'lt'), null, true) + '</select></td>' +
+        inp('lt', '', !ref || mat) + inp('kg', '', !ref || mat) + inp('pz', '', !mat) +
+        inp('density', '', !ref || mat) + inp('grade', ' max="100"', !liq) +
+        '<td class="ro" data-ccell="anidri" data-crow="' + i + '">' + (an === null ? '—' : fmt(an, 3)) + '</td>' +
+        '<td><input type="date" data-crow="' + i + '" data-cfield="scadenza" value="' + escapeHtml(row.scadenza) + '"></td>' +
+        '<td><input type="number" step="any" min="0" data-crow="' + i + '" data-cfield="price" value="' + escapeHtml(row.price) + '" placeholder="' + ph + '"' + (ref ? '' : ' disabled') + '></td>' +
+        '<td><select data-crow="' + i + '" data-cfield="vat"><option value=""' + (row.vat === '' ? ' selected' : '') + '>' + vatLabel(d.vatDef === undefined ? 22 : d.vatDef) + ' (pred.)</option>' + VAT_RATES.map(function(v){ return '<option value="' + v + '"' + (String(row.vat) === String(v) ? ' selected' : '') + '>' + vatLabel(v) + '</option>'; }).join('') + '</select></td>' +
+        '<td><input type="number" step="any" min="0" data-crow="' + i + '" data-cfield="amount" value="' + escapeHtml(row.amount) + '" placeholder="€"' + (ref ? '' : ' disabled') + '></td>' +
+        '<td><button type="button" class="x-btn" data-action="carico-del-row" data-idx="' + i + '" title="Rimuovi riga">×</button></td></tr>';
+    });
+    html += '</tbody><tfoot><tr><td colspan="5" style="text-align:right">Totali</td><td class="ro" id="cTotLt"></td><td class="ro" id="cTotKg"></td><td class="ro" id="cTotPz"></td><td></td><td></td><td class="ro" id="cTotAn"></td><td></td><td></td><td></td><td class="ro" id="cTotVal"></td><td></td></tr></tfoot></table></div>';
+    html += '<div class="readonly-box" id="cInvSummary" style="font-family:inherit;font-weight:500;line-height:1.7">' + caricoSummaryHtml() + '</div>';
+    html += '<div class="doc-actions"><button type="button" class="btn btn-ghost" data-action="carico-add-row">+ Aggiungi riga (F4)</button>' + delSelBtn('carico') + '<button type="button" class="btn btn-ghost" data-action="carico-clear">Svuota</button><span class="gt-spacer"></span><button type="button" class="btn btn-good" data-action="save-carico">Registra carico (Ctrl+Invio)</button></div>';
+    html += '</div>';
+    setTimeout(updateCaricoTotals, 0);
+    return html;
+  }
+  function updateCaricoTotals(){
+    var lt = 0, kg = 0, pz = 0, an = 0, val = 0, anyVal = false;
+    state.carico.rows.forEach(function(r){
+      lt += numOrNull(r.lt) || 0; kg += numOrNull(r.kg) || 0; pz += numOrNull(r.pz) || 0; an += caricoAnidri(r) || 0;
+      var a = numOrNull(r.amount); if (a !== null){ val += a; anyVal = true; }
+    });
+    var set = function(id, v, dec){ var el = document.getElementById(id); if (el) el.textContent = v ? fmt(v, dec === undefined ? 3 : dec) : '—'; };
+    set('cTotLt', lt); set('cTotKg', kg); set('cTotPz', pz, 0); set('cTotAn', an);
+    var ve = document.getElementById('cTotVal'); if (ve) ve.textContent = anyVal ? '€ ' + fmt(val, 2) : '—';
+    var sm = document.getElementById('cInvSummary'); if (sm) sm.innerHTML = caricoSummaryHtml();
+  }
+  function syncCaricoRowDom(i, skip){
+    var row = state.carico.rows[i];
+    ['lt', 'kg', 'pz', 'qty', 'density', 'price', 'amount'].forEach(function(f){
+      if (f === skip) return;
+      var el = document.querySelector('[data-crow="' + i + '"][data-cfield="' + f + '"]');
+      if (el) el.value = row[f];
+    });
+    var cell = document.querySelector('[data-ccell="anidri"][data-crow="' + i + '"]');
+    if (cell){ var an = caricoAnidri(row); cell.textContent = an === null ? '—' : fmt(an, 3); }
+    updateCaricoTotals();
+  }
+  function handleCaricoRowInput(el){
+    var i = parseInt(el.getAttribute('data-crow'), 10), f = el.getAttribute('data-cfield');
+    var row = state.carico.rows[i];
+    if (!row) return;
+    row[f] = el.value;
+    var dens = numOrNull(row.density), lt = numOrNull(row.lt), kg = numOrNull(row.kg);
+    if (f === 'qty' || f === 'um'){
+      if (row.qty === ''){ row.lt = ''; row.kg = ''; row.pz = ''; } else applyQtyUm(row);
+      recomputeAmount(row);
+    } else if (f === 'lt'){
+      row.qty = '';
+      row.kg = (dens && lt !== null) ? round(lt * dens, 3) : (dens ? '' : row.kg);
+      recomputeAmount(row);
+    } else if (f === 'kg'){
+      row.qty = '';
+      row.lt = (dens && kg !== null) ? round(kg / dens, 3) : (dens ? '' : row.lt);
+      recomputeAmount(row);
+    } else if (f === 'pz'){
+      row.qty = '';
+      recomputeAmount(row);
+    } else if (f === 'density'){
+      if (dens && lt !== null) row.kg = round(lt * dens, 3);
+      else if (dens && kg !== null) row.lt = round(kg / dens, 3);
+      recomputeAmount(row);
+    } else if (f === 'price'){
+      recomputeAmount(row);
+    } else if (f === 'amount'){
+      var q = rowQtyBase(row), am = numOrNull(row.amount);
+      if (q && am !== null) row.price = round(am / q, 4);
+    } else if (f === 'vat'){
+      row.vatManual = row.vat !== '';
+    }
+    syncCaricoRowDom(i, f);
+  }
+  // Densità derivata solo a fine digitazione (non a ogni tasto), altrimenti un numero a metà blocca un valore sbagliato.
+  function handleCaricoRowChange(el){
+    var i = parseInt(el.getAttribute('data-crow'), 10), f = el.getAttribute('data-cfield');
+    var row = state.carico.rows[i];
+    if (!row) return;
+    if (f === 'lt' || f === 'kg'){
+      var lt = numOrNull(row.lt), kg = numOrNull(row.kg);
+      if (numOrNull(row.density) === null && lt && lt > 0 && kg !== null){
+        row.density = round(kg / lt, 4);
+        syncCaricoRowDom(i);
+      }
+    }
+    if (f === 'vat') updateCaricoTotals();
+  }
+
+  function saveCarico(){
+    var d = state.carico;
+    var docDateTxt = d.docDate ? new Date(d.docDate + 'T00:00:00').toLocaleDateString('it-IT') : '';
+    var causale = d.causale.trim() || (d.docNum.trim() ? 'Fattura n. ' + d.docNum.trim() + (docDateTxt ? ' del ' + docDateTxt : '') + (d.supplier.trim() ? ' — ' + d.supplier.trim() : '') : '');
+    var items = [];
+    for (var i = 0; i < d.rows.length; i++){
+      var row = d.rows[i];
+      if (!row.refId && !row.lotto && !row.qty && !row.lt && !row.kg && !row.pz) continue;
+      var ref = referenceById(row.refId);
+      if (!ref){ showToast('Riga ' + (i + 1) + ': scegli la materia prima o il materiale.'); return; }
+      var lotto = row.lotto.trim();
+      if (!lotto){ showToast('Riga ' + (i + 1) + ': inserisci il numero di lotto.'); return; }
+      var qtyLt = numOrNull(row.lt), qtyKg = numOrNull(row.kg), qtyPz = numOrNull(row.pz);
+      var okQty = ref.unit === 'materiale' ? (qtyPz && qtyPz > 0) : ((qtyLt && qtyLt > 0) || (qtyKg && qtyKg > 0));
+      if (!okQty){ showToast('Riga ' + (i + 1) + ': inserisci una quantità maggiore di zero.'); return; }
+      items.push({ ref: ref, lotto: lotto, qtyLt: ref.unit === 'materiale' ? null : qtyLt, qtyKg: ref.unit === 'materiale' ? null : qtyKg, qtyPz: ref.unit === 'materiale' ? qtyPz : null,
+        density: ref.unit === 'materiale' ? null : numOrNull(row.density), grade: ref.unit === 'liquido' ? numOrNull(row.grade) : null, scadenza: row.scadenza || null,
+        price: numOrNull(row.price), amount: numOrNull(row.amount), vat: rowVat(d, row), qty: rowQtyBase(row) });
+    }
+    if (!items.length){ showToast('Compila almeno una riga.'); return; }
+    var t = caricoInvoiceTotals();
+    var go = function(){ doSaveCarico(items, causale, t); };
+    if (t.declared !== null && t.any && Math.abs(t.diff) >= 0.02){
+      openConfirm('Il totale non coincide', 'Il totale calcolato è ' + money(t.total) + ' (IVA inclusa) ma hai indicato ' + money(t.declared) + ' (differenza ' + money(t.diff) + '). Registrare comunque?', function(){ closeConfirm(); go(); });
+      return;
+    }
+    go();
+  }
+  function doSaveCarico(items, causale, t){
+    var d = state.carico;
+    var hasInvoice = !!(d.docNum.trim() || d.supplier.trim() || t.any || t.declared !== null);
+    var invoiceId = hasInvoice ? uid('inv') : null;
+    var chain = Promise.resolve();
+    items.forEach(function(it){
+      chain = chain.then(function(){
+        return commitCarico(it.ref, it.lotto, it.qtyLt, it.qtyKg, it.density, it.grade, causale, it.scadenza,
+          { supplier: d.supplier.trim() || null, price: it.price, docNum: d.docNum.trim() || null, docDate: d.docDate || null, qtyPz: it.qtyPz, vat: it.vat, invoiceId: invoiceId });
+      });
+    });
+    if (hasInvoice){
+      chain = chain.then(function(){
+        var vatMap = {};
+        t.rates.forEach(function(r){ vatMap[String(r.rate)] = { base: r.base, iva: r.iva }; });
+        var doc = {
+          supplier: d.supplier.trim() || null, docNum: d.docNum.trim() || null, docDate: d.docDate || null,
+          imponibile: t.any ? t.imponibile : null, iva: t.any ? t.iva : null, vat: vatMap, total: t.any ? t.total : null, declared: t.declared,
+          source: 'manuale', createdAt: new Date().toISOString(),
+          rows: items.map(function(it){ return { refId: it.ref.id, refName: it.ref.name, lotto: it.lotto, qty: it.qty, unit: unitKeyOf(it.ref.unit), price: it.price, amount: it.amount, vat: it.vat }; })
+        };
+        return window.__fb.setDoc(INVOICES_COLL + '/' + invoiceId, doc).then(function(){ state.invoices.push(Object.assign({ id: invoiceId }, doc)); });
+      });
+    }
+    chain.then(function(){
+      showToast(items.length === 1 ? 'Carico registrato: lotto ' + items[0].lotto + '.' : items.length + ' carichi registrati' + (hasInvoice ? ' e fattura archiviata.' : '.'));
+      state.carico = freshCaricoDraft();
+      render();
+    }).catch(function(e){
+      console.error(e);
+      showToast('Salvataggio non riuscito. Riprova.', saveCarico);
+    });
+  }
+
+  // ---------- archivio fatture ----------
+  function renderFattureView(){
+    var cols = [
+      { id:'data', label:'Data fattura', w:130, val:function(f){ return f.docDate || null; }, html:function(f){ return f.docDate ? new Date(f.docDate + 'T00:00:00').toLocaleDateString('it-IT') : '—'; } },
+      { id:'num', label:'N. fattura', w:130, val:function(f){ return f.docNum || null; }, html:function(f){ return '<strong>' + escapeHtml(f.docNum || '—') + '</strong>'; } },
+      { id:'forn', label:'Fornitore', w:220, val:function(f){ return f.supplier || null; } },
+      { id:'imp', label:'Imponibile €', w:130, num:true, sum:true, dec:2, val:function(f){ return f.imponibile === undefined ? null : f.imponibile; } },
+      { id:'iva', label:'IVA €', w:110, num:true, sum:true, dec:2, val:function(f){ return f.iva === undefined ? null : f.iva; } },
+      { id:'tot', label:'Totale €', w:130, num:true, sum:true, dec:2, val:function(f){ return f.total !== null && f.total !== undefined ? f.total : (f.declared === undefined ? null : f.declared); } },
+      { id:'dich', label:'Importo dichiarato €', w:160, num:true, dec:2, def:false, val:function(f){ return f.declared === undefined ? null : f.declared; } },
+      { id:'righe', label:'Righe', w:80, num:true, val:function(f){ return (f.rows || []).length; } },
+      { id:'orig', label:'Inserita', w:110, val:function(f){ return f.source === 'ia' ? 'Con IA' : 'A mano'; } },
+      { id:'creata', label:'Registrata il', w:140, def:false, val:function(f){ return f.createdAt || null; }, html:function(f){ return f.createdAt ? formatDateTime(f.createdAt) : '—'; } }
+    ];
+    return renderGrid({
+      gid:'fatture', columns:cols, rows:state.invoices, rowId:function(f){ return f.id; },
+      searchText:function(f){ return [f.supplier, f.docNum, f.docDate].join(' '); },
+      defaultSort:{ id:'data', dir:'desc' },
+      emptyMsg:'Nessuna fattura archiviata. Usa «Carico» (o «Inserisci una fattura a mano») e indica numero, data e importi: la fattura compare qui.',
+      actions:[
+        { label:'+ Nuova fattura a mano', action:'manual-invoice', cls:'btn-primary' },
+        { label:'Movimenti collegati', action:'invoice-moves', needSel:true },
+        { label:'Elimina dall\'archivio', action:'bulk-del-inv', multi:true }
+      ],
+      side:function(f){ return invoiceSideHtml(f); },
+      bulk:function(rows){ var imp = 0, iva = 0, tot = 0; rows.forEach(function(f){ imp += f.imponibile || 0; iva += f.iva || 0; tot += (f.total !== null && f.total !== undefined ? f.total : f.declared) || 0; }); return kvRows([['Imponibile', money(imp)], ['IVA', money(iva)], ['Totale', money(tot)]]) + bulkButtons('fatture'); }
+    });
+  }
+  function invoiceSideHtml(f){
+    var h = sideHead('fatture', 'Fattura ' + escapeHtml(f.docNum || '—'), (f.supplier ? escapeHtml(f.supplier) + ' · ' : '') + (f.docDate ? new Date(f.docDate + 'T00:00:00').toLocaleDateString('it-IT') : ''),
+      '<button type="button" class="btn btn-sm btn-primary" data-action="invoice-moves" data-id="' + f.id + '">Movimenti collegati</button>');
+    var rates = Object.keys(f.vat || {}).map(Number).sort(function(a, b){ return b - a; });
+    h += '<div class="side-sec">Importi</div>' + kvRows([
+      ['Imponibile', f.imponibile !== null && f.imponibile !== undefined ? money(f.imponibile) : null]
+    ].concat(rates.map(function(r){ return ['IVA ' + vatLabel(r) + ' su ' + money(f.vat[r].base), money(f.vat[r].iva)]; })).concat([
+      ['Totale', f.total !== null && f.total !== undefined ? '<b>' + money(f.total) + '</b>' : null],
+      ['Importo dichiarato', f.declared !== null && f.declared !== undefined ? money(f.declared) : null]
+    ]));
+    h += '<div class="side-sec">Righe (' + (f.rows || []).length + ')</div><table class="side-tbl"><thead><tr><th>Prodotto</th><th style="text-align:right">Q.tà</th><th style="text-align:right">Importo</th></tr></thead><tbody>';
+    (f.rows || []).forEach(function(r){
+      h += '<tr><td>' + escapeHtml(r.refName) + '<div class="hint">lotto ' + escapeHtml(r.lotto || '') + (r.vat !== undefined && r.vat !== null ? ' · IVA ' + vatLabel(r.vat) : '') + '</div></td><td class="num">' + (r.qty !== null && r.qty !== undefined ? fmt(r.qty, 3) + ' ' + ul(r.unit) : '—') + '</td><td class="num">' + (r.amount !== null && r.amount !== undefined ? money(r.amount) : '—') + '</td></tr>';
+    });
+    h += '</tbody></table>';
+    return '<aside class="side">' + h + '</aside>';
+  }
+
+  // ==================================================================
   // Eventi del nuovo gestionale (restituiscono true se l'evento è gestito)
   // ==================================================================
-  var GRID_OF_VIEW = { contrassegni:'contrassegni', materie:'materie', lotti:'lotti', prodotti:'prodotti', produzioni:'produzioni', storico:'storico' };
+  var GRID_OF_VIEW = { fatture:'fatture', contrassegni:'contrassegni', materie:'materie', lotti:'lotti', prodotti:'prodotti', produzioni:'produzioni', storico:'storico' };
   function currentGrid(){
     var g = GRID_OF_VIEW[state.view];
     if (g === 'prodotti' && state.ricette.formOpen) return null;
@@ -4812,6 +5064,15 @@
     }
     if (a === 'fattura-reread'){ var rf = state.fattura.files[idx]; if (rf){ rf.status = 'pending'; rf.result = null; rf.warn = ''; rf.error = ''; } render(); return true; }
     if (a === 'manual-invoice'){ state.carico = freshCaricoDraft(); state.carico.docDate = new Date().toISOString().slice(0, 10); gotoView('carico'); return true; }
+    if (a === 'invoice-moves'){
+      var inv = state.invoices.filter(function(f){ return f.id === (el.getAttribute('data-id') || state.sel.fatture); })[0];
+      state.search.storico = inv ? (inv.docNum || inv.supplier || '') : '';
+      gotoView('storico'); return true;
+    }
+    if (a === 'bulk-del-inv'){
+      var ids2 = el.getAttribute('data-ids');
+      bulkDelete('fatture', ids2 ? ids2.split(',').filter(Boolean) : selectedIds('fatture')); return true;
+    }
     if (a === 'doc-del-sel'){ deleteSelectedDocRows(el.getAttribute('data-kind')); return true; }
     if (a === 'inv-all'){
       var onv = el.getAttribute('data-v') === '1';
@@ -4881,9 +5142,11 @@
 
   function onChangeNew(e){
     var t = e.target;
+    if (state.toolModal && state.toolModal.kind === 'newunit' && t.tagName === 'SELECT' && t.id !== 'nuKind') return true;
     if (state.toolModal && handleToolInput(t)) return true;
     var f;
     if (t.id === 'fatturaAccurate'){ state.fattura.accurate = t.checked; return true; }
+    if (t.id === 'caricoVatDef'){ state.carico.vatDef = Number(t.value); render(); return true; }
     if (t.hasAttribute('data-rowsel')){
       var rw = docRows(t.getAttribute('data-rowsel'))[parseInt(t.getAttribute('data-idx'), 10)];
       if (rw) rw._sel = t.checked;
@@ -4977,6 +5240,22 @@
   function onInputNew(e){
     var t = e.target;
     if (state.toolModal && handleToolInput(t)) return true;
+    if (t.tagName === 'SELECT' && t.value === '__newunit__'){
+      var nuApply = null, nuPrev = '';
+      if (t.hasAttribute('data-cfield')){
+        var cr = state.carico.rows[parseInt(t.getAttribute('data-crow'), 10)];
+        nuPrev = cr.um || ''; nuApply = function(id){ cr.um = id; applyQtyUm(cr); recomputeAmount(cr); render(); };
+      } else if (t.hasAttribute('data-sfield')){
+        var sr = state.scarico.rows[parseInt(t.getAttribute('data-srow'), 10)];
+        nuPrev = sr.um || ''; nuApply = function(id){ sr.um = id; render(); };
+      } else if (t.hasAttribute('data-rc-field')){
+        var rcx = state.ricette.draft.components[parseInt(t.getAttribute('data-rc-idx'), 10)];
+        nuPrev = rcx.um || ''; nuApply = function(id){ rcx.um = id; render(); };
+      } else if (t.id === 'refUm'){
+        nuPrev = state.refModal.draft.um || ''; nuApply = function(id){ state.refModal.draft.um = id; renderRefModal(); };
+      }
+      if (nuApply){ t.value = nuPrev; openTool('newunit', nuApply); return true; }
+    }
     if (t.id === 'mergeQuery' && state.mergeModal){ state.mergeModal.query = t.value; var ml = document.getElementById('mergeList'); if (ml) ml.innerHTML = mergeListHtml(); return true; }
     if (t.id === 'mergeName' && state.mergeModal){ state.mergeModal.name = t.value; state.mergeModal.nameEdited = !!t.value.trim(); var ms = document.getElementById('mergeSummary'); if (ms) ms.innerHTML = mergeSummaryHtml(); return true; }
     if (t.hasAttribute('data-st') && state.stampModal){
@@ -5008,8 +5287,11 @@
     if (t.id === 'refPrice'){ state.refModal.draft.price = t.value; return true; }
     if (t.id === 'caricoSupplier'){ state.carico.supplier = t.value; return true; }
     if (t.id === 'caricoDocNum'){ state.carico.docNum = t.value; return true; }
+    if (t.id === 'caricoDeclared'){ state.carico.declared = t.value; updateCaricoTotals(); return true; }
     if (t.id === 'caricoDocDate'){ state.carico.docDate = t.value; return true; }
     if (t.id === 'recipeBottle'){ state.ricette.draft.bottleLt = t.value; return true; }
+    if (t.id === 'lotQtyPz' && state.lotModal){ state.lotModal.draft.qtyPz = t.value; return true; }
+    if (t.id && t.id.indexOf('invPz_') === 0){ state.invoiceReview.lines[parseInt(t.id.slice('invPz_'.length), 10)].qtyPz = t.value; return true; }
     if (t.id && t.id.indexOf('invPrice_') === 0){ state.invoiceReview.lines[parseInt(t.id.slice('invPrice_'.length), 10)].price = t.value; return true; }
     if (t.hasAttribute('data-gsearch')){ state.search[t.getAttribute('data-gsearch')] = t.value; withFocusPreserved(render); return true; }
     if (t.id === 'caricoCausale'){ state.carico.causale = t.value; return true; }
@@ -5115,7 +5397,7 @@
     } else if (e.key === 'Enter' && state.sel[gid]){ e.preventDefault(); activateRow(gid, state.sel[gid]); }
     else if (e.key === 'Delete' && selectedIds(gid).length){
       var dl = selectedIds(gid);
-      if (dl.length > 1 || gid === 'lotti' || gid === 'produzioni') bulkDelete(gid, dl);
+      if (dl.length > 1 || gid === 'lotti' || gid === 'produzioni' || gid === 'fatture') bulkDelete(gid, dl);
       else if (gid === 'materie') deleteReference(dl[0]);
       else if (gid === 'prodotti') deleteRecipe(dl[0]);
       else if (gid === 'storico') deleteMovement(dl[0]);
@@ -5343,6 +5625,11 @@
   }
 
   function startSync(){
+    window.__fb.onCollectionSnapshot(INVOICES_COLL, function(docs, err){
+      if (err) return;
+      state.invoices = docs.map(function(d){ var o = { id: d.id }; Object.keys(d.data).forEach(function(k){ o[k] = d.data[k]; }); return o; });
+      render();
+    });
     window.__fb.onCollectionSnapshot(STAMPS_COLL, function(docs, err){
       if (err) return;
       state.stamps = docs.map(function(d){ var o = { id: d.id }; Object.keys(d.data).forEach(function(k){ o[k] = d.data[k]; }); return o; });
