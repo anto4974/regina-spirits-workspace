@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "regina-caramelle-592f7"
+  },
+  "targets": {
+    "regina-caramelle-592f7": {
+      "hosting": {
+        "catalogo": [
+          "catalogo-regina-spirits"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

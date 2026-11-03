@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carica foto — Regina Spirits</title>
+<style>
+  :root{ --gold:#c9a24a; --bg:#0a0908; --card:#15130f; --line:rgba(201,162,74,.25); --text:#ece6d8; --muted:#a99f8c; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--text); font-family:Georgia, 'Liberation Serif', serif; padding:1.5rem 1rem 4rem; }
+  .wrap{ max-width:640px; margin:0 auto; }
+  h1{ font-size:1.5rem; color:var(--gold); margin:0 0 .3rem; }
+  p.sub{ color:var(--muted); margin:0 0 1.6rem; font-size:.95rem; }
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:10px; padding:1.3rem; margin-bottom:1rem; }
+  input[type=file]{ display:block; width:100%; color:var(--text); margin-bottom:1rem; }
+  button{ background:var(--gold); color:#141210; border:none; padding:.8rem 1.6rem; border-radius:999px; font-size:1rem; font-weight:bold; cursor:pointer; }
+  button:disabled{ opacity:.5; cursor:default; }
+  .list{ margin-top:1.2rem; display:flex; flex-direction:column; gap:.5rem; }
+  .row{ display:flex; justify-content:space-between; align-items:center; background:#1c1813; border:1px solid var(--line); border-radius:6px; padding:.5rem .8rem; font-size:.88rem; }
+  .row .name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:70%; }
+  .status{ font-size:.8rem; }
+  .status.ok{ color:#7fbf6a; }
+  .status.err{ color:#d16a6a; }
+  .status.busy{ color:var(--gold); }
+  .summary{ margin-top:1rem; font-size:.9rem; color:var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Carica le foto del catalogo</h1>
+  <p class="sub">Seleziona tutte le foto (anche tutte insieme) e premi "Carica". Quando la pagina dice "fatto", puoi chiudere: le foto sono salvate, le sistemo io.</p>
+  <div class="card">
+    <input type="file" id="fileInput" multiple accept="image/*">
+    <button type="button" id="uploadBtn">Carica le foto</button>
+    <div class="summary" id="summary"></div>
+    <div class="list" id="list"></div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+  import {
+    initializeFirestore, collection, doc, setDoc, serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+
+  var firebaseConfig = {
+    apiKey: "AIzaSyCZWXqgSjuz23bv684sKZcr3LhopO56cJU",
+    authDomain: "regina-caramelle-592f7.firebaseapp.com",
+    projectId: "regina-caramelle-592f7",
+    storageBucket: "regina-caramelle-592f7.firebasestorage.app",
+    messagingSenderId: "1023078192035",
+    appId: "1:1023078192035:web:630b72beebbeb438818016"
+  };
+  var fbApp = initializeApp(firebaseConfig);
+  var fs = initializeFirestore(fbApp, { experimentalAutoDetectLongPolling: true });
+
+  var fileInput = document.getElementById('fileInput');
+  var uploadBtn = document.getElementById('uploadBtn');
+  var listEl = document.getElementById('list');
+  var summaryEl = document.getElementById('summary');
+
+  function compressImage(file, maxDim, quality){
+    return new Promise(function(resolve, reject){
+      var img = new Image();
+      var url = URL.createObjectURL(file);
+      img.onload = function(){
+        URL.revokeObjectURL(url);
+        var w = img.width, h = img.height;
+        if (w > h && w > maxDim){ h = Math.round(h * maxDim / w); w = maxDim; }
+        else if (h >= w && h > maxDim){ w = Math.round(w * maxDim / h); h = maxDim; }
+        var canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = function(){ URL.revokeObjectURL(url); reject(new Error('Impossibile leggere l\'immagine')); };
+      img.src = url;
+    });
+  }
+
+  async function compressUnder(file, targetBytes){
+    var dims = [1600, 1280, 1024, 800];
+    var qualities = [0.85, 0.75, 0.65, 0.55];
+    var dataUrl = null;
+    for (var i = 0; i < dims.length; i++){
+      dataUrl = await compressImage(file, dims[i], qualities[i]);
+      if (dataUrl.length <= targetBytes) return dataUrl;
+    }
+    return dataUrl;
+  }
+
+  function setRowStatus(id, text, cls){
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = text;
+    el.className = 'status ' + cls;
+  }
+
+  uploadBtn.addEventListener('click', async function(){
+    var files = Array.from(fileInput.files || []);
+    if (!files.length){ summaryEl.textContent = 'Seleziona almeno una foto prima.'; return; }
+    uploadBtn.disabled = true;
+    listEl.innerHTML = '';
+    summaryEl.textContent = 'Caricamento in corso: 0 / ' + files.length;
+
+    files.forEach(function(file, i){
+      var rowId = 'row_' + i;
+      var row = document.createElement('div');
+      row.className = 'row';
+      row.innerHTML = '<span class="name">' + file.name + '</span><span class="status busy" id="' + rowId + '">in coda</span>';
+      listEl.appendChild(row);
+    });
+
+    var done = 0, failed = 0;
+    for (var i = 0; i < files.length; i++){
+      var file = files[i];
+      var rowId = 'row_' + i;
+      try{
+        setRowStatus(rowId, 'comprimo...', 'busy');
+        var dataUrl = await compressUnder(file, 900000);
+        setRowStatus(rowId, 'invio...', 'busy');
+        var docId = 'img_' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2,8);
+        await setDoc(doc(collection(fs, 'catalogo_uploads'), docId), {
+          originalName: file.name,
+          data: dataUrl,
+          order: i,
+          uploadedAt: new Date().toISOString()
+        });
+        setRowStatus(rowId, 'fatto', 'ok');
+        done++;
+      } catch(e){
+        console.error(e);
+        setRowStatus(rowId, 'errore: ' + (e && e.message ? e.message : e), 'err');
+        failed++;
+      }
+      summaryEl.textContent = 'Caricate ' + done + ' / ' + files.length + (failed ? (' — ' + failed + ' con errore') : '');
+    }
+    summaryEl.textContent = (failed ? ('Fatto con ' + failed + ' errori su ') : 'Tutto caricato: ') + files.length + ' foto. Puoi chiudere la pagina.';
+    uploadBtn.disabled = false;
+  });
+</script>
+</body>
+</html>
