@@ -27,6 +27,9 @@ button:focus-visible{outline:3px solid var(--gem);outline-offset:2px}
 .hudrow{display:flex;align-items:center;gap:10px}
 .bar{flex:1;height:14px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden;border:1px solid rgba(255,255,255,.14)}
 .bar>i{display:block;height:100%;width:100%;border-radius:99px;background:linear-gradient(90deg,#ff9d3c,var(--glow));transition:width .12s linear}
+.bar.fire>i{background:linear-gradient(90deg,#ff5a3c,#ffb347)}
+#lab{position:absolute;inset:auto 0 0 0;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;
+  padding:10px max(16px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
 .bar.xp{height:6px;border:0}.bar.xp>i{background:var(--gem)}
 .tag{font-family:var(--display);font-weight:600;font-size:13px;letter-spacing:.08em;color:var(--mute);text-transform:uppercase}
 #timer{font-family:var(--display);font-weight:700;font-size:26px;font-variant-numeric:tabular-nums;text-shadow:0 2px 10px #000}
@@ -73,7 +76,7 @@ p{margin:0;color:var(--mute);line-height:1.45;max-width:36ch;text-wrap:balance}
   width:100%;max-width:440px;text-align:left;margin-top:6px}
 .top{display:flex;align-items:center;gap:10px;width:100%;max-width:440px}
 .scroll{flex:1;min-height:0;overflow-y:auto;width:100%;display:flex;flex-direction:column;align-items:center;gap:10px;padding-bottom:8px}
-#shop,#upgrades{justify-content:flex-start}
+#shop,#upgrades,#modes,#labpow{justify-content:flex-start}
 /* Carte potenziamento */
 .cards{display:flex;flex-direction:column;gap:10px;width:100%;max-width:420px}
 .card{display:flex;align-items:center;gap:14px;text-align:left;background:var(--panel);border:2px solid var(--line);border-radius:18px;
@@ -114,7 +117,33 @@ p{margin:0;color:var(--mute);line-height:1.45;max-width:36ch;text-wrap:balance}
       <span class="spacer"></span>
       <span class="chip"><i class="dot"></i><span id="runCoins">0</span></span>
     </div>
+    <div class="hudrow" id="fireRow" hidden>
+      <span class="tag" data-t="fire">Falò</span>
+      <div class="bar fire"><i id="fireFill"></i></div>
+    </div>
   </div>
+
+  <div id="lab" hidden>
+    <button class="btn small" data-sp="shade" data-t="l_shade">Ombra</button>
+    <button class="btn small" data-sp="runner" data-t="l_runner">Veloce</button>
+    <button class="btn small" data-sp="brute" data-t="l_brute">Bruto</button>
+    <button class="btn small" data-sp="boss" data-t="l_boss">Guardiano</button>
+    <button class="btn small" data-sp="x10" data-t="l_x10">Orda ×10</button>
+    <button class="btn small gem" id="labPowBtn" data-t="l_pow">Poteri</button>
+    <button class="btn small" id="labResetBtn" data-t="l_reset">Azzera</button>
+  </div>
+
+  <section class="screen" id="modes" hidden>
+    <div class="top"><button class="btn small" data-back data-t="back">Indietro</button></div>
+    <h2 data-t="modes">Modalità</h2>
+    <div class="scroll"><div class="list" id="modeList"></div></div>
+  </section>
+
+  <section class="screen" id="labpow" hidden>
+    <div class="top"><button class="btn small" id="labCloseBtn" data-t="close">Chiudi</button></div>
+    <h2 data-t="l_pow">Poteri</h2>
+    <div class="scroll"><div class="list" id="labPowList"></div></div>
+  </section>
 
   <section class="screen" id="home">
     <div class="row" style="justify-content:space-between">
@@ -186,7 +215,7 @@ p{margin:0;color:var(--mute);line-height:1.45;max-width:36ch;text-wrap:balance}
 
   <section class="screen" id="over" hidden>
     <span class="badge" id="recBadge" data-t="newrec" hidden>Nuovo record!</span>
-    <h2 data-t="over">La luce si è spenta</h2>
+    <h2 id="oTitle">La luce si è spenta</h2>
     <div class="stats">
       <div class="stat"><b id="oTime">0:00</b><small data-t="time">Tempo</small></div>
       <div class="stat"><b id="oKills">0</b><small data-t="kills">Ombre</small></div>
@@ -242,6 +271,13 @@ it: {
   i_g1:['Manciata di gemme','80 gemme'], i_g2:['Sacco di gemme','500 gemme'], i_g3:['Forziere di gemme','1200 gemme'],
   i_starter:['Pacchetto iniziale','200 gemme, 2000 monete e aspetto Aurora'],
   c_1:['Borsa di monete','1500 monete'], c_2:['Cassa di monete','5000 monete'],
+  modes:'Modalità', fire:'Falò', go:'Gioca', rec:'Record', close:'Chiudi', timeup:'Tempo scaduto!', fireout:'Il falò si è spento',
+  l_shade:'Ombra', l_runner:'Veloce', l_brute:'Bruto', l_boss:'Guardiano', l_x10:'Orda ×10', l_pow:'Poteri', l_reset:'Azzera',
+  m_classic:['Classica','Resisti più a lungo che puoi. La luce cala col tempo: le schegge la ricaricano.'],
+  m_fire:['Difendi il falò','Le ombre puntano al falò. Vicino al fuoco la tua luce si ricarica, lontano si consuma in fretta.'],
+  m_flee:['Fuga','Niente attacchi: solo schivate. Raccogli le lucciole per restare accesa; le braci spazzano via le ombre vicine.'],
+  m_horde:['Orda','2 minuti, ombre a valanga, la luce non cala. Livelli doppi: conta quante ne elimini.'],
+  m_lab:['Laboratorio','Allenamento libero: non muori, scegli tu poteri e nemici e provi ogni combinazione.'],
   sk_lumi:'Lumi', sk_brina:'Brina', sk_brace:'Brace', sk_smeraldo:'Smeraldo', sk_aurora:'Aurora', starterOnly:'Nel pacchetto iniziale'
 },
 en: {
@@ -265,13 +301,20 @@ en: {
   i_g1:['Handful of gems','80 gems'], i_g2:['Sack of gems','500 gems'], i_g3:['Chest of gems','1200 gems'],
   i_starter:['Starter pack','200 gems, 2000 coins and the Aurora skin'],
   c_1:['Coin pouch','1500 coins'], c_2:['Coin crate','5000 coins'],
+  modes:'Game modes', fire:'Campfire', go:'Play', rec:'Best', close:'Close', timeup:'Time is up!', fireout:'The campfire went out',
+  l_shade:'Shade', l_runner:'Runner', l_brute:'Brute', l_boss:'Warden', l_x10:'Horde ×10', l_pow:'Powers', l_reset:'Reset',
+  m_classic:['Classic','Last as long as you can. Your light fades over time: shards refill it.'],
+  m_fire:['Defend the campfire','Shadows go for the campfire. Near the fire your light refills, far from it it burns out fast.'],
+  m_flee:['Escape','No attacks, only dodging. Collect fireflies to stay lit; embers wipe out nearby shadows.'],
+  m_horde:['Horde','2 minutes, shadows in waves, light never fades. Double levels: count your kills.'],
+  m_lab:['Lab','Free training: you cannot die, you pick powers and enemies and try every combination.'],
   sk_lumi:'Lumi', sk_brina:'Frost', sk_brace:'Ember', sk_smeraldo:'Emerald', sk_aurora:'Aurora', starterOnly:'In the starter pack'
 }};
 
 /* ---------- Salvataggio ---------- */
 const SAVE_KEY = 'lumi-save-v1';
 const save = { coins:0, gems:0, best:0, up:{light:0,dmg:0,speed:0,magnet:0,greed:0}, skins:['lumi'], skin:'lumi',
-  lastDaily:'', mute:false, lang:null, starter:false };
+  lastDaily:'', mute:false, lang:null, starter:false, bests:{} };
 try { const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (s) { Object.assign(save, s); save.up = Object.assign({light:0,dmg:0,speed:0,magnet:0,greed:0}, s.up); } } catch (e) {}
 const persist = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} };
 if (!save.lang) save.lang = (navigator.language || 'it').toLowerCase().startsWith('it') ? 'it' : 'en';
@@ -297,6 +340,10 @@ const IAP = [
 ];
 const COINPACKS = [{key:'c_1', gems:50, coins:1500}, {key:'c_2', gems:140, coins:5000}];
 const REVIVE_COST = 20;
+const MODE_IDS = ['classic', 'fire', 'flee', 'horde', 'lab'], HORDE_TIME = 120;
+let gm = 'classic';
+const bestOf = m => m === 'classic' ? save.best : (save.bests[m] || 0);
+const scoreTxt = (m, v) => m === 'horde' ? String(Math.round(v)) : fmt(v);
 
 /* ---------- Negozio: un solo punto di aggancio per i pagamenti veri ---------- */
 const Store = {
@@ -361,8 +408,10 @@ function newRun() {
     fireEvery:.42, fireT:.3, shots:1, pierce:0, magnet:70 * (1 + .15 * u.magnet), orbit:0, nova:0, novaT:3, decay:1,
     xp:0, lvl:1, xpNext:6, inv:0, ang:0, lv:{} };
   P.light = P.maxLight;
+  if (gm === 'horde') { P.shots = 2; P.pierce = 1; P.fireEvery = .3; }
   enemies = []; bullets = []; picks = []; parts = []; rings = [];
-  G = { t:0, kills:0, coins:0, spawnT:1, bossT:90, bossN:0, pending:0, revived:false, shake:0, orbA:0 };
+  G = { mode:gm, t:0, kills:0, coins:0, spawnT:1, bossT:gm === 'horde' ? 60 : 90, bossN:0, pending:0, revived:false, shake:0, orbA:0,
+    fire:gm === 'fire' ? { x:0, y:-60, hp:100, max:100 } : null, pickT:0, embT:6, done:false, fireDead:false };
 }
 newRun();
 
@@ -385,10 +434,10 @@ function moveVec() {
 
 /* ---------- Logica ---------- */
 function spawn(type) {
-  const T = ETYPES[type], a = rnd(0, TAU), d = Math.hypot(VW, VH) / 2 + 50;
+  const T = ETYPES[type], a = rnd(0, TAU), d = G.mode === 'lab' ? 300 : Math.hypot(VW, VH) / 2 + 50;
   const k = 1 + G.t / 60 * .45, bossK = type === 'boss' ? 1 + G.bossN * .8 : 1;
   enemies.push({ type, x:P.x + Math.cos(a) * d, y:P.y + Math.sin(a) * d, r:T.r, hp:T.hp * k * bossK, spd:T.spd * (1 + Math.min(.35, G.t / 600)) * rnd(.9, 1.1),
-    dmg:T.dmg, xp:T.xp, hitT:0, orbT:0, kx:0, ky:0, flash:0, ph:rnd(0, TAU) });
+    dmg:T.dmg, xp:T.xp, tf:G.mode === 'fire' && type !== 'boss' && Math.random() < .65, hitT:0, orbT:0, kx:0, ky:0, flash:0, ph:rnd(0, TAU) });
 }
 function burst(x, y, col, n, sp) {
   for (let i = 0; i < n && parts.length < 260; i++) { const a = rnd(0, TAU), s = rnd(.3, 1) * sp; parts.push({ x, y, vx:Math.cos(a) * s, vy:Math.sin(a) * s, life:rnd(.25, .55), max:.55, col, r:rnd(1.5, 3.5) }); }
@@ -398,9 +447,11 @@ function hurt(e, dmg) {
   if (e.hp > 0) return;
   e.dead = true; G.kills++;
   burst(e.x, e.y, '150,120,220', e.type === 'boss' ? 40 : 7, e.type === 'boss' ? 260 : 120);
+  if (G.mode === 'flee') return;
   if (e.type === 'boss') {
     for (let i = 0; i < 24; i++) picks.push({ x:e.x + rnd(-50, 50), y:e.y + rnd(-50, 50), type:i % 3 ? 'xp' : 'coin', v:i % 3 ? 2 : 5 });
-    picks.push({ x:e.x, y:e.y, type:'gem', v:1 }); picks.push({ x:e.x + 14, y:e.y, type:'ember', v:30 });
+    if (G.mode !== 'lab') picks.push({ x:e.x, y:e.y, type:'gem', v:1 });
+    picks.push({ x:e.x + 14, y:e.y, type:'ember', v:30 });
     return;
   }
   picks.push({ x:e.x, y:e.y, type:'xp', v:e.xp });
@@ -425,20 +476,30 @@ function update(dt) {
   const [mx, my] = moveVec();
   P.x += mx * P.speed * dt; P.y += my * P.speed * dt; P.inv -= dt;
   // la luce cala col tempo
-  P.light -= (.8 + G.t / 120) * P.decay * dt;
+  const M = G.mode;
+  let dec = (.8 + G.t / 120) * P.decay;
+  if (M === 'horde' || M === 'lab') dec = 0;
+  else if (M === 'flee') dec = 2.2 + G.t / 40;
+  else if (M === 'fire') dec = Math.hypot(P.x - G.fire.x, P.y - G.fire.y) < 230 ? -4 : dec * 2.5;
+  P.light = Math.min(P.maxLight, P.light - dec * dt);
+  if (M === 'flee') { // lucciole e braci da raccogliere
+    G.pickT -= dt; G.embT -= dt;
+    if (G.pickT <= 0) { G.pickT = .45; const a = rnd(0, TAU), d = rnd(120, 380); picks.push({ x:P.x + Math.cos(a) * d, y:P.y + Math.sin(a) * d, type:'xp', v:5 }); }
+    if (G.embT <= 0) { G.embT = 9; const a = rnd(0, TAU), d = rnd(160, 320); picks.push({ x:P.x + Math.cos(a) * d, y:P.y + Math.sin(a) * d, type:'ember', v:20 }); }
+  }
   // spawn
   G.spawnT -= dt;
-  if (G.spawnT <= 0 && enemies.length < 220) {
-    G.spawnT = Math.max(.11, .95 - G.t * .0058);
+  if (M !== 'lab' && G.spawnT <= 0 && enemies.length < 220) {
+    G.spawnT = Math.max(.11, .95 - G.t * .0058) * (M === 'horde' ? .5 : 1);
     const r = Math.random();
     spawn(G.t > 75 && r < .12 ? 'brute' : G.t > 30 && r < .38 ? 'runner' : 'shade');
     if (G.t > 150 && Math.random() < .5) spawn('shade');
   }
-  G.bossT -= dt;
+  if (M !== 'lab') G.bossT -= dt;
   if (G.bossT <= 0) { G.bossT = 90; spawn('boss'); G.bossN++; toast(t('boss')); sfx('boss'); buzz(120); }
   // attacco automatico
   P.fireT -= dt;
-  if (P.fireT <= 0) P.fireT = fire() ? P.fireEvery : .1;
+  if (P.fireT <= 0) P.fireT = M !== 'flee' && fire() ? P.fireEvery : .1;
   // lucciole orbitanti
   G.orbA += dt * 3.2;
   // bagliore
@@ -466,8 +527,13 @@ function update(dt) {
   for (let i = 0; i < enemies.length; i++) {
     const e = enemies[i]; if (e.dead) continue;
     let dx = P.x - e.x, dy = P.y - e.y; const d = Math.hypot(dx, dy) || 1;
-    if (d > far) { const a = rnd(0, TAU), dd = Math.hypot(VW, VH) / 2 + 50; e.x = P.x + Math.cos(a) * dd; e.y = P.y + Math.sin(a) * dd; continue; }
-    e.x += (dx / d * e.spd + e.kx) * dt; e.y += (dy / d * e.spd + e.ky) * dt;
+    if (d > far && !e.tf) { const a = rnd(0, TAU), dd = Math.hypot(VW, VH) / 2 + 50; e.x = P.x + Math.cos(a) * dd; e.y = P.y + Math.sin(a) * dd; continue; }
+    let tx = dx / d, ty = dy / d;
+    if (e.tf) { // punta al falò
+      const fx = G.fire.x - e.x, fy = G.fire.y - e.y, fd = Math.hypot(fx, fy) || 1; tx = fx / fd; ty = fy / fd;
+      if (fd < e.r + 26 && e.hitT <= 0) { G.fire.hp -= e.dmg * .6; e.hitT = .9; e.kx -= tx * 240; e.ky -= ty * 240; burst(G.fire.x, G.fire.y, '255,150,60', 6, 140); G.shake = Math.max(G.shake, .1); }
+    }
+    e.x += (tx * e.spd + e.kx) * dt; e.y += (ty * e.spd + e.ky) * dt;
     e.kx *= Math.pow(.002, dt); e.ky *= Math.pow(.002, dt);
     e.hitT -= dt; e.orbT -= dt; e.flash -= dt;
     // separazione
@@ -492,9 +558,13 @@ function update(dt) {
     if (d < P.magnet || p.pull) { p.pull = true; const s = 420 + (p.pt = (p.pt || 0) + dt) * 600; p.x += dx / d * s * dt; p.y += dy / d * s * dt; }
     if (d < 16) {
       p.dead = true; sfx('pick');
-      if (p.type === 'xp') { P.xp += p.v; P.light = Math.min(P.maxLight, P.light + p.v); }
+      if (p.type === 'xp') { if (M !== 'flee' && M !== 'lab') P.xp += p.v * (M === 'horde' ? 2 : 1); P.light = Math.min(P.maxLight, P.light + p.v); }
       else if (p.type === 'coin') G.coins += p.v;
-      else if (p.type === 'ember') { P.light = Math.min(P.maxLight, P.light + p.v); burst(P.x, P.y, SKINS[save.skin].c, 12, 140); }
+      else if (p.type === 'ember') {
+        P.light = Math.min(P.maxLight, P.light + p.v); burst(P.x, P.y, SKINS[save.skin].c, 12, 140);
+        if (G.fire) G.fire.hp = Math.min(G.fire.max, G.fire.hp + 15);
+        if (M === 'flee') { rings.push({ x:P.x, y:P.y, r:10, R:210, life:.45 }); sfx('nova'); for (const e of enemies) if (e.type !== 'boss' && (e.x - P.x) ** 2 + (e.y - P.y) ** 2 < 210 * 210) hurt(e, 1e6); }
+      }
       else if (p.type === 'gem') { save.gems += p.v; persist(); toast(t('bossDown')); sfx('buy'); }
     }
   }
@@ -505,7 +575,10 @@ function update(dt) {
   if (picks.length > 400) picks.splice(0, picks.length - 400);
   G.shake = Math.max(0, G.shake - dt);
   // livelli
-  while (P.xp >= P.xpNext) { P.xp -= P.xpNext; P.lvl++; P.xpNext = Math.floor(5 + P.lvl * 3.2 + P.lvl * P.lvl * .35); G.pending++; }
+  while (M !== 'lab' && P.xp >= P.xpNext) { P.xp -= P.xpNext; P.lvl++; P.xpNext = Math.floor(5 + P.lvl * 3.2 + P.lvl * P.lvl * .35); G.pending++; }
+  if (M === 'lab') P.light = P.maxLight;
+  if (M === 'horde' && G.t >= HORDE_TIME) { G.done = true; return gameOver(); }
+  if (G.fire && G.fire.hp <= 0) { G.fire.hp = 0; G.fireDead = true; return gameOver(); }
   if (P.light <= 0) { P.light = 0; return gameOver(); }
   if (G.pending > 0) openLevelUp();
 }
@@ -543,6 +616,8 @@ const fmt = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(
 function show(id, keepHud) {
   for (const s of document.querySelectorAll('.screen')) s.hidden = s.id !== id;
   $('hud').hidden = !(keepHud || (id === null && mode !== 'menu'));
+  $('lab').hidden = !(id === null && mode === 'play' && G.mode === 'lab');
+  $('fireRow').hidden = !G.fire;
   refreshUI();
 }
 function start() { newRun(); mode = 'play'; show(null); $('hud').hidden = false; last = performance.now(); tone(1, .01); }
@@ -552,17 +627,24 @@ let earned = 0;
 function gameOver() {
   mode = 'over'; joy.on = false; sfx('die'); buzz(200);
   earned = Math.round((G.coins + Math.floor(G.t / 8)) * (1 + .1 * save.up.greed));
-  const rec = G.t > save.best && G.t > 5;
+  const score = G.mode === 'horde' ? G.kills : G.t, rec = score > bestOf(G.mode) && G.t > 5;
   $('recBadge').hidden = !rec;
   $('oTime').textContent = fmt(G.t); $('oKills').textContent = G.kills; $('oCoins').textContent = '+' + earned;
-  $('reviveBtn').hidden = G.revived;
+  $('reviveBtn').hidden = G.revived || G.done;
   $('reviveBtn').textContent = t('revive') + ' · ' + REVIVE_COST + ' ' + t('gems');
   show('over', true);
+  $('oTitle').textContent = t(G.done ? 'timeup' : G.fireDead ? 'fireout' : 'over');
 }
-function bank() { save.coins += earned; if (G.t > save.best) save.best = G.t; earned = 0; persist(); }
+function bank() {
+  save.coins += earned; earned = 0;
+  const sc = G.mode === 'horde' ? G.kills : G.t;
+  if (G.mode === 'classic') { if (sc > save.best) save.best = sc; } else if (sc > bestOf(G.mode)) save.bests[G.mode] = sc;
+  persist();
+}
 function revive() {
   if (save.gems < REVIVE_COST) { toast(t('noGems')); return; }
   save.gems -= REVIVE_COST; persist(); G.revived = true; P.light = P.maxLight * .7; P.inv = 1.5;
+  if (G.fire) { G.fire.hp = Math.max(G.fire.hp, 60); G.fireDead = false; }
   rings.push({ x:P.x, y:P.y, r:10, R:300, life:.5 });
   for (const e of enemies) if (e.type !== 'boss' && (e.x - P.x) ** 2 + (e.y - P.y) ** 2 < 300 * 300) hurt(e, 1e6);
   enemies = enemies.filter(e => !e.dead); sfx('lvl'); resume();
@@ -624,6 +706,11 @@ function refreshUI() {
       save.gems -= s.price; save.skins.push(id); save.skin = id; persist(); sfx('buy'); refreshUI();
     }, sw));
   }
+  const ml = $('modeList'); ml.textContent = '';
+  for (const id of MODE_IDS) {
+    const [n, d] = t('m_' + id), b = bestOf(id);
+    ml.appendChild(item(n, d + (b > 0 && id !== 'lab' ? ' · ' + t('rec') + ' ' + scoreTxt(id, b) : ''), t('go'), id === 'lab' ? 'gem' : '', () => { gm = id; start(); }));
+  }
   const cl = $('coinList'); cl.textContent = '';
   for (const c of COINPACKS) {
     const [n, d] = t(c.key);
@@ -633,11 +720,22 @@ function refreshUI() {
     }));
   }
 }
-$('playBtn').onclick = start;
+$('playBtn').onclick = () => show('modes');
+for (const b of document.querySelectorAll('[data-sp]')) b.onclick = () => { if (b.dataset.sp === 'x10') for (let i = 0; i < 10; i++) spawn('shade'); else spawn(b.dataset.sp); };
+function labPowers() {
+  const box = $('labPowList'); box.textContent = '';
+  for (const p of POW) {
+    const lv = P.lv[p.id] || 0, [n, d] = t('p_' + p.id), maxed = lv >= p.max;
+    box.appendChild(item(n + '  ' + lv + '/' + p.max, d, maxed ? t('max') : '+1', 'gem', maxed ? null : () => { p.f(); P.lv[p.id] = lv + 1; sfx('pick'); labPowers(); }));
+  }
+}
+$('labPowBtn').onclick = () => { mode = 'pause'; joy.on = false; show('labpow', true); labPowers(); };
+$('labCloseBtn').onclick = () => resume();
+$('labResetBtn').onclick = () => { newRun(); show(null); };
 $('upBtn').onclick = () => show('upgrades'); $('shopBtn').onclick = () => show('shop');
 for (const b of document.querySelectorAll('[data-back]')) b.onclick = () => show('home');
 $('pauseBtn').onclick = pause; $('resumeBtn').onclick = resume;
-$('quitBtn').onclick = () => { gameOver(); $('reviveBtn').hidden = true; };
+$('quitBtn').onclick = () => { if (G.mode === 'lab') { mode = 'menu'; show('home'); return; } gameOver(); $('reviveBtn').hidden = true; };
 $('retryBtn').onclick = () => { bank(); start(); };
 $('homeBtn').onclick = () => { bank(); mode = 'menu'; newRun(); show('home'); };
 $('reviveBtn').onclick = revive;
@@ -665,6 +763,7 @@ function eyes(e, a) {
   ctx.beginPath(); ctx.ellipse(e.x - s * 1.1, y, s * .55, s * .8, 0, 0, TAU); ctx.ellipse(e.x + s * 1.1, y, s * .55, s * .8, 0, 0, TAU); ctx.fill();
 }
 let menuT = 0;
+const dcv = document.createElement('canvas'), dctx = dcv.getContext('2d');
 function draw(now) {
   const sk = SKINS[save.skin] || SKINS.lumi, tt = now / 1000;
   let cx = P.x, cy = P.y;
@@ -692,8 +791,25 @@ function draw(now) {
   const frac = clamp(P.light / P.maxLight, 0, 1), R = (mode === 'menu' ? 190 : 70 + 215 * frac) * (1 + Math.sin(tt * 9) * .012);
   const warm = ctx.createRadialGradient(P.x, P.y, 0, P.x, P.y, R); warm.addColorStop(0, 'rgba(' + sk.c + ',.3)'); warm.addColorStop(1, 'rgba(' + sk.c + ',0)');
   ctx.fillStyle = warm; ctx.beginPath(); ctx.arc(P.x, P.y, R, 0, TAU); ctx.fill();
-  const dark = ctx.createRadialGradient(P.x, P.y, R * .45, P.x, P.y, R); dark.addColorStop(0, 'rgba(4,7,14,0)'); dark.addColorStop(1, 'rgba(4,7,14,.965)');
-  ctx.fillStyle = dark; ctx.fillRect(cx - VW / 2 - 30, cy - VH / 2 - 30, VW + 60, VH + 60);
+  const F = mode === 'menu' ? null : G.fire, lights = [[P.x, P.y, G.mode === 'lab' && mode !== 'menu' ? 430 : R]];
+  if (F) lights.push([F.x, F.y, 90 + 170 * clamp(F.hp / F.max, 0, 1)]);
+  const dw = Math.ceil(W / 2), dh = Math.ceil(H / 2), ds = Z / 2;
+  if (dcv.width !== dw || dcv.height !== dh) { dcv.width = dw; dcv.height = dh; }
+  dctx.globalCompositeOperation = 'source-over'; dctx.clearRect(0, 0, dw, dh); dctx.fillStyle = 'rgba(4,7,14,.965)'; dctx.fillRect(0, 0, dw, dh);
+  dctx.globalCompositeOperation = 'destination-out';
+  for (const [lx, ly, lr] of lights) {
+    const sx = (lx - cx) * ds + dw / 2, sy = (ly - cy) * ds + dh / 2, rr = lr * ds, g = dctx.createRadialGradient(sx, sy, rr * .45, sx, sy, rr);
+    g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)'); dctx.fillStyle = g; dctx.beginPath(); dctx.arc(sx, sy, rr, 0, TAU); dctx.fill();
+  }
+  ctx.drawImage(dcv, cx - VW / 2, cy - VH / 2, VW, VH);
+  if (F) { // falò e indicatore di direzione
+    const fr = (16 + 22 * F.hp / F.max) * (1 + Math.sin(tt * 11) * .08);
+    ctx.fillStyle = '#5a3a22'; ctx.fillRect(F.x - 22, F.y + 6, 44, 8); ctx.fillRect(F.x - 14, F.y + 1, 28, 7);
+    const g = ctx.createRadialGradient(F.x, F.y - 6, 0, F.x, F.y - 6, fr * 1.9); g.addColorStop(0, '#fff3c4'); g.addColorStop(.35, 'rgba(255,150,50,.9)'); g.addColorStop(1, 'rgba(255,90,30,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(F.x, F.y - 6, fr * 1.9, 0, TAU); ctx.fill();
+    const fx = F.x - P.x, fy = F.y - P.y, fd = Math.hypot(fx, fy), er = Math.min(VW, VH) * .42;
+    if (fd > er + 30) { ctx.fillStyle = '#ff9d3c'; ctx.beginPath(); ctx.arc(P.x + fx / fd * er, P.y + fy / fd * er, 8, 0, TAU); ctx.fill(); }
+  }
   // occhi nel buio
   for (const e of enemies) eyes(e, .55 + .45 * Math.sin(tt * 3 + e.ph) ** 2);
   if (mode === 'menu') for (let i = 0; i < 9; i++) { const a = i * 2.4 + 1, d = 230 + (i % 3) * 70, bl = Math.sin(tt * .9 + i * 1.7); if (bl > -.2) eyes({ x:P.x + Math.cos(a) * d, y:P.y + Math.sin(a) * d * 1.3, r:13 + (i % 3) * 5, type:i % 4 ? 'shade' : 'runner' }, clamp(bl + .2, 0, 1)); }
@@ -723,7 +839,8 @@ function draw(now) {
 function hud() {
   $('lightFill').style.width = (P.light / P.maxLight * 100) + '%';
   $('xpFill').style.width = (P.xp / P.xpNext * 100) + '%';
-  $('timer').textContent = fmt(G.t); $('lvlTxt').textContent = P.lvl; $('runCoins').textContent = G.coins;
+  $('timer').textContent = G.mode === 'horde' ? fmt(Math.max(0, HORDE_TIME - G.t)) : fmt(G.t);
+  if (G.fire) $('fireFill').style.width = (G.fire.hp / G.fire.max * 100) + '%'; $('lvlTxt').textContent = P.lvl; $('runCoins').textContent = G.coins;
 }
 let last = performance.now();
 function frame(now) {
@@ -735,6 +852,6 @@ function frame(now) {
 }
 show('home');
 requestAnimationFrame(frame);
-window.__lumi = { get s() { return { mode, P, G, n:enemies.length, enemies }; }, keys, start };
+window.__lumi = { get s() { return { mode, P, G, n:enemies.length, enemies }; }, keys, start, set gm(v) { gm = v; } };
 })();
 </script>

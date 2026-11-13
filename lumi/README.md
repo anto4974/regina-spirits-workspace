@@ -4,6 +4,16 @@ Gioco survival a un dito per Android e iOS. Lumi è una fiammella in una foresta
 attacca da sola, e la sua **luce è la sua vita**. La luce cala col tempo e a ogni colpo; le schegge lasciate dalle ombre
 la ricaricano. Più la luce è bassa, meno si vede.
 
+## Modalità
+
+| Modalità | Regola |
+| --- | --- |
+| Classica | Resisti il più possibile; la luce cala col tempo |
+| Difendi il falò | Le ombre attaccano il falò; vicino al fuoco la luce si ricarica |
+| Fuga | Nessun attacco: si schiva e si raccolgono lucciole e braci |
+| Orda | 2 minuti di ombre a valanga; conta il numero di eliminazioni |
+| Laboratorio | Allenamento libero: non si muore, si scelgono poteri e nemici |
+
 ## Com'è fatto
 
 | File | A cosa serve |
