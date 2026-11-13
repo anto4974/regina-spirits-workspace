@@ -1,0 +1,740 @@
+<title>Lumi Survival</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;700;800&display=swap">
+<style>
+/* Layout: canvas a tutto schermo, HUD e schermate sovrapposte al centro; unico look notturno. */
+:root{
+  color-scheme:dark;
+  --night:#070b14; --deep:#0e1726; --panel:#152238; --line:#2a3f63;
+  --ink:#eaf1ff; --mute:#8fa3c7; --glow:#ffc95a; --glow-ink:#2b1c00;
+  --gem:#7fe3ff; --danger:#ff6b6b; --ok:#7dffb0;
+  --display:'Fredoka','Trebuchet MS','Segoe UI',system-ui,sans-serif;
+  --body:'Nunito','Segoe UI',system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{margin:0;background:var(--night);color:var(--ink);font-family:var(--body);font-size:16px;overflow:hidden;
+  user-select:none;-webkit-user-select:none;overscroll-behavior:none}
+#app{position:relative;height:100%;width:100%;overflow:hidden;background:var(--night)}
+#cv{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+button:focus-visible{outline:3px solid var(--gem);outline-offset:2px}
+
+/* HUD */
+#hud{position:absolute;inset:0 0 auto 0;pointer-events:none;display:flex;flex-direction:column;gap:8px;
+  padding-top:calc(10px + env(safe-area-inset-top,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.hudrow{display:flex;align-items:center;gap:10px}
+.bar{flex:1;height:14px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden;border:1px solid rgba(255,255,255,.14)}
+.bar>i{display:block;height:100%;width:100%;border-radius:99px;background:linear-gradient(90deg,#ff9d3c,var(--glow));transition:width .12s linear}
+.bar.xp{height:6px;border:0}.bar.xp>i{background:var(--gem)}
+.tag{font-family:var(--display);font-weight:600;font-size:13px;letter-spacing:.08em;color:var(--mute);text-transform:uppercase}
+#timer{font-family:var(--display);font-weight:700;font-size:26px;font-variant-numeric:tabular-nums;text-shadow:0 2px 10px #000}
+.chip{display:inline-flex;align-items:center;gap:6px;font-family:var(--display);font-weight:600;font-variant-numeric:tabular-nums;
+  background:rgba(14,23,38,.8);border:1px solid var(--line);border-radius:99px;padding:5px 12px;font-size:15px}
+.dot{width:12px;height:12px;border-radius:50%;background:var(--glow);box-shadow:0 0 8px var(--glow)}
+.dot.gem{background:var(--gem);box-shadow:0 0 8px var(--gem);border-radius:3px;transform:rotate(45deg);width:10px;height:10px}
+#pauseBtn{pointer-events:auto;width:44px;height:44px;border-radius:14px;background:rgba(14,23,38,.8);border:1px solid var(--line);
+  font-family:var(--display);font-weight:700;font-size:16px}
+.spacer{flex:1}
+
+/* Schermate */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
+  padding-block:calc(20px + env(safe-area-inset-top,0px)) calc(20px + env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  overflow-y:auto;background:rgba(7,11,20,.8);text-align:center}
+#home{background:linear-gradient(180deg,rgba(7,11,20,.15) 0%,rgba(7,11,20,.2) 45%,rgba(7,11,20,.9) 100%);justify-content:space-between}
+.col{display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;max-width:420px}
+.row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;width:100%}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(64px,22vw,104px);line-height:.9;margin:0;letter-spacing:.04em;
+  color:#fff6d8;text-shadow:0 0 18px rgba(255,201,90,.9),0 0 60px rgba(255,157,60,.6)}
+h2{font-family:var(--display);font-weight:700;font-size:30px;margin:0;text-wrap:balance}
+p{margin:0;color:var(--mute);line-height:1.45;max-width:36ch;text-wrap:balance}
+.sub{font-family:var(--display);font-weight:500;font-size:18px;color:var(--ink);letter-spacing:.02em}
+.btn{font-family:var(--display);font-weight:600;font-size:17px;padding:13px 20px;border-radius:16px;background:var(--panel);
+  border:1px solid var(--line);min-height:48px;flex:1 1 130px;transition:transform .08s}
+.btn:active{transform:scale(.96)}
+.btn.primary{background:linear-gradient(180deg,#ffd97a,#ffab3d);color:var(--glow-ink);border:0;font-size:24px;font-weight:700;
+  padding:18px 20px;box-shadow:0 6px 0 #b86b12,0 0 40px rgba(255,180,70,.45);flex:1 1 100%}
+.btn.primary:active{transform:translateY(4px);box-shadow:0 2px 0 #b86b12}
+.btn.gem{border-color:var(--gem);color:var(--gem)}
+.btn.small{flex:0 0 auto;font-size:14px;padding:8px 14px;min-height:40px}
+.btn[disabled]{opacity:.45;cursor:default}
+.list{display:flex;flex-direction:column;gap:10px;width:100%;max-width:440px}
+.item{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px 14px;text-align:left}
+.item .info{flex:1;min-width:0}
+.item b{font-family:var(--display);font-weight:600;font-size:17px;display:block}
+.item small{color:var(--mute);font-size:13px;line-height:1.3;display:block}
+.pips{display:flex;gap:3px;margin-top:6px}
+.pips i{width:14px;height:5px;border-radius:3px;background:rgba(255,255,255,.14)}
+.pips i.on{background:var(--glow)}
+.swatch{width:38px;height:38px;border-radius:50%;flex:none;box-shadow:0 0 16px currentColor;background:currentColor;border:3px solid #fff8}
+.sect{font-family:var(--display);font-weight:600;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);
+  width:100%;max-width:440px;text-align:left;margin-top:6px}
+.top{display:flex;align-items:center;gap:10px;width:100%;max-width:440px}
+.scroll{flex:1;min-height:0;overflow-y:auto;width:100%;display:flex;flex-direction:column;align-items:center;gap:10px;padding-bottom:8px}
+#shop,#upgrades{justify-content:flex-start}
+/* Carte potenziamento */
+.cards{display:flex;flex-direction:column;gap:10px;width:100%;max-width:420px}
+.card{display:flex;align-items:center;gap:14px;text-align:left;background:var(--panel);border:2px solid var(--line);border-radius:18px;
+  padding:14px 16px;width:100%;min-height:76px}
+.card:active{border-color:var(--glow);transform:scale(.98)}
+.card .ico{width:46px;height:46px;border-radius:14px;background:rgba(255,201,90,.14);color:var(--glow);display:grid;place-items:center;
+  font-size:24px;flex:none;font-family:var(--display)}
+.card b{font-family:var(--display);font-weight:600;font-size:18px;display:block}
+.card small{color:var(--mute);font-size:14px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;max-width:420px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 6px}
+.stat b{font-family:var(--display);font-size:22px;font-weight:700;display:block;font-variant-numeric:tabular-nums}
+.stat small{color:var(--mute);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.badge{font-family:var(--display);font-weight:700;color:var(--glow-ink);background:var(--glow);border-radius:99px;padding:4px 14px;font-size:14px}
+.note{font-size:12px;color:var(--mute);max-width:44ch}
+#toast{position:absolute;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);
+  color:var(--night);font-weight:800;border-radius:99px;padding:10px 18px;font-size:14px;pointer-events:none;opacity:0;transition:opacity .2s;
+  max-width:calc(100% - 32px);z-index:9}
+#toast.on{opacity:1}
+#modal{z-index:8;background:rgba(7,11,20,.92)}
+@media (prefers-reduced-motion:reduce){.btn,.card{transition:none}}
+</style>
+
+<div id="app">
+  <canvas id="cv" aria-label="Lumi Survival"></canvas>
+
+  <div id="hud" hidden>
+    <div class="bar xp"><i id="xpFill"></i></div>
+    <div class="hudrow">
+      <span class="tag" data-t="light">Luce</span>
+      <div class="bar"><i id="lightFill"></i></div>
+      <button id="pauseBtn" aria-label="Pausa">II</button>
+    </div>
+    <div class="hudrow">
+      <span class="chip"><span class="tag" data-t="lvl">Liv</span> <span id="lvlTxt">1</span></span>
+      <span class="spacer"></span>
+      <span id="timer">0:00</span>
+      <span class="spacer"></span>
+      <span class="chip"><i class="dot"></i><span id="runCoins">0</span></span>
+    </div>
+  </div>
+
+  <section class="screen" id="home">
+    <div class="row" style="justify-content:space-between">
+      <span class="chip"><i class="dot"></i><span class="coinsTxt">0</span></span>
+      <span class="chip"><i class="dot gem"></i><span class="gemsTxt">0</span></span>
+    </div>
+    <div class="col">
+      <h1>LUMI</h1>
+      <div class="sub" data-t="tagline">Sopravvivi al buio</div>
+      <p data-t="howto">Trascina il dito per muoverti. Lumi attacca da sola. La tua luce è la tua vita: raccogli le schegge per tenerla accesa.</p>
+    </div>
+    <div class="col">
+      <span class="chip" id="bestChip"><span class="tag" data-t="best">Record</span> <span id="bestTxt">0:00</span></span>
+      <button class="btn gem" id="dailyBtn" data-t="daily" style="flex:none;width:100%">Premio giornaliero: +5 gemme</button>
+      <div class="row"><button class="btn primary" id="playBtn" data-t="play">GIOCA</button></div>
+      <div class="row">
+        <button class="btn" id="upBtn" data-t="upgrades">Potenziamenti</button>
+        <button class="btn" id="shopBtn" data-t="shop">Negozio</button>
+      </div>
+      <div class="row">
+        <button class="btn small" id="sndBtn">Audio</button>
+        <button class="btn small" id="langBtn">IT / EN</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen" id="upgrades" hidden>
+    <div class="top">
+      <button class="btn small" data-back data-t="back">Indietro</button>
+      <span class="spacer"></span>
+      <span class="chip"><i class="dot"></i><span class="coinsTxt">0</span></span>
+    </div>
+    <h2 data-t="upgrades">Potenziamenti</h2>
+    <div class="scroll"><div class="list" id="upList"></div></div>
+  </section>
+
+  <section class="screen" id="shop" hidden>
+    <div class="top">
+      <button class="btn small" data-back data-t="back">Indietro</button>
+      <span class="spacer"></span>
+      <span class="chip"><i class="dot"></i><span class="coinsTxt">0</span></span>
+      <span class="chip"><i class="dot gem"></i><span class="gemsTxt">0</span></span>
+    </div>
+    <h2 data-t="shop">Negozio</h2>
+    <div class="scroll">
+      <div class="sect" data-t="s_gems">Gemme</div>
+      <div class="list" id="iapList"></div>
+      <div class="sect" data-t="s_skins">Aspetti di Lumi</div>
+      <div class="list" id="skinList"></div>
+      <div class="sect" data-t="s_coins">Monete</div>
+      <div class="list" id="coinList"></div>
+      <p class="note" id="storeNote"></p>
+    </div>
+  </section>
+
+  <section class="screen" id="levelup" hidden>
+    <span class="badge" id="lvlBadge">Livello 2</span>
+    <h2 data-t="choose">Scegli un potere</h2>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <section class="screen" id="pause" hidden>
+    <h2 data-t="paused">In pausa</h2>
+    <div class="col">
+      <div class="row"><button class="btn primary" id="resumeBtn" data-t="resume">Riprendi</button></div>
+      <div class="row"><button class="btn" id="quitBtn" data-t="quit">Termina partita</button></div>
+    </div>
+  </section>
+
+  <section class="screen" id="over" hidden>
+    <span class="badge" id="recBadge" data-t="newrec" hidden>Nuovo record!</span>
+    <h2 data-t="over">La luce si è spenta</h2>
+    <div class="stats">
+      <div class="stat"><b id="oTime">0:00</b><small data-t="time">Tempo</small></div>
+      <div class="stat"><b id="oKills">0</b><small data-t="kills">Ombre</small></div>
+      <div class="stat"><b id="oCoins">0</b><small data-t="coins">Monete</small></div>
+    </div>
+    <div class="col">
+      <button class="btn gem" id="reviveBtn" style="flex:none;width:100%">Riaccendi</button>
+      <div class="row"><button class="btn primary" id="retryBtn" data-t="retry">Riprova</button></div>
+      <div class="row"><button class="btn" id="homeBtn" data-t="home">Menu</button></div>
+    </div>
+  </section>
+
+  <section class="screen" id="modal" hidden>
+    <h2 id="mTitle"></h2>
+    <p id="mText"></p>
+    <div class="col">
+      <div class="row"><button class="btn primary" id="mOk"></button></div>
+      <div class="row"><button class="btn" id="mNo" data-t="cancel">Annulla</button></div>
+    </div>
+  </section>
+
+  <div id="toast" role="status"></div>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const rnd = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const TAU = Math.PI * 2;
+
+/* ---------- Testi IT / EN ---------- */
+const TXT = {
+it: {
+  light:'Luce', lvl:'Liv', tagline:'Sopravvivi al buio', best:'Record', play:'GIOCA', upgrades:'Potenziamenti', shop:'Negozio',
+  howto:'Trascina il dito per muoverti. Lumi attacca da sola. La tua luce è la tua vita: raccogli le schegge per tenerla accesa.',
+  daily:'Premio giornaliero: +5 gemme', back:'Indietro', choose:'Scegli un potere', paused:'In pausa', resume:'Riprendi',
+  quit:'Termina partita', newrec:'Nuovo record!', over:'La luce si è spenta', time:'Tempo', kills:'Ombre', coins:'Monete',
+  retry:'Riprova', home:'Menu', cancel:'Annulla', s_gems:'Gemme', s_skins:'Aspetti di Lumi', s_coins:'Monete',
+  level:'Livello', revive:'Riaccendi la luce', sndOn:'Audio: sì', sndOff:'Audio: no', max:'MAX', buy:'Compra', use:'Usa', inUse:'In uso',
+  owned:'Acquistato', noCoins:'Monete insufficienti', noGems:'Gemme insufficienti: le trovi nel Negozio', dailyGot:'+5 gemme! Torna domani',
+  bought:'Acquisto completato', boss:'Arriva un Guardiano dell\'Ombra!', bossDown:'Guardiano sconfitto: +1 gemma',
+  testTitle:'Acquisto di prova', testText:'Questa è la versione di prova: nessun addebito. Nell\'app pubblicata qui si apre il pagamento di Google Play o App Store.',
+  testOk:'Conferma (gratis)', storeNote:'Versione di prova: gli acquisti non addebitano nulla. I prezzi definitivi si impostano negli store.',
+  gems:'gemme', only1:'Una sola volta',
+  u_light:['Cuore luminoso','+10 luce massima'], u_dmg:['Scintille forti','+15% danno'], u_speed:['Passo leggero','+4% velocità'],
+  u_magnet:['Richiamo','+15% raggio di raccolta'], u_greed:['Fortuna','+10% monete a fine partita'],
+  p_dmg:['Scintilla ardente','+25% danno'], p_rate:['Raffica','+15% cadenza di tiro'], p_multi:['Sciame','+1 scintilla per colpo'],
+  p_pierce:['Trafiggi','Le scintille attraversano +1 ombra'], p_speed:['Vento','+10% velocità'], p_maxlight:['Fiamma grande','+20 luce massima e ricarica completa'],
+  p_magnet:['Calamita','+40% raggio di raccolta'], p_orbit:['Lucciola','+1 lucciola che ti gira intorno'], p_nova:['Bagliore','Un\'onda di luce periodica'],
+  p_calm:['Brace lenta','La luce cala il 15% più piano'],
+  i_g1:['Manciata di gemme','80 gemme'], i_g2:['Sacco di gemme','500 gemme'], i_g3:['Forziere di gemme','1200 gemme'],
+  i_starter:['Pacchetto iniziale','200 gemme, 2000 monete e aspetto Aurora'],
+  c_1:['Borsa di monete','1500 monete'], c_2:['Cassa di monete','5000 monete'],
+  sk_lumi:'Lumi', sk_brina:'Brina', sk_brace:'Brace', sk_smeraldo:'Smeraldo', sk_aurora:'Aurora', starterOnly:'Nel pacchetto iniziale'
+},
+en: {
+  light:'Light', lvl:'Lv', tagline:'Survive the dark', best:'Best', play:'PLAY', upgrades:'Upgrades', shop:'Shop',
+  howto:'Drag to move. Lumi attacks on her own. Your light is your life: collect shards to keep it burning.',
+  daily:'Daily reward: +5 gems', back:'Back', choose:'Choose a power', paused:'Paused', resume:'Resume',
+  quit:'End run', newrec:'New record!', over:'The light went out', time:'Time', kills:'Shadows', coins:'Coins',
+  retry:'Retry', home:'Menu', cancel:'Cancel', s_gems:'Gems', s_skins:'Lumi skins', s_coins:'Coins',
+  level:'Level', revive:'Rekindle the light', sndOn:'Sound: on', sndOff:'Sound: off', max:'MAX', buy:'Buy', use:'Use', inUse:'In use',
+  owned:'Purchased', noCoins:'Not enough coins', noGems:'Not enough gems: get more in the Shop', dailyGot:'+5 gems! Come back tomorrow',
+  bought:'Purchase complete', boss:'A Shadow Warden is coming!', bossDown:'Warden defeated: +1 gem',
+  testTitle:'Test purchase', testText:'This is the test build: nothing is charged. In the published app this opens Google Play or App Store payment.',
+  testOk:'Confirm (free)', storeNote:'Test build: purchases charge nothing. Final prices are set in the stores.',
+  gems:'gems', only1:'One time only',
+  u_light:['Bright heart','+10 max light'], u_dmg:['Strong sparks','+15% damage'], u_speed:['Light step','+4% speed'],
+  u_magnet:['Calling','+15% pickup range'], u_greed:['Fortune','+10% coins after each run'],
+  p_dmg:['Burning spark','+25% damage'], p_rate:['Volley','+15% fire rate'], p_multi:['Swarm','+1 spark per shot'],
+  p_pierce:['Pierce','Sparks pass through +1 shadow'], p_speed:['Wind','+10% speed'], p_maxlight:['Great flame','+20 max light and full refill'],
+  p_magnet:['Magnet','+40% pickup range'], p_orbit:['Firefly','+1 firefly circling you'], p_nova:['Flare','A periodic wave of light'],
+  p_calm:['Slow ember','Light fades 15% slower'],
+  i_g1:['Handful of gems','80 gems'], i_g2:['Sack of gems','500 gems'], i_g3:['Chest of gems','1200 gems'],
+  i_starter:['Starter pack','200 gems, 2000 coins and the Aurora skin'],
+  c_1:['Coin pouch','1500 coins'], c_2:['Coin crate','5000 coins'],
+  sk_lumi:'Lumi', sk_brina:'Frost', sk_brace:'Ember', sk_smeraldo:'Emerald', sk_aurora:'Aurora', starterOnly:'In the starter pack'
+}};
+
+/* ---------- Salvataggio ---------- */
+const SAVE_KEY = 'lumi-save-v1';
+const save = { coins:0, gems:0, best:0, up:{light:0,dmg:0,speed:0,magnet:0,greed:0}, skins:['lumi'], skin:'lumi',
+  lastDaily:'', mute:false, lang:null, starter:false };
+try { const s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); if (s) { Object.assign(save, s); save.up = Object.assign({light:0,dmg:0,speed:0,magnet:0,greed:0}, s.up); } } catch (e) {}
+const persist = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {} };
+if (!save.lang) save.lang = (navigator.language || 'it').toLowerCase().startsWith('it') ? 'it' : 'en';
+const t = k => (TXT[save.lang] && TXT[save.lang][k]) || TXT.it[k] || k;
+
+/* ---------- Catalogo ---------- */
+const META = [ // potenziamenti permanenti (monete)
+  {id:'light', max:10, base:60}, {id:'dmg', max:10, base:80}, {id:'speed', max:8, base:70},
+  {id:'magnet', max:8, base:50}, {id:'greed', max:10, base:90}
+];
+const metaCost = (m, lv) => Math.round(m.base * Math.pow(1.55, lv));
+const SKINS = {
+  lumi:{c:'255,201,90', core:'#fff6d8', price:0}, brina:{c:'127,227,255', core:'#eafaff', price:60},
+  brace:{c:'255,110,80', core:'#ffe9e0', price:60}, smeraldo:{c:'110,255,170', core:'#e9fff2', price:100},
+  aurora:{c:'214,140,255', core:'#f8ecff', price:-1}
+};
+// Prodotti a pagamento reale: gli id devono coincidere con quelli creati in Play Console / App Store Connect.
+const IAP = [
+  {id:'lumi_gems_80', key:'i_g1', price:'0,99 €', gems:80},
+  {id:'lumi_gems_500', key:'i_g2', price:'4,99 €', gems:500},
+  {id:'lumi_gems_1200', key:'i_g3', price:'9,99 €', gems:1200},
+  {id:'lumi_starter', key:'i_starter', price:'1,99 €', gems:200, coins:2000, skin:'aurora', once:true}
+];
+const COINPACKS = [{key:'c_1', gems:50, coins:1500}, {key:'c_2', gems:140, coins:5000}];
+const REVIVE_COST = 20;
+
+/* ---------- Negozio: un solo punto di aggancio per i pagamenti veri ---------- */
+const Store = {
+  native: () => !!(window.LumiBilling && window.LumiBilling.purchase), // fornito dal plugin nativo nell'app pubblicata
+  buy(prod) {
+    if (this.native()) return window.LumiBilling.purchase(prod.id).then(ok => { if (ok) this.grant(prod); });
+    return ask(t('testTitle'), t(prod.key)[0] + ' · ' + prod.price + '. ' + t('testText'), t('testOk')).then(ok => { if (ok) this.grant(prod); });
+  },
+  grant(prod) {
+    save.gems += prod.gems || 0; save.coins += prod.coins || 0;
+    if (prod.skin && !save.skins.includes(prod.skin)) save.skins.push(prod.skin);
+    if (prod.once) save.starter = true;
+    persist(); sfx('buy'); toast(t('bought')); refreshUI();
+  }
+};
+window.LumiStore = Store; // il codice nativo può chiamare LumiStore.grant() per ripristinare gli acquisti
+
+/* ---------- Audio ---------- */
+let actx = null, lastPick = 0;
+function tone(f, d, type, v, when) {
+  if (save.mute) return;
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain(), t0 = actx.currentTime + (when || 0);
+    o.type = type || 'sine'; o.frequency.setValueAtTime(f, t0);
+    g.gain.setValueAtTime(v || .06, t0); g.gain.exponentialRampToValueAtTime(.0001, t0 + d);
+    o.connect(g); g.connect(actx.destination); o.start(t0); o.stop(t0 + d);
+  } catch (e) {}
+}
+function sfx(n) {
+  if (n === 'pick') { const now = performance.now(); if (now - lastPick < 60) return; lastPick = now; tone(rnd(820, 980), .07, 'sine', .035); }
+  else if (n === 'hit') tone(110, .18, 'sawtooth', .08);
+  else if (n === 'lvl') [523, 659, 784, 1047].forEach((f, i) => tone(f, .16, 'triangle', .07, i * .07));
+  else if (n === 'die') [300, 220, 150, 90].forEach((f, i) => tone(f, .3, 'sawtooth', .07, i * .14));
+  else if (n === 'buy') [660, 880, 1320].forEach((f, i) => tone(f, .12, 'triangle', .07, i * .06));
+  else if (n === 'boss') [90, 70].forEach((f, i) => tone(f, .5, 'square', .07, i * .3));
+  else if (n === 'nova') tone(240, .25, 'triangle', .05);
+}
+const buzz = ms => { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) {} };
+
+/* ---------- Canvas ---------- */
+const cv = $('cv'), ctx = cv.getContext('2d');
+let W = 0, H = 0, DPR = 1, Z = 1, VW = 0, VH = 0;
+function resize() {
+  const r = $('app').getBoundingClientRect();
+  W = Math.max(1, r.width); H = Math.max(1, r.height); DPR = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  Z = clamp(Math.min(W, H) / 520, .7, 1.25); VW = W / Z; VH = H / Z;
+}
+window.addEventListener('resize', resize); resize();
+
+/* ---------- Stato di gioco ---------- */
+let mode = 'menu'; // menu | play | levelup | pause | over
+let P, enemies, bullets, picks, parts, rings, G;
+const ETYPES = {
+  shade:{r:13, hp:1.6, spd:55, dmg:8, xp:1}, runner:{r:9, hp:1, spd:108, dmg:5, xp:1},
+  brute:{r:22, hp:7, spd:38, dmg:16, xp:4}, boss:{r:42, hp:70, spd:50, dmg:26, xp:30}
+};
+function newRun() {
+  const u = save.up;
+  P = { x:0, y:0, maxLight:100 + 10 * u.light, light:0, speed:150 * (1 + .04 * u.speed), dmg:1 * (1 + .15 * u.dmg),
+    fireEvery:.42, fireT:.3, shots:1, pierce:0, magnet:70 * (1 + .15 * u.magnet), orbit:0, nova:0, novaT:3, decay:1,
+    xp:0, lvl:1, xpNext:6, inv:0, ang:0, lv:{} };
+  P.light = P.maxLight;
+  enemies = []; bullets = []; picks = []; parts = []; rings = [];
+  G = { t:0, kills:0, coins:0, spawnT:1, bossT:90, bossN:0, pending:0, revived:false, shake:0, orbA:0 };
+}
+newRun();
+
+/* ---------- Input ---------- */
+const joy = { on:false, id:null, ox:0, oy:0, x:0, y:0 }, keys = {};
+cv.addEventListener('pointerdown', e => { if (mode !== 'play') return; joy.on = true; joy.id = e.pointerId; joy.ox = joy.x = e.clientX; joy.oy = joy.y = e.clientY; try { cv.setPointerCapture(e.pointerId); } catch (_) {} });
+cv.addEventListener('pointermove', e => { if (joy.on && e.pointerId === joy.id) { joy.x = e.clientX; joy.y = e.clientY; } });
+const joyEnd = e => { if (e.pointerId === joy.id) joy.on = false; };
+cv.addEventListener('pointerup', joyEnd); cv.addEventListener('pointercancel', joyEnd);
+window.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; if (e.key === 'Escape' || e.key.toLowerCase() === 'p') { if (mode === 'play') pause(); else if (mode === 'pause') resume(); } });
+window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+function moveVec() {
+  let x = 0, y = 0;
+  if (joy.on) { x = (joy.x - joy.ox) / 46; y = (joy.y - joy.oy) / 46; }
+  if (keys.a || keys.arrowleft) x -= 1; if (keys.d || keys.arrowright) x += 1;
+  if (keys.w || keys.arrowup) y -= 1; if (keys.s || keys.arrowdown) y += 1;
+  const m = Math.hypot(x, y); if (m > 1) { x /= m; y /= m; }
+  return [x, y];
+}
+
+/* ---------- Logica ---------- */
+function spawn(type) {
+  const T = ETYPES[type], a = rnd(0, TAU), d = Math.hypot(VW, VH) / 2 + 50;
+  const k = 1 + G.t / 60 * .45, bossK = type === 'boss' ? 1 + G.bossN * .8 : 1;
+  enemies.push({ type, x:P.x + Math.cos(a) * d, y:P.y + Math.sin(a) * d, r:T.r, hp:T.hp * k * bossK, spd:T.spd * (1 + Math.min(.35, G.t / 600)) * rnd(.9, 1.1),
+    dmg:T.dmg, xp:T.xp, hitT:0, orbT:0, kx:0, ky:0, flash:0, ph:rnd(0, TAU) });
+}
+function burst(x, y, col, n, sp) {
+  for (let i = 0; i < n && parts.length < 260; i++) { const a = rnd(0, TAU), s = rnd(.3, 1) * sp; parts.push({ x, y, vx:Math.cos(a) * s, vy:Math.sin(a) * s, life:rnd(.25, .55), max:.55, col, r:rnd(1.5, 3.5) }); }
+}
+function hurt(e, dmg) {
+  e.hp -= dmg; e.flash = .1;
+  if (e.hp > 0) return;
+  e.dead = true; G.kills++;
+  burst(e.x, e.y, '150,120,220', e.type === 'boss' ? 40 : 7, e.type === 'boss' ? 260 : 120);
+  if (e.type === 'boss') {
+    for (let i = 0; i < 24; i++) picks.push({ x:e.x + rnd(-50, 50), y:e.y + rnd(-50, 50), type:i % 3 ? 'xp' : 'coin', v:i % 3 ? 2 : 5 });
+    picks.push({ x:e.x, y:e.y, type:'gem', v:1 }); picks.push({ x:e.x + 14, y:e.y, type:'ember', v:30 });
+    return;
+  }
+  picks.push({ x:e.x, y:e.y, type:'xp', v:e.xp });
+  const r = Math.random();
+  if (r < .14) picks.push({ x:e.x + rnd(-8, 8), y:e.y + rnd(-8, 8), type:'coin', v:e.type === 'brute' ? 3 : 1 });
+  else if (r < .175) picks.push({ x:e.x + rnd(-8, 8), y:e.y + rnd(-8, 8), type:'ember', v:22 });
+}
+function fire() {
+  let best = null, bd = 330 * 330;
+  for (const e of enemies) { const d = (e.x - P.x) ** 2 + (e.y - P.y) ** 2; if (d < bd) { bd = d; best = e; } }
+  if (!best) return false;
+  const a0 = Math.atan2(best.y - P.y, best.x - P.x); P.ang = a0;
+  for (let i = 0; i < P.shots; i++) {
+    const a = a0 + (i - (P.shots - 1) / 2) * .2;
+    bullets.push({ x:P.x, y:P.y, vx:Math.cos(a) * 440, vy:Math.sin(a) * 440, life:.85, pierce:P.pierce, hit:null });
+  }
+  return true;
+}
+function update(dt) {
+  G.t += dt;
+  // movimento
+  const [mx, my] = moveVec();
+  P.x += mx * P.speed * dt; P.y += my * P.speed * dt; P.inv -= dt;
+  // la luce cala col tempo
+  P.light -= (.8 + G.t / 120) * P.decay * dt;
+  // spawn
+  G.spawnT -= dt;
+  if (G.spawnT <= 0 && enemies.length < 220) {
+    G.spawnT = Math.max(.11, .95 - G.t * .0058);
+    const r = Math.random();
+    spawn(G.t > 75 && r < .12 ? 'brute' : G.t > 30 && r < .38 ? 'runner' : 'shade');
+    if (G.t > 150 && Math.random() < .5) spawn('shade');
+  }
+  G.bossT -= dt;
+  if (G.bossT <= 0) { G.bossT = 90; spawn('boss'); G.bossN++; toast(t('boss')); sfx('boss'); buzz(120); }
+  // attacco automatico
+  P.fireT -= dt;
+  if (P.fireT <= 0) P.fireT = fire() ? P.fireEvery : .1;
+  // lucciole orbitanti
+  G.orbA += dt * 3.2;
+  // bagliore
+  if (P.nova > 0) {
+    P.novaT -= dt;
+    if (P.novaT <= 0) {
+      P.novaT = Math.max(2.4, 6 - P.nova * .7); const R = 120 + P.nova * 16;
+      rings.push({ x:P.x, y:P.y, r:10, R, life:.4 }); sfx('nova');
+      for (const e of enemies) if ((e.x - P.x) ** 2 + (e.y - P.y) ** 2 < (R + e.r) ** 2) { hurt(e, P.dmg * (1.6 + .5 * P.nova)); const d = Math.hypot(e.x - P.x, e.y - P.y) || 1; e.kx += (e.x - P.x) / d * 220; e.ky += (e.y - P.y) / d * 220; }
+    }
+  }
+  // proiettili
+  for (const b of bullets) {
+    b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
+    for (const e of enemies) {
+      if (e.dead || (b.hit && b.hit.includes(e))) continue;
+      if ((e.x - b.x) ** 2 + (e.y - b.y) ** 2 < (e.r + 5) ** 2) {
+        hurt(e, P.dmg); e.kx += b.vx * .18; e.ky += b.vy * .18;
+        if (b.pierce > 0) { b.pierce--; (b.hit = b.hit || []).push(e); } else { b.life = 0; break; }
+      }
+    }
+  }
+  // nemici
+  const far = Math.hypot(VW, VH) * .95;
+  for (let i = 0; i < enemies.length; i++) {
+    const e = enemies[i]; if (e.dead) continue;
+    let dx = P.x - e.x, dy = P.y - e.y; const d = Math.hypot(dx, dy) || 1;
+    if (d > far) { const a = rnd(0, TAU), dd = Math.hypot(VW, VH) / 2 + 50; e.x = P.x + Math.cos(a) * dd; e.y = P.y + Math.sin(a) * dd; continue; }
+    e.x += (dx / d * e.spd + e.kx) * dt; e.y += (dy / d * e.spd + e.ky) * dt;
+    e.kx *= Math.pow(.002, dt); e.ky *= Math.pow(.002, dt);
+    e.hitT -= dt; e.orbT -= dt; e.flash -= dt;
+    // separazione
+    for (let j = i + 1; j < enemies.length; j++) {
+      const o = enemies[j], sx = o.x - e.x, sy = o.y - e.y, min = e.r + o.r;
+      if (Math.abs(sx) < min && Math.abs(sy) < min) { const sd = Math.hypot(sx, sy) || .01; if (sd < min) { const p = (min - sd) / sd * .5, we = o.r / min, wo = e.r / min; e.x -= sx * p * we; e.y -= sy * p * we; o.x += sx * p * wo; o.y += sy * p * wo; } }
+    }
+    // lucciole
+    if (P.orbit > 0 && e.orbT <= 0 && d < 64 + e.r + 12) {
+      for (let k = 0; k < P.orbit; k++) { const a = G.orbA + k * TAU / P.orbit, ox = P.x + Math.cos(a) * 64, oy = P.y + Math.sin(a) * 64;
+        if ((e.x - ox) ** 2 + (e.y - oy) ** 2 < (e.r + 9) ** 2) { hurt(e, P.dmg * .9); e.orbT = .35; e.kx -= dx / d * 120; e.ky -= dy / d * 120; break; } }
+    }
+    // contatto col giocatore
+    if (!e.dead && d < e.r + 11 && e.hitT <= 0 && P.inv <= 0) {
+      P.light -= e.dmg; e.hitT = .9; P.inv = .18; e.kx -= dx / d * 260; e.ky -= dy / d * 260;
+      G.shake = .25; sfx('hit'); buzz(40); burst(P.x, P.y, '255,110,110', 8, 160);
+    }
+  }
+  // raccolta
+  for (const p of picks) {
+    const dx = P.x - p.x, dy = P.y - p.y, d = Math.hypot(dx, dy) || 1;
+    if (d < P.magnet || p.pull) { p.pull = true; const s = 420 + (p.pt = (p.pt || 0) + dt) * 600; p.x += dx / d * s * dt; p.y += dy / d * s * dt; }
+    if (d < 16) {
+      p.dead = true; sfx('pick');
+      if (p.type === 'xp') { P.xp += p.v; P.light = Math.min(P.maxLight, P.light + p.v); }
+      else if (p.type === 'coin') G.coins += p.v;
+      else if (p.type === 'ember') { P.light = Math.min(P.maxLight, P.light + p.v); burst(P.x, P.y, SKINS[save.skin].c, 12, 140); }
+      else if (p.type === 'gem') { save.gems += p.v; persist(); toast(t('bossDown')); sfx('buy'); }
+    }
+  }
+  for (const q of parts) { q.x += q.vx * dt; q.y += q.vy * dt; q.life -= dt; }
+  for (const r of rings) { r.life -= dt; r.r += (r.R - r.r) * Math.min(1, dt * 12); }
+  enemies = enemies.filter(e => !e.dead); bullets = bullets.filter(b => b.life > 0);
+  picks = picks.filter(p => !p.dead); parts = parts.filter(q => q.life > 0); rings = rings.filter(r => r.life > 0);
+  if (picks.length > 400) picks.splice(0, picks.length - 400);
+  G.shake = Math.max(0, G.shake - dt);
+  // livelli
+  while (P.xp >= P.xpNext) { P.xp -= P.xpNext; P.lvl++; P.xpNext = Math.floor(5 + P.lvl * 3.2 + P.lvl * P.lvl * .35); G.pending++; }
+  if (P.light <= 0) { P.light = 0; return gameOver(); }
+  if (G.pending > 0) openLevelUp();
+}
+
+/* ---------- Poteri in partita ---------- */
+const POW = [
+  {id:'dmg', ico:'✦', max:8, f:() => P.dmg *= 1.25}, {id:'rate', ico:'»', max:8, f:() => P.fireEvery *= .87},
+  {id:'multi', ico:'⁂', max:4, f:() => P.shots++}, {id:'pierce', ico:'➳', max:4, f:() => P.pierce++},
+  {id:'speed', ico:'➤', max:5, f:() => P.speed *= 1.1}, {id:'maxlight', ico:'☀', max:6, f:() => { P.maxLight += 20; P.light = P.maxLight; }},
+  {id:'magnet', ico:'◎', max:4, f:() => P.magnet *= 1.4}, {id:'orbit', ico:'❂', max:5, f:() => P.orbit++},
+  {id:'nova', ico:'✺', max:5, f:() => P.nova++}, {id:'calm', ico:'☾', max:5, f:() => P.decay *= .85}
+];
+function openLevelUp() {
+  mode = 'levelup'; joy.on = false; sfx('lvl');
+  P.light = Math.min(P.maxLight, P.light + 10);
+  const pool = POW.filter(p => (P.lv[p.id] || 0) < p.max), pick = [];
+  while (pick.length < 3 && pool.length) pick.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+  if (!pick.length) { G.pending = 0; mode = 'play'; return; }
+  $('lvlBadge').textContent = t('level') + ' ' + (P.lvl - G.pending + 1);
+  const box = $('cards'); box.textContent = '';
+  for (const p of pick) {
+    const b = document.createElement('button'); b.className = 'card';
+    const lv = P.lv[p.id] || 0, [n, d] = t('p_' + p.id);
+    b.innerHTML = '<span class="ico"></span><span><b></b><small></small></span>';
+    b.querySelector('.ico').textContent = p.ico; b.querySelector('b').textContent = n + (lv ? '  ' + (lv + 1) : '');
+    b.querySelector('small').textContent = d;
+    b.onclick = () => { p.f(); P.lv[p.id] = lv + 1; G.pending--; if (G.pending > 0) openLevelUp(); else { show(null); mode = 'play'; last = performance.now(); } };
+    box.appendChild(b);
+  }
+  show('levelup', true);
+}
+
+/* ---------- Flusso ---------- */
+const fmt = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+function show(id, keepHud) {
+  for (const s of document.querySelectorAll('.screen')) s.hidden = s.id !== id;
+  $('hud').hidden = !(keepHud || (id === null && mode !== 'menu'));
+  refreshUI();
+}
+function start() { newRun(); mode = 'play'; show(null); $('hud').hidden = false; last = performance.now(); tone(1, .01); }
+function pause() { if (mode !== 'play') return; mode = 'pause'; joy.on = false; show('pause', true); }
+function resume() { mode = 'play'; show(null); $('hud').hidden = false; last = performance.now(); }
+let earned = 0;
+function gameOver() {
+  mode = 'over'; joy.on = false; sfx('die'); buzz(200);
+  earned = Math.round((G.coins + Math.floor(G.t / 8)) * (1 + .1 * save.up.greed));
+  const rec = G.t > save.best && G.t > 5;
+  $('recBadge').hidden = !rec;
+  $('oTime').textContent = fmt(G.t); $('oKills').textContent = G.kills; $('oCoins').textContent = '+' + earned;
+  $('reviveBtn').hidden = G.revived;
+  $('reviveBtn').textContent = t('revive') + ' · ' + REVIVE_COST + ' ' + t('gems');
+  show('over', true);
+}
+function bank() { save.coins += earned; if (G.t > save.best) save.best = G.t; earned = 0; persist(); }
+function revive() {
+  if (save.gems < REVIVE_COST) { toast(t('noGems')); return; }
+  save.gems -= REVIVE_COST; persist(); G.revived = true; P.light = P.maxLight * .7; P.inv = 1.5;
+  rings.push({ x:P.x, y:P.y, r:10, R:300, life:.5 });
+  for (const e of enemies) if (e.type !== 'boss' && (e.x - P.x) ** 2 + (e.y - P.y) ** 2 < 300 * 300) hurt(e, 1e6);
+  enemies = enemies.filter(e => !e.dead); sfx('lvl'); resume();
+}
+
+/* ---------- Interfaccia ---------- */
+let toastT = 0;
+function toast(msg) { const el = $('toast'); el.textContent = msg; el.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('on'), 2200); }
+let askRes = null;
+function ask(title, text, ok) {
+  $('mTitle').textContent = title; $('mText').textContent = text; $('mOk').textContent = ok; $('modal').hidden = false;
+  return new Promise(r => { askRes = r; });
+}
+const closeAsk = v => { $('modal').hidden = true; if (askRes) { const r = askRes; askRes = null; r(v); } };
+$('mOk').onclick = () => closeAsk(true); $('mNo').onclick = () => closeAsk(false);
+const today = () => new Date().toISOString().slice(0, 10);
+function item(title, desc, btnTxt, cls, onClick, extra) {
+  const d = document.createElement('div'); d.className = 'item';
+  d.innerHTML = '<div class="info"><b></b><small></small></div>';
+  d.querySelector('b').textContent = title; d.querySelector('small').textContent = desc;
+  if (extra) extra(d);
+  const b = document.createElement('button'); b.className = 'btn small ' + (cls || ''); b.textContent = btnTxt;
+  if (onClick) b.onclick = onClick; else b.disabled = true;
+  d.appendChild(b); return d;
+}
+function refreshUI() {
+  for (const el of document.querySelectorAll('[data-t]')) el.textContent = t(el.dataset.t);
+  for (const el of document.querySelectorAll('.coinsTxt')) el.textContent = save.coins;
+  for (const el of document.querySelectorAll('.gemsTxt')) el.textContent = save.gems;
+  $('bestTxt').textContent = fmt(save.best); $('bestChip').hidden = save.best < 1;
+  $('dailyBtn').hidden = save.lastDaily === today();
+  $('sndBtn').textContent = save.mute ? t('sndOff') : t('sndOn');
+  $('storeNote').textContent = Store.native() ? '' : t('storeNote');
+  document.documentElement.lang = save.lang;
+  // potenziamenti permanenti
+  const ul = $('upList'); ul.textContent = '';
+  for (const m of META) {
+    const lv = save.up[m.id], [n, d] = t('u_' + m.id), cost = metaCost(m, lv), maxed = lv >= m.max;
+    ul.appendChild(item(n, d, maxed ? t('max') : cost + ' ●', '', maxed ? null : () => {
+      if (save.coins < cost) return toast(t('noCoins'));
+      save.coins -= cost; save.up[m.id]++; persist(); sfx('buy'); refreshUI();
+    }, el => { const p = document.createElement('div'); p.className = 'pips'; for (let i = 0; i < m.max; i++) { const s = document.createElement('i'); if (i < lv) s.className = 'on'; p.appendChild(s); } el.querySelector('.info').appendChild(p); }));
+  }
+  // negozio
+  const il = $('iapList'); il.textContent = '';
+  for (const p of IAP) {
+    const [n, d] = t(p.key), done = p.once && save.starter;
+    il.appendChild(item(n, d + (p.once ? ' · ' + t('only1') : ''), done ? t('owned') : p.price, 'gem', done ? null : () => Store.buy(p)));
+  }
+  const sl = $('skinList'); sl.textContent = '';
+  for (const id in SKINS) {
+    const s = SKINS[id], own = save.skins.includes(id), cur = save.skin === id;
+    const sw = el => { const c = document.createElement('span'); c.className = 'swatch'; c.style.color = 'rgb(' + s.c + ')'; el.prepend(c); };
+    if (cur) sl.appendChild(item(t('sk_' + id), t('inUse'), t('inUse'), '', null, sw));
+    else if (own) sl.appendChild(item(t('sk_' + id), '', t('use'), '', () => { save.skin = id; persist(); refreshUI(); }, sw));
+    else if (s.price < 0) sl.appendChild(item(t('sk_' + id), t('starterOnly'), '—', '', null, sw));
+    else sl.appendChild(item(t('sk_' + id), '', s.price + ' ◆', 'gem', () => {
+      if (save.gems < s.price) return toast(t('noGems'));
+      save.gems -= s.price; save.skins.push(id); save.skin = id; persist(); sfx('buy'); refreshUI();
+    }, sw));
+  }
+  const cl = $('coinList'); cl.textContent = '';
+  for (const c of COINPACKS) {
+    const [n, d] = t(c.key);
+    cl.appendChild(item(n, d, c.gems + ' ◆', 'gem', () => {
+      if (save.gems < c.gems) return toast(t('noGems'));
+      save.gems -= c.gems; save.coins += c.coins; persist(); sfx('buy'); refreshUI();
+    }));
+  }
+}
+$('playBtn').onclick = start;
+$('upBtn').onclick = () => show('upgrades'); $('shopBtn').onclick = () => show('shop');
+for (const b of document.querySelectorAll('[data-back]')) b.onclick = () => show('home');
+$('pauseBtn').onclick = pause; $('resumeBtn').onclick = resume;
+$('quitBtn').onclick = () => { gameOver(); $('reviveBtn').hidden = true; };
+$('retryBtn').onclick = () => { bank(); start(); };
+$('homeBtn').onclick = () => { bank(); mode = 'menu'; newRun(); show('home'); };
+$('reviveBtn').onclick = revive;
+$('dailyBtn').onclick = () => { save.lastDaily = today(); save.gems += 5; persist(); sfx('buy'); toast(t('dailyGot')); refreshUI(); };
+$('sndBtn').onclick = () => { save.mute = !save.mute; persist(); refreshUI(); sfx('pick'); };
+$('langBtn').onclick = () => { save.lang = save.lang === 'it' ? 'en' : 'it'; persist(); refreshUI(); };
+document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+
+/* ---------- Disegno ---------- */
+function hash(ix, iy) { let n = Math.imul(ix, 374761393) + Math.imul(iy, 668265263); n = Math.imul(n ^ (n >>> 13), 1274126177); return ((n ^ (n >>> 16)) >>> 0) / 4294967295; }
+function drawGround(cx, cy) {
+  ctx.fillStyle = '#1a2d4a'; ctx.fillRect(cx - VW / 2 - 4, cy - VH / 2 - 4, VW + 8, VH + 8);
+  const C = 110, x0 = Math.floor((cx - VW / 2) / C) - 1, x1 = Math.floor((cx + VW / 2) / C) + 1, y0 = Math.floor((cy - VH / 2) / C) - 1, y1 = Math.floor((cy + VH / 2) / C) + 1;
+  for (let ix = x0; ix <= x1; ix++) for (let iy = y0; iy <= y1; iy++) {
+    const h = hash(ix, iy), x = (ix + hash(ix + 91, iy)) * C, y = (iy + hash(ix, iy + 57)) * C;
+    if (h < .3) { ctx.strokeStyle = '#27456a'; ctx.lineWidth = 2; ctx.beginPath(); for (let k = -1; k <= 1; k++) { ctx.moveTo(x + k * 4, y); ctx.lineTo(x + k * 8, y - 10 - h * 20); } ctx.stroke(); }
+    else if (h < .45) { ctx.fillStyle = '#2b3d59'; ctx.beginPath(); ctx.ellipse(x, y, 10 + h * 14, 7 + h * 8, 0, 0, TAU); ctx.fill(); }
+    else if (h < .53) { ctx.fillStyle = '#0d1a2b'; ctx.beginPath(); ctx.arc(x, y, 22 + h * 20, 0, TAU); ctx.fill(); ctx.fillStyle = '#1b3350'; ctx.beginPath(); ctx.arc(x - 4, y - 5, 14 + h * 14, 0, TAU); ctx.fill(); }
+    else if (h < .6) { ctx.fillStyle = '#35507a'; for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.arc(x + k * 9 - 9, y + (k % 2) * 6, 2.2, 0, TAU); ctx.fill(); } }
+  }
+}
+function eyes(e, a) {
+  const s = e.r * .32, y = e.y - e.r * .15;
+  ctx.fillStyle = e.type === 'boss' ? 'rgba(255,90,90,' + a + ')' : e.type === 'runner' ? 'rgba(255,220,120,' + a + ')' : 'rgba(210,170,255,' + a + ')';
+  ctx.beginPath(); ctx.ellipse(e.x - s * 1.1, y, s * .55, s * .8, 0, 0, TAU); ctx.ellipse(e.x + s * 1.1, y, s * .55, s * .8, 0, 0, TAU); ctx.fill();
+}
+let menuT = 0;
+function draw(now) {
+  const sk = SKINS[save.skin] || SKINS.lumi, tt = now / 1000;
+  let cx = P.x, cy = P.y;
+  if (mode === 'menu') cy -= VH * .13;
+  if (G.shake > 0) { cx += rnd(-1, 1) * G.shake * 22; cy += rnd(-1, 1) * G.shake * 22; }
+  ctx.setTransform(DPR * Z, 0, 0, DPR * Z, 0, 0); ctx.translate(VW / 2 - cx, VH / 2 - cy);
+  drawGround(cx, cy);
+  // raccoglibili
+  for (const p of picks) {
+    if (p.type === 'xp') { ctx.fillStyle = 'rgb(' + sk.c + ')'; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(tt * 2 + p.x); ctx.fillRect(-3.5, -3.5, 7, 7); ctx.restore(); }
+    else if (p.type === 'coin') { ctx.fillStyle = '#ffd35a'; ctx.beginPath(); ctx.arc(p.x, p.y, 5.5, 0, TAU); ctx.fill(); ctx.fillStyle = '#b8791a'; ctx.beginPath(); ctx.arc(p.x, p.y, 2.5, 0, TAU); ctx.fill(); }
+    else if (p.type === 'gem') { ctx.fillStyle = '#7fe3ff'; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.PI / 4); ctx.fillRect(-7, -7, 14, 14); ctx.restore(); }
+    else { const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 16); g.addColorStop(0, '#fff'); g.addColorStop(.3, 'rgba(255,170,70,.9)'); g.addColorStop(1, 'rgba(255,120,40,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p.x, p.y, 16, 0, TAU); ctx.fill(); }
+  }
+  // nemici
+  for (const e of enemies) {
+    const wob = 1 + Math.sin(tt * 6 + e.ph) * .06;
+    ctx.fillStyle = e.flash > 0 ? '#e8dcff' : e.type === 'boss' ? '#2a1030' : '#221a38';
+    ctx.strokeStyle = e.type === 'boss' ? '#a03a6a' : '#5a4690'; ctx.lineWidth = e.type === 'boss' ? 4 : 2;
+    ctx.beginPath(); ctx.ellipse(e.x, e.y, e.r * wob, e.r / wob, 0, 0, TAU); ctx.fill(); ctx.stroke();
+  }
+  // onde di luce
+  for (const r of rings) { ctx.strokeStyle = 'rgba(' + sk.c + ',' + (r.life * 2) + ')'; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, TAU); ctx.stroke(); }
+  // buio: tutto ciò che è fuori dalla luce scompare
+  const frac = clamp(P.light / P.maxLight, 0, 1), R = (mode === 'menu' ? 190 : 70 + 215 * frac) * (1 + Math.sin(tt * 9) * .012);
+  const warm = ctx.createRadialGradient(P.x, P.y, 0, P.x, P.y, R); warm.addColorStop(0, 'rgba(' + sk.c + ',.3)'); warm.addColorStop(1, 'rgba(' + sk.c + ',0)');
+  ctx.fillStyle = warm; ctx.beginPath(); ctx.arc(P.x, P.y, R, 0, TAU); ctx.fill();
+  const dark = ctx.createRadialGradient(P.x, P.y, R * .45, P.x, P.y, R); dark.addColorStop(0, 'rgba(4,7,14,0)'); dark.addColorStop(1, 'rgba(4,7,14,.965)');
+  ctx.fillStyle = dark; ctx.fillRect(cx - VW / 2 - 30, cy - VH / 2 - 30, VW + 60, VH + 60);
+  // occhi nel buio
+  for (const e of enemies) eyes(e, .55 + .45 * Math.sin(tt * 3 + e.ph) ** 2);
+  if (mode === 'menu') for (let i = 0; i < 9; i++) { const a = i * 2.4 + 1, d = 230 + (i % 3) * 70, bl = Math.sin(tt * .9 + i * 1.7); if (bl > -.2) eyes({ x:P.x + Math.cos(a) * d, y:P.y + Math.sin(a) * d * 1.3, r:13 + (i % 3) * 5, type:i % 4 ? 'shade' : 'runner' }, clamp(bl + .2, 0, 1)); }
+  // particelle, proiettili, lucciole
+  for (const q of parts) { ctx.fillStyle = 'rgba(' + q.col + ',' + clamp(q.life / q.max, 0, 1) + ')'; ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, TAU); ctx.fill(); }
+  ctx.fillStyle = sk.core; ctx.shadowColor = 'rgb(' + sk.c + ')'; ctx.shadowBlur = 12;
+  for (const b of bullets) { ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, TAU); ctx.fill(); }
+  for (let k = 0; k < P.orbit; k++) { const a = G.orbA + k * TAU / P.orbit; ctx.beginPath(); ctx.arc(P.x + Math.cos(a) * 64, P.y + Math.sin(a) * 64, 7, 0, TAU); ctx.fill(); }
+  ctx.shadowBlur = 0;
+  // Lumi
+  const pr = 11 + Math.sin(tt * 5) * 1.2, pg = ctx.createRadialGradient(P.x, P.y, 0, P.x, P.y, 38);
+  pg.addColorStop(0, 'rgba(' + sk.c + ',.95)'); pg.addColorStop(.35, 'rgba(' + sk.c + ',.4)'); pg.addColorStop(1, 'rgba(' + sk.c + ',0)');
+  ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(P.x, P.y, 38, 0, TAU); ctx.fill();
+  if (!(P.inv > 0 && Math.floor(tt * 20) % 2)) {
+    ctx.fillStyle = sk.core; ctx.beginPath(); ctx.arc(P.x, P.y, pr, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(P.x - pr * .75, P.y - pr * .6); ctx.quadraticCurveTo(P.x + Math.sin(tt * 7) * 4, P.y - pr * 2.5, P.x + pr * .75, P.y - pr * .6); ctx.fill();
+    ctx.fillStyle = '#3a2a10'; ctx.beginPath(); ctx.arc(P.x - 4, P.y - 1, 1.9, 0, TAU); ctx.arc(P.x + 4, P.y - 1, 1.9, 0, TAU); ctx.fill();
+  }
+  // joystick
+  if (joy.on && mode === 'play') {
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0); const r = cv.getBoundingClientRect(), ox = joy.ox - r.left, oy = joy.oy - r.top;
+    let dx = joy.x - joy.ox, dy = joy.y - joy.oy; const m = Math.hypot(dx, dy); if (m > 46) { dx *= 46 / m; dy *= 46 / m; }
+    ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(ox, oy, 46, 0, TAU); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.beginPath(); ctx.arc(ox + dx, oy + dy, 20, 0, TAU); ctx.fill();
+  }
+}
+function hud() {
+  $('lightFill').style.width = (P.light / P.maxLight * 100) + '%';
+  $('xpFill').style.width = (P.xp / P.xpNext * 100) + '%';
+  $('timer').textContent = fmt(G.t); $('lvlTxt').textContent = P.lvl; $('runCoins').textContent = G.coins;
+}
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(.034, (now - last) / 1000); last = now;
+  if (mode === 'play') { update(dt); hud(); }
+  else if (mode === 'menu') { menuT += dt; P.x = Math.sin(menuT * .35) * 60; P.y = Math.sin(menuT * .5) * 26 - VH * .12; }
+  draw(now);
+  requestAnimationFrame(frame);
+}
+show('home');
+requestAnimationFrame(frame);
+window.__lumi = { get s() { return { mode, P, G, n:enemies.length, enemies }; }, keys, start };
+})();
+</script>
