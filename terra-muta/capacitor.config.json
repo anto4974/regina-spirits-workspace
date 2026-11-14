@@ -1,0 +1,8 @@
+{
+  "appId": "com.terramuta.game",
+  "appName": "Terra Muta",
+  "webDir": "www",
+  "backgroundColor": "#0c0e0d",
+  "android": { "backgroundColor": "#0c0e0d" },
+  "ios": { "backgroundColor": "#0c0e0d", "contentInset": "never" }
+}

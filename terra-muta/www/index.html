@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0c0e0d">
+<style>[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Terra Muta</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Barlow:wght@500;600;700&family=Special+Elite&display=swap">
+<style>
+/* Layout: mondo a tutto schermo, HUD ai bordi, pannelli di storia in basso; un solo look, cenere e ruggine. */
+:root{
+  color-scheme:dark;
+  --ash:#0c0e0d; --soot:#161a17; --panel:#1e2420; --line:#3b4439; --bone:#e8e3d2; --mute:#9aa192;
+  --blood:#c4352b; --rust:#de8a32; --moss:#86a85e; --water:#59a6cf;
+  --display:'Oswald','Arial Narrow','Segoe UI',sans-serif;
+  --body:'Barlow','Segoe UI',system-ui,-apple-system,sans-serif;
+  --type:'Special Elite','Courier New',monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{margin:0;background:var(--ash);color:var(--bone);font-family:var(--body);font-size:16px;overflow:hidden;
+  user-select:none;-webkit-user-select:none;overscroll-behavior:none}
+#app{position:relative;width:100%;height:100%;overflow:hidden;background:var(--ash)}
+#cv{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+button:focus-visible{outline:3px solid var(--rust);outline-offset:2px}
+
+#hud{position:absolute;inset:0;pointer-events:none;
+  padding:calc(10px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(14px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.hudtop{display:flex;gap:10px;align-items:flex-start}
+.vitals{display:flex;flex-direction:column;gap:5px;width:132px}
+.vit{display:flex;align-items:center;gap:6px}
+.vit span{font-family:var(--display);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--mute);width:44px}
+.vit div{flex:1;height:8px;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.16)}
+.vit i{display:block;height:100%;width:100%}
+#bHp{background:var(--blood)} #bHun{background:var(--rust)} #bThi{background:var(--water)}
+.mid{flex:1;min-width:0;text-align:center;text-shadow:0 1px 4px #000,0 0 10px #000}
+#clock{font-family:var(--display);font-weight:700;font-size:15px;letter-spacing:.08em;text-transform:uppercase}
+#obj{font-size:14px;font-weight:600;color:var(--bone);line-height:1.25;margin-top:8px;text-align:center;text-shadow:0 1px 4px #000,0 0 10px #000;text-wrap:balance}
+#obj::before{content:'▸ ';color:var(--rust)}
+.tools{display:flex;gap:6px;pointer-events:auto}
+.sq{width:44px;height:44px;background:rgba(22,26,23,.85);border:1px solid var(--line);font-family:var(--display);font-weight:700;font-size:12px;letter-spacing:.05em;text-transform:uppercase}
+.acts{position:absolute;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(22px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;align-items:flex-end;gap:10px;pointer-events:auto}
+.act{font-family:var(--display);font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-radius:50%;width:84px;height:84px;
+  background:rgba(196,53,43,.82);border:2px solid #f0b6ae;font-size:15px;box-shadow:0 4px 14px rgba(0,0,0,.6)}
+.act:active{transform:scale(.93)}
+.act.alt{width:64px;height:64px;background:rgba(30,36,32,.9);border-color:var(--rust);color:var(--rust);font-size:12px;line-height:1.15}
+.act.use{width:auto;height:46px;border-radius:4px;padding:0 18px;background:var(--bone);color:var(--ash);border:0;font-size:15px}
+#loc{position:absolute;left:0;right:0;top:26%;text-align:center;font-family:var(--display);font-weight:700;font-size:30px;letter-spacing:.14em;
+  text-transform:uppercase;text-shadow:0 2px 12px #000;opacity:0;transition:opacity .6s;pointer-events:none}
+#loc.on{opacity:1}
+#toast{position:absolute;left:50%;top:calc(150px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:rgba(12,14,13,.9);border:1px solid var(--line);
+  padding:8px 14px;font-size:14px;font-weight:600;max-width:calc(100% - 32px);text-align:center;opacity:0;transition:opacity .25s;pointer-events:none;z-index:6}
+#toast.on{opacity:1}
+
+/* dialoghi */
+#dlg{position:absolute;left:0;right:0;bottom:0;z-index:5;background:linear-gradient(180deg,rgba(12,14,13,0),rgba(12,14,13,.96) 26%);
+  padding:46px max(16px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));cursor:pointer}
+#dlg .in{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:8px}
+#dWho{font-family:var(--display);font-weight:700;letter-spacing:.14em;text-transform:uppercase;font-size:14px;color:var(--rust)}
+#dTxt{font-family:var(--type);font-size:17px;line-height:1.5;min-height:4.5em}
+#dNext{font-size:12px;color:var(--mute);letter-spacing:.1em;text-transform:uppercase;align-self:flex-end}
+#dCh{display:flex;flex-direction:column;gap:8px}
+.choice{text-align:left;padding:12px 14px;background:var(--panel);border:1px solid var(--line);font-weight:600;font-size:15px}
+.choice:active{border-color:var(--rust)}
+
+/* schermate */
+.screen{position:absolute;inset:0;z-index:7;display:flex;flex-direction:column;align-items:center;gap:14px;overflow-y:auto;background:rgba(12,14,13,.93);
+  padding-block:calc(20px + env(safe-area-inset-top,0px)) calc(20px + env(safe-area-inset-bottom,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.screen.c{justify-content:center;text-align:center}
+#title{background:radial-gradient(120% 80% at 50% 110%,#5a1712 0%,rgba(12,14,13,.6) 55%),linear-gradient(180deg,#0c0e0d,#1a1512)}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(58px,19vw,112px);line-height:.9;letter-spacing:.06em;margin:0;text-transform:uppercase}
+h1 em{font-style:normal;color:var(--blood);display:block}
+h2{font-family:var(--display);font-weight:700;font-size:26px;letter-spacing:.1em;text-transform:uppercase;margin:0;text-wrap:balance}
+.kick{font-family:var(--display);letter-spacing:.3em;text-transform:uppercase;font-size:13px;color:var(--rust)}
+.prose{font-family:var(--type);font-size:17px;line-height:1.6;max-width:34ch;color:var(--bone);text-wrap:pretty;white-space:pre-line}
+.dim{color:var(--mute);font-size:14px;max-width:40ch;line-height:1.4}
+.btn{font-family:var(--display);font-weight:700;letter-spacing:.12em;text-transform:uppercase;font-size:16px;padding:14px 22px;min-height:50px;
+  background:var(--panel);border:1px solid var(--line);width:100%;max-width:340px}
+.btn.go{background:var(--blood);border-color:#f0b6ae}
+.btn:active{transform:scale(.97)}
+.btn.s{width:auto;min-height:38px;padding:8px 14px;font-size:13px;flex:none}
+.btn[disabled]{opacity:.4}
+.bar{display:flex;align-items:center;gap:10px;width:100%;max-width:520px}
+.bar h2{flex:1;text-align:left}
+.list{display:flex;flex-direction:column;gap:8px;width:100%;max-width:520px}
+.it{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);padding:10px 12px;text-align:left}
+.it .n{flex:1;min-width:0}
+.it b{font-family:var(--display);font-weight:500;font-size:17px;letter-spacing:.04em;display:block}
+.it small{color:var(--mute);font-size:13px;display:block;line-height:1.3}
+.qty{font-family:var(--display);font-weight:700;font-size:20px;color:var(--rust);min-width:34px;text-align:center;font-variant-numeric:tabular-nums}
+.sect{font-family:var(--display);font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--mute);width:100%;max-width:520px;margin-top:8px;border-bottom:1px solid var(--line);padding-bottom:4px}
+#mapCv{width:100%;max-width:520px;height:auto;border:1px solid var(--line);image-rendering:pixelated;background:#050605}
+.paper{background:#d9d2bb;color:#2a2620;font-family:var(--type);font-size:16px;line-height:1.55;padding:22px 20px;max-width:420px;width:100%;white-space:pre-line;
+  box-shadow:0 10px 40px #000;transform:rotate(-.6deg)}
+.paper b{display:block;font-size:13px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:10px;color:#7a2a20}
+</style>
+
+<div id="app">
+  <canvas id="cv" aria-label="Terra Muta"></canvas>
+
+  <div id="hud" hidden>
+    <div class="hudtop">
+      <div class="vitals">
+        <div class="vit"><span>Salute</span><div><i id="bHp"></i></div></div>
+        <div class="vit"><span>Fame</span><div><i id="bHun"></i></div></div>
+        <div class="vit"><span>Sete</span><div><i id="bThi"></i></div></div>
+      </div>
+      <div class="mid"><div id="clock">Giorno 1 · 08:00</div></div>
+      <div class="tools">
+        <button class="sq" id="bagBtn">Zaino</button>
+        <button class="sq" id="jouBtn">Diario</button>
+      </div>
+    </div>
+    <div id="obj"></div>
+    <div class="acts">
+      <button class="act use" id="useBtn" hidden>Cerca</button>
+      <button class="act alt" id="gunBtn" hidden>Spara</button>
+      <button class="act" id="atkBtn">Colpisci</button>
+    </div>
+  </div>
+  <div id="loc"></div>
+  <div id="toast" role="status"></div>
+
+  <div id="dlg" hidden><div class="in"><div id="dWho"></div><div id="dTxt"></div><div id="dCh"></div><div id="dNext">Tocca per continuare</div></div></div>
+
+  <section class="screen c" id="title">
+    <div class="kick">Capitolo 1 · Il silenzio</div>
+    <h1>Terra <em>Muta</em></h1>
+    <p class="dim">Pianura Padana, ottobre. Non gridano. Non gemono. Ascoltano.</p>
+    <button class="btn go" id="contBtn" hidden>Continua</button>
+    <button class="btn" id="newBtn">Nuova partita</button>
+    <p class="dim" id="newWarn" hidden>Una nuova partita cancella il salvataggio.</p>
+  </section>
+
+  <section class="screen c" id="crawl" hidden>
+    <p class="prose" id="crawlTxt"></p>
+    <button class="btn go" id="crawlBtn">Avanti</button>
+  </section>
+
+  <section class="screen" id="bag" hidden>
+    <div class="bar"><h2>Zaino</h2><button class="btn s" data-close>Chiudi</button></div>
+    <div class="list" id="bagList"></div>
+    <div class="sect">Si fabbrica ovunque</div>
+    <div class="list" id="craftList"></div>
+    <div class="sect" id="benchSect">Banco da lavoro della cascina</div>
+    <div class="list" id="benchList"></div>
+  </section>
+
+  <section class="screen" id="journal" hidden>
+    <div class="bar"><h2>Diario</h2><button class="btn s" data-close>Chiudi</button></div>
+    <div class="sect">Obiettivo</div>
+    <div class="list"><div class="it"><div class="n"><b id="jObj"></b><small id="jSide"></small></div></div></div>
+    <div class="sect">Mappa esplorata</div>
+    <canvas id="mapCv" width="400" height="288"></canvas>
+    <div class="sect">Documenti trovati</div>
+    <div class="list" id="noteList"></div>
+    <div class="sect">Partita</div>
+    <div class="list"><button class="btn" id="quitBtn">Salva e torna al titolo</button></div>
+  </section>
+
+  <section class="screen c" id="reader" hidden>
+    <div class="paper"><b id="rTitle"></b><span id="rTxt"></span></div>
+    <button class="btn" id="rClose">Riponi</button>
+  </section>
+
+  <section class="screen c" id="dead" hidden>
+    <div class="kick">Giorno <span id="deadDay">1</span></div>
+    <h2>Sei caduto</h2>
+    <p class="prose">Qualcuno ti trascina per le braccia, in silenzio, lungo la provinciale. Quando riapri gli occhi c'è il soffitto della cascina.</p>
+    <p class="dim">Perdi metà dei rottami e delle cartucce.</p>
+    <button class="btn go" id="wakeBtn">Risvegliati</button>
+  </section>
+
+  <section class="screen c" id="end" hidden>
+    <div class="kick">Fine del capitolo 1</div>
+    <h2>Il silenzio</h2>
+    <p class="prose">Hai bevuto anche tu. E parli ancora.
+
+Marta è viva, oltre il Po.</p>
+    <p class="dim">Capitolo 2, «La chiusa», è in lavorazione. Intanto puoi continuare a esplorare la pianura.</p>
+    <button class="btn go" id="endBtn">Continua a esplorare</button>
+  </section>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const rnd = (a, b) => a + Math.random() * (b - a), ri = (a, b) => Math.floor(rnd(a, b + 1));
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v, TAU = Math.PI * 2;
+const hash = (x, y) => { let n = Math.imul(x, 374761393) + Math.imul(y, 668265263); n = Math.imul(n ^ (n >>> 13), 1274126177); return ((n ^ (n >>> 16)) >>> 0) / 4294967295; };
+
+/* ================= MAPPA ================= */
+const MW = 100, MH = 72, T = 32;
+const GRASS = 0, ROAD = 1, FIELD = 2, WATER = 3, WALL = 4, FLOOR = 5, TREE = 6, GATE = 7, RUB = 8, PAVE = 9;
+const map = new Uint8Array(MW * MH);
+const at = (tx, ty) => tx < 0 || ty < 0 || tx >= MW || ty >= MH ? WALL : map[ty * MW + tx];
+const set = (tx, ty, t) => { if (tx >= 0 && ty >= 0 && tx < MW && ty < MH) map[ty * MW + tx] = t; };
+const fill = (x, y, w, h, t) => { for (let j = y; j < y + h; j++) for (let i = x; i < x + w; i++) set(i, j, t); };
+const solidT = t => t === WALL || t === TREE || t === WATER || t === GATE || t === RUB;
+const solidAt = (px, py) => solidT(at(Math.floor(px / T), Math.floor(py / T)));
+function house(x, y, w, h, side, pos) {
+  fill(x - 1, y - 1, w + 2, h + 2, GRASS); fill(x, y, w, h, WALL); fill(x + 1, y + 1, w - 2, h - 2, FLOOR);
+  if (side === 'S') set(x + pos, y + h - 1, FLOOR); else if (side === 'N') set(x + pos, y, FLOOR);
+  else if (side === 'W') set(x, y + pos, FLOOR); else set(x + w - 1, y + pos, FLOOR);
+}
+function buildMap() {
+  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
+    const h = hash(x, y), wood = (x < 28 && y < 20) || (x > 30 && x < 52 && y > 44) || y > 64 || y < 4;
+    set(x, y, h < (wood ? .26 : .05) ? TREE : GRASS);
+  }
+  fill(3, 40, 26, 14, FIELD); fill(30, 7, 20, 21, FIELD); fill(66, 26, 16, 7, FIELD); fill(36, 40, 18, 5, FIELD);
+  fill(3, 22, 27, 13, GRASS);                       // aia della cascina
+  fill(86, 0, 6, MH, WATER);                        // il Po
+  fill(0, 35, 92, 3, ROAD); fill(84, 35, 2, 3, RUB); // provinciale e ponte crollato
+  fill(61, 12, 2, 23, ROAD); fill(61, 38, 2, 10, ROAD); fill(10, 32, 1, 3, ROAD);
+  fill(32, 38, 4, 2, GRASS); fill(55, 17, 20, 4, PAVE); fill(38, 34, 12, 1, PAVE);
+  house(6, 25, 10, 7, 'S', 4); house(19, 26, 7, 6, 'W', 3);          // cascina, fienile
+  house(40, 30, 7, 4, 'S', 3);                                        // distributore
+  house(64, 6, 9, 11, 'S', 4); fill(65, 9, 7, 1, WALL); set(70, 9, FLOOR); // chiesa e sacrestia
+  house(54, 21, 7, 6, 'E', 2);                                        // farmacia
+  house(64, 22, 6, 5, 'W', 2); house(54, 10, 6, 6, 'E', 3); house(72, 21, 6, 5, 'N', 2);
+  fill(53, 47, 20, 18, GRASS); fill(54, 48, 18, 16, WALL); fill(55, 49, 16, 14, PAVE); fill(61, 48, 2, 1, GATE); // consorzio
+  fill(58, 54, 10, 7, WALL); fill(59, 55, 8, 5, FLOOR); set(63, 54, FLOOR);
+}
+const AREAS = [
+  { n:'Cascina Ferri', x:3, y:22, w:27, h:13 }, { n:'Distributore', x:37, y:29, w:14, h:8 },
+  { n:'Borgo San Lazzaro', x:52, y:8, w:26, h:22 }, { n:'Chiesa di San Lazzaro', x:64, y:6, w:9, h:11 },
+  { n:'Consorzio Agrario', x:54, y:48, w:18, h:16 }, { n:'Il Po', x:80, y:30, w:6, h:12 }
+];
+
+/* ================= OGGETTI E STORIA ================= */
+const ITEMS = {
+  cibo:{ n:'Scatoletta', d:'Fame +35' }, acqua:{ n:'Acqua pulita', d:'Sete +40' }, benda:{ n:'Benda', d:'Salute +30' },
+  antibiotici:{ n:'Antibiotici', d:'Salute +70. Qualcuno ne ha più bisogno di te.' }, stoffa:{ n:'Stoffa', d:'Serve per le bende' },
+  rottami:{ n:'Rottami', d:'Ferro e legno per la cascina' }, colpi:{ n:'Cartucce', d:'Per la doppietta. Il botto si sente lontano.' },
+  batterie:{ n:'Batterie', d:'Per la radio di Tullio' }, chiave:{ n:'Chiave del Consorzio', d:'Era al collo di Don Aldo' }
+};
+const NOTES = [
+  ['Quaderno del benzinaio', 'Lunedì. Il Gino della cooperativa è venuto a fare gasolio e non ha detto una parola. Mi ha guardato la bocca mentre parlavo, come un cane guarda il pane.\n\nGiovedì. Ne sono passati sei, a piedi, in fila sulla provinciale. Ho fatto cadere la chiave inglese. Si sono girati tutti insieme.\n\nNon faccio più rumore. Scrivo e basta.'],
+  ['Disegno di un bambino', 'Un foglio a quadretti. Una casa, un sole, quattro figure con la bocca cancellata a penna.\n\nSotto, in stampatello: «LA MAMMA NON CANTA PIÙ. IL PAPÀ DICE DI STARE ZITTI ANCHE NOI COSÌ NON CI SENTE.»'],
+  ['Ultima predica di Don Aldo', 'Fratelli, mi chiedete se è un castigo. Io so solo che il Signore ha fatto il mondo con la Parola, e che a questa terra la parola l\'hanno tolta.\n\nHo chiuso in sacrestia le medicine e il fucile di mio fratello. La dottoressa Ferri mi ha dato una chiave e mi ha fatto giurare.\n\nHo bevuto alla fontana del sagrato, come sempre. Stanotte ho la gola che'],
+  ['Circolare dell\'azienda sanitaria', 'OGGETTO: sindrome afasica acuta, aggiornamento n. 4\n\nI soggetti perdono la voce entro 12 ore, poi ogni risposta alla vista. Reagiscono in modo violento a QUALSIASI suono.\n\nNon parlare ai soggetti. Non suonare il clacson. Spegnere le suonerie.\n\nLa trasmissione per via aerea è esclusa. La fonte resta ignota.'],
+  ['Appunti di Marta, giorno 6', 'Claviceps, ma non è la segale cornuta dei libri. Cresce nell\'acqua ferma dei canali, il grano lo prende DOPO, dall\'irrigazione.\n\nDistrugge le corde vocali e qualcosa nell\'udito: sentono tutto, troppo. Il rumore per loro è dolore. Per questo ci vengono addosso: vogliono farlo smettere.\n\nNon sono morti. Questo non lo devo dire a nessuno, o nessuno avrà più il coraggio di difendersi.']
+];
+const OBJ = ['Parla con Tullio', 'Prendi il piede di porco nel fienile', 'Torna da Tullio, in casa',
+  'Trova delle batterie al distributore, a est sulla provinciale', 'Riporta le batterie alla radio della cascina',
+  'Trova la chiave del Consorzio nella chiesa di Borgo San Lazzaro', 'Apri il cancello del Consorzio Agrario, a sud del borgo',
+  'Raggiungi il laboratorio di Marta dentro il Consorzio', 'Capitolo concluso. Esplora la pianura'];
+const TARGET = [[11, 28], [23, 27.5], [11, 28], [43, 32], [13, 26.5], [68, 12], [62, 48], [60, 58.5], null];
+const PROLOGUE = [
+  'Pianura Padana. Ottobre.\n\nÈ cominciato col raccolto. Prima il grano si è fatto nero. Poi la gente ha smesso di parlare.',
+  'Li chiamiamo i Muti.\n\nNon gridano. Non gemono.\nAscoltano.',
+  'Mi chiamo Elia Ferri. Guidavo l\'ambulanza della Croce Verde di Borgo San Lazzaro.\n\nMia sorella Marta lavorava al Consorzio Agrario. È stata lei la prima a capire.',
+  'Non la sento da undici giorni.'
+];
+const E = 'Elia', TU = 'Tullio', IR = 'Irene', MA = 'Marta';
+const S = { // dialoghi
+  t0: [[TU, 'Piano, piano. Tre giorni che dormi. Ti ho trovato sulla provinciale, con l\'ambulanza nel fosso.'], [E, 'Marta. Devo arrivare al Consorzio.'],
+    [TU, 'Con quelle gambe non arrivi al pollaio. E là fuori parla piano: i Muti non vedono un accidente, ma sentono cadere uno spillo.'],
+    [TU, 'Nel fienile c\'è la cassa degli attrezzi. Prendi il piede di porco. Poi ne riparliamo.']],
+  t2: [[TU, 'Bene. Adesso guarda qua: la radio di mio padre.'], [TU, 'Ogni notte, sul canale sette, c\'era una voce di donna. Poi sono finite le batterie.'],
+    [E, 'Una voce. Che diceva?'], [TU, 'Un nome. Il tuo.'],
+    [TU, 'Al distributore, verso est, le batterie le vendevano. Vai col sole. Di notte quelli corrono.'], [TU, 'E se ti nascondi nel grano alto non ti vedono. Me l\'ha insegnato la paura.']],
+  tIdle: [[TU, 'Mangia qualcosa. E dormi, quando torni: il letto è tuo.']],
+  radio: [['Radio', '…canale sette. Ripeto ogni notte, finché regge il generatore.'], [MA, 'Elia, se sei vivo, ascolta. Non è il grano. Il grano si ammala dopo. È l\'acqua dei canali.'],
+    [MA, 'Sono chiusa nel laboratorio del Consorzio. Il cancello è sbarrato e la chiave ce l\'ha Don Aldo, in chiesa. Gliel\'ho data io, perché nessuno entrasse.'],
+    [MA, 'Se vieni, non venire di notte. E non bere dai canali. Per nessun motivo.'], ['Radio', '…canale sette. Ripeto ogni notte…'],
+    [TU, 'Don Aldo. L\'ho visto domenica dal campanile: camminava nella navata, avanti e indietro. Non credo dica più messa.']],
+  radioNo: [[E, 'Morta. Senza batterie è solo una scatola.']],
+  radioAgain: [['Radio', '…non bere dai canali. Per nessun motivo… canale sette…']],
+  key: [[E, 'Perdonami, don. La chiave ce l\'avevi ancora al collo.']],
+  gateNo: [[E, 'Sbarrato dall\'interno, con una serratura da caveau. Senza chiave non si entra.']],
+  gate: [[E, 'Il cortile del Consorzio. C\'è qualcosa di grosso che si muove tra i silos.'], [E, 'Guidava la mietitrebbia, a giudicare dalla tuta. Adesso trascina la lama.']],
+  termNo: [[E, 'Con quella cosa nel cortile non riesco nemmeno a pensare.']],
+  term: [['Registrazione', 'Giorno nove. Se stai ascoltando, Elia, sei arrivato tardi di due giorni. Va bene così. Sei arrivato.'],
+    [MA, 'Il fungo vive nell\'acqua ferma. Chi beve smette di parlare in una notte.'], [MA, 'Ma ho trovato tre persone che hanno bevuto e parlano ancora. Tre. Una sono io.'],
+    [MA, 'Non so perché. Forse lo sanno all\'Istituto sull\'isola, oltre il Po. Vado là. Il ponte è saltato: passo dalla chiusa vecchia.'],
+    [MA, 'Ti lascio una cosa che non ti piacerà. Guarda il braccio sinistro, dove ti hanno ricucito.'],
+    [MA, 'Quando l\'ambulanza è finita nel fosso, il fosso era pieno.'], [MA, 'Hai bevuto anche tu, Elia. E parli ancora. Due della stessa famiglia: non può essere un caso.'], [E, '…']],
+  bridge: [[E, 'Il ponte è venuto giù. Dall\'altra parte, nella nebbia, c\'è una luce che si accende e si spegne.']],
+  i0: [[IR, 'Fermo lì. Parla. Dì qualcosa.'], [E, 'Sono Elia. Guidavo l\'ambulanza.'], [IR, 'Parli. Bene. Io sono Irene, facevo le notti qui. Dietro c\'è Pico: ha nove anni e la febbre da quattro giorni.'],
+    [IR, 'Mi servono antibiotici veri. Don Aldo ha svuotato gli scaffali la prima settimana, «per la comunità». Sono in sacrestia, ci scommetto.']],
+  i1: [[IR, 'La sacrestia, dietro l\'altare. Fai piano là dentro.']],
+  iYes: [[IR, '…Grazie.'], [IR, 'Tieni queste bende, a me non servono più. Appena Pico sta in piedi veniamo alla cascina. Io i debiti li pago.']],
+  iNo: [[IR, 'Capisco. Ognuno ha la sua guerra. Chiudi la porta quando esci.']],
+  i2: [[IR, 'La febbre scende. Stanotte ha chiesto da mangiare.']], i3: [[IR, 'Non ho altro da dirti.']],
+  bar: [[E, 'Piede di porco. Pesa il giusto, e non fa rumore.']],
+  gun: [[E, 'La doppietta del fratello di Don Aldo. Un colpo così lo sentono fino al Po: da usare solo se non c\'è altro.']],
+  sleepNo: [[E, 'Non adesso. Prima devo parlare con Tullio.']]
+};
+
+/* ================= SALVATAGGIO ================= */
+const KEY = 'terra-muta-v1';
+let sv = null;
+const fresh = () => ({ x:9.5 * T, y:28.5 * T, hp:70, hun:55, thi:50, inv:{ acqua:1 }, q:0, fl:{}, looted:[], notes:[], tod:8, day:1, bar:false, gun:false, up:{}, seen:'', area:[] });
+function load() { try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && s.inv) return Object.assign(fresh(), s); } catch (e) {} return null; }
+function persist() { if (!sv) return; sv.x = P.x; sv.y = P.y; sv.seen = Array.from(seen).join(''); try { localStorage.setItem(KEY, JSON.stringify(sv)); } catch (e) {} }
+
+/* ================= STATO ================= */
+const cv = $('cv'), ctx = cv.getContext('2d');
+let W = 1, H = 1, DPR = 1, Z = 1, VW = 1, VH = 1;
+function resize() { const r = $('app').getBoundingClientRect(); W = Math.max(1, r.width); H = Math.max(1, r.height); DPR = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); Z = clamp(Math.min(W, H) / 400, .85, 1.5); VW = W / Z; VH = H / Z; }
+window.addEventListener('resize', resize); resize();
+let mode = 'title'; // title | play | dlg | menu | dead
+const P = { x:0, y:0, r:10, a:0, atk:0, cd:0, gcd:0, hurt:0, step:0 };
+let zs = [], objs = [], fx = [], near = null, spawnT = 0, saveT = 0, boss = null;
+const seen = new Uint8Array(25 * 18);
+const have = k => sv.inv[k] || 0;
+const give = (k, n) => { sv.inv[k] = have(k) + n; if (sv.inv[k] <= 0) delete sv.inv[k]; };
+
+function makeObjects() {
+  const o = [], add = (id, k, x, y, e) => o.push(Object.assign({ id, k, x:x * T, y:y * T }, e));
+  add('bed', 'bed', 7.6, 26.7); add('radio', 'radio', 13.5, 26.5); add('tullio', 'npc', 11, 28, { who:TU, col:'#7d8a5b' });
+  add('tools', 'box', 23.5, 27.5, { look:'crate', fixed:{ rottami:2 }, bar:true }); add('bench', 'bench', 23.8, 30.4);
+  add('c1', 'box', 30, 36.2, { look:'car', lt:'auto', col:'#6d2f2a' }); add('c2', 'box', 49, 36.6, { look:'car', lt:'auto', col:'#2f4a5e' });
+  add('c3', 'box', 71, 35.9, { look:'car', lt:'auto', col:'#8a8674' }); add('c4', 'box', 80, 36.6, { look:'car', lt:'auto', col:'#3d5a3a' });
+  add('amb', 'box', 34, 38.6, { look:'car', fixed:{ benda:2, stoffa:1 }, col:'#d8d4c4' });
+  add('gs1', 'box', 41.5, 31.5, { look:'cab', fixed:{ batterie:1, cibo:1 } }); add('gs2', 'box', 45.4, 32.4, { look:'cab', lt:'casa' }); add('n0', 'note', 45, 31.4, { n:0 });
+  add('h1', 'box', 55.5, 11.5, { look:'cab', lt:'casa' }); add('h1b', 'box', 58.4, 11.5, { look:'cab', lt:'casa' }); add('n1', 'note', 57.5, 14.3, { n:1 });
+  add('h2', 'box', 68.4, 23.5, { look:'cab', lt:'casa' }); add('h2b', 'box', 65.5, 25.4, { look:'cab', lt:'casa' });
+  add('h3', 'box', 76.4, 24.4, { look:'cab', lt:'casa' }); add('h3b', 'box', 73.5, 22.5, { look:'crate', lt:'officina' });
+  add('irene', 'npc', 56.5, 24.5, { who:IR, col:'#b9b3a0' }); add('f1', 'box', 55.5, 22.5, { look:'cab', lt:'farmacia' }); add('f2', 'box', 58.4, 25.5, { look:'cab', lt:'farmacia' }); add('n3', 'note', 59, 22.4, { n:3 });
+  add('sac', 'box', 65.6, 7.6, { look:'cab', fixed:{ antibiotici:1, colpi:6, benda:1 }, gun:true }); add('n2', 'note', 68.5, 10.6, { n:2 }); add('ch1', 'box', 71.4, 15.4, { look:'crate', lt:'casa' });
+  add('gate', 'gate', 62, 48.5); add('y1', 'box', 56, 50, { look:'crate', lt:'officina' }); add('y2', 'box', 70, 62, { look:'crate', lt:'officina' }); add('y3', 'box', 56.5, 62, { look:'crate', lt:'officina' });
+  add('term', 'term', 60, 58.9); add('n4', 'note', 65.5, 56, { n:4 }); add('lab', 'box', 66.4, 59.4, { look:'cab', lt:'farmacia' });
+  add('bridge', 'sign', 83, 36.5); add('fd1', 'box', 15, 47, { look:'crate', lt:'officina' }); add('fd2', 'box', 40, 16, { look:'crate', lt:'casa' });
+  return o.filter(x => !(x.k === 'note' && sv.notes.includes(x.n)));
+}
+const LOOT = {
+  casa: () => pick([['cibo', 1, .6], ['acqua', 1, .6], ['stoffa', ri(1, 2), .5], ['benda', 1, .15]]),
+  auto: () => pick([['rottami', ri(1, 2), .8], ['colpi', ri(1, 2), .3], ['acqua', 1, .3], ['stoffa', 1, .3]]),
+  farmacia: () => pick([['benda', ri(1, 2), .8], ['stoffa', 1, .5], ['acqua', 1, .3]]),
+  officina: () => pick([['rottami', ri(2, 3), 1], ['colpi', ri(1, 3), .4], ['cibo', 1, .25]])
+};
+function pick(rows) { const out = {}; for (const [k, n, p] of rows) if (Math.random() < p) out[k] = n; if (!Object.keys(out).length) out[rows[0][0]] = 1; return out; }
+
+const ZT = { muto:{ r:10, hp:5, sp:52, dmg:9, col:'#77806a' }, corridore:{ r:9, hp:3, sp:104, dmg:7, col:'#8e7a62' }, gonfio:{ r:15, hp:16, sp:38, dmg:16, col:'#5f6b6e' },
+  aldo:{ r:12, hp:12, sp:46, dmg:12, col:'#1d1c22' }, boss:{ r:24, hp:70, sp:50, dmg:24, col:'#6b4a2e' } };
+const ZONES = [[48, 36, 3, 2], [43, 35.5, 3, 3], [62, 19, 5, 4], [62.5, 26, 1.5, 3], [68, 13, 3, 4], [56.5, 13, 1, 1], [67, 24, 1, 1], [75, 23, 1, 1], [40, 18, 6, 4], [15, 46, 6, 3], [63, 60, 5, 5], [72, 30, 4, 3], [75, 36, 3, 2]];
+function addZ(type, x, y) { const d = ZT[type]; const z = { type, x, y, r:d.r, hp:d.hp, st:'idle', tx:x, ty:y, t:rnd(0, 3), cd:0, los:rnd(0, .3), lost:0, kx:0, ky:0, a:rnd(0, TAU), fl:0, av:0, avx:0, avy:0 }; zs.push(z); return z; }
+function freeSpot(cx, cy, rad) { for (let i = 0; i < 30; i++) { const x = (cx + rnd(-rad, rad)) * T, y = (cy + rnd(-rad, rad)) * T; if (!solidAt(x, y) && !solidAt(x + 12, y) && !solidAt(x - 12, y) && !solidAt(x, y + 12) && !solidAt(x, y - 12)) return [x, y]; } return [cx * T, cy * T]; }
+function populate() {
+  zs = []; boss = null;
+  for (const [x, y, r, n] of ZONES) for (let i = 0; i < n; i++) { const [px, py] = freeSpot(x, y, r); addZ(Math.random() < .14 ? 'gonfio' : 'muto', px, py); }
+  if (!sv.fl.aldo) addZ('aldo', 68.5 * T, 12.5 * T);
+  if (sv.fl.gate && !sv.fl.boss) boss = addZ('boss', 63 * T, 51 * T);
+}
+
+/* ================= INPUT ================= */
+const joy = { on:false, id:null, ox:0, oy:0, x:0, y:0 }, keys = {};
+cv.addEventListener('pointerdown', e => { if (mode !== 'play') return; joy.on = true; joy.id = e.pointerId; joy.ox = joy.x = e.clientX; joy.oy = joy.y = e.clientY; try { cv.setPointerCapture(e.pointerId); } catch (_) {} });
+cv.addEventListener('pointermove', e => { if (joy.on && e.pointerId === joy.id) { joy.x = e.clientX; joy.y = e.clientY; } });
+const jEnd = e => { if (e.pointerId === joy.id) joy.on = false; }; cv.addEventListener('pointerup', jEnd); cv.addEventListener('pointercancel', jEnd);
+window.addEventListener('keydown', e => { const k = e.key.toLowerCase(); keys[k] = true; if (mode === 'dlg' && (k === ' ' || k === 'enter' || k === 'e')) return dlgNext();
+  if (mode !== 'play') return; if (k === ' ') attack(); else if (k === 'f') shoot(); else if (k === 'e') interact(); else if (k === 'i') openBag(); else if (k === 'j') openJournal(); });
+window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+function moveVec() { let x = 0, y = 0; if (joy.on) { x = (joy.x - joy.ox) / 44; y = (joy.y - joy.oy) / 44; }
+  if (keys.a || keys.arrowleft) x -= 1; if (keys.d || keys.arrowright) x += 1; if (keys.w || keys.arrowup) y -= 1; if (keys.s || keys.arrowdown) y += 1;
+  const m = Math.hypot(x, y); if (m > 1) { x /= m; y /= m; } return [x, y]; }
+
+/* ================= AUDIO ================= */
+let actx = null;
+function tone(f, d, type, v, when, slide) { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); const o = actx.createOscillator(), g = actx.createGain(), t0 = actx.currentTime + (when || 0);
+  o.type = type || 'sine'; o.frequency.setValueAtTime(f, t0); if (slide) o.frequency.exponentialRampToValueAtTime(slide, t0 + d); g.gain.setValueAtTime(v || .05, t0); g.gain.exponentialRampToValueAtTime(.0001, t0 + d);
+  o.connect(g); g.connect(actx.destination); o.start(t0); o.stop(t0 + d); } catch (e) {} }
+const sfx = { hit:() => tone(150, .12, 'square', .06, 0, 60), swing:() => tone(420, .08, 'triangle', .025, 0, 180), shot:() => { tone(900, .25, 'sawtooth', .12, 0, 40); tone(90, .4, 'square', .1); },
+  hurt:() => tone(95, .25, 'sawtooth', .09), pick:() => tone(760, .08, 'sine', .04), tick:() => { tone(1900, .03, 'square', .03); tone(1500, .03, 'square', .03, .09); },
+  page:() => tone(300, .15, 'triangle', .03, 0, 500), story:() => [196, 233, 294].forEach((f, i) => tone(f, .9, 'sine', .04, i * .25)) };
+const buzz = ms => { try { navigator.vibrate && navigator.vibrate(ms); } catch (e) {} };
+
+/* ================= MECCANICHE ================= */
+const isNight = () => sv.tod >= 21 || sv.tod < 6;
+const dark = () => { const h = sv.tod; return h >= 21 || h < 5 ? 1 : h >= 19 ? (h - 19) / 2 : h < 7 ? 1 - (h - 5) / 2 : 0; };
+function los(x0, y0, x1, y1) { const d = Math.hypot(x1 - x0, y1 - y0), n = Math.ceil(d / 14); for (let i = 1; i < n; i++) { const t = at(Math.floor((x0 + (x1 - x0) * i / n) / T), Math.floor((y0 + (y1 - y0) * i / n) / T)); if (t === WALL || t === GATE) return false; } return true; }
+function moveBody(b, dx, dy) { const r = b.r - 2; let moved = 0;
+  if (dx) { const nx = b.x + dx, ex = nx + Math.sign(dx) * r; if (!solidAt(ex, b.y - r) && !solidAt(ex, b.y + r)) { b.x = nx; moved += Math.abs(dx); } }
+  if (dy) { const ny = b.y + dy, ey = ny + Math.sign(dy) * r; if (!solidAt(b.x - r, ey) && !solidAt(b.x + r, ey)) { b.y = ny; moved += Math.abs(dy); } }
+  return moved; }
+function noise(x, y, R) { for (const z of zs) if (z.st !== 'chase' && (z.x - x) ** 2 + (z.y - y) ** 2 < R * R) { z.st = 'seek'; z.tx = x + rnd(-20, 20); z.ty = y + rnd(-20, 20); z.t = 7; } }
+function hitZ(z, dmg, ax, ay) { z.hp -= dmg; z.fl = .12; z.kx += ax * 170; z.ky += ay * 170; if (z.st !== 'chase') { z.st = 'chase'; z.lost = 0; }
+  for (let i = 0; i < 5; i++) fx.push({ k:'p', x:z.x, y:z.y, vx:ax * 60 + rnd(-50, 50), vy:ay * 60 + rnd(-50, 50), t:.4, c:'#5a1512' });
+  if (z.hp > 0) return; z.dead = true; fx.push({ k:'stain', x:z.x, y:z.y, t:40, r:z.r + 4 });
+  if (z.type === 'aldo') { sv.fl.aldo = 1; give('chiave', 1); say(S.key, checkQ); }
+  else if (z.type === 'boss') { sv.fl.boss = 1; boss = null; give('rottami', 5); give('colpi', 4); toast('Il Mietitore è a terra. +5 Rottami, +4 Cartucce'); buzz(200); persist(); }
+  else if (Math.random() < .12) { give('stoffa', 1); toast('+1 Stoffa'); } }
+function attack() { if (mode !== 'play' || P.cd > 0) return; P.cd = sv.bar ? .42 : .5; P.atk = .18; sfx.swing();
+  let best = null, bd = 60 * 60; for (const z of zs) { const d = (z.x - P.x) ** 2 + (z.y - P.y) ** 2; if (d < bd) { bd = d; best = z; } }
+  if (best) P.a = Math.atan2(best.y - P.y, best.x - P.x); let any = false;
+  for (const z of zs) { const dx = z.x - P.x, dy = z.y - P.y, d = Math.hypot(dx, dy); if (d > 44 + z.r) continue; let da = Math.atan2(dy, dx) - P.a; da = Math.atan2(Math.sin(da), Math.cos(da));
+    if (Math.abs(da) < 1.15) { hitZ(z, sv.bar ? 3 : 1, dx / (d || 1), dy / (d || 1)); any = true; } }
+  if (any) { sfx.hit(); buzz(20); noise(P.x, P.y, 70); } }
+function shoot() { if (mode !== 'play' || !sv.gun || P.gcd > 0) return; if (!have('colpi')) return toast('Niente cartucce');
+  let best = null, bd = 300 * 300; for (const z of zs) { const d = (z.x - P.x) ** 2 + (z.y - P.y) ** 2; if (d < bd && los(P.x, P.y, z.x, z.y)) { bd = d; best = z; } }
+  give('colpi', -1); P.gcd = .9; sfx.shot(); buzz(60); noise(P.x, P.y, 560);
+  if (best) { const d = Math.sqrt(bd) || 1; P.a = Math.atan2(best.y - P.y, best.x - P.x); hitZ(best, 9, (best.x - P.x) / d, (best.y - P.y) / d); fx.push({ k:'tr', x:P.x, y:P.y, x2:best.x, y2:best.y, t:.12 }); }
+  else fx.push({ k:'tr', x:P.x, y:P.y, x2:P.x + Math.cos(P.a) * 300, y2:P.y + Math.sin(P.a) * 300, t:.12 });
+  fx.push({ k:'ring', x:P.x, y:P.y, t:.6 }); }
+function checkQ() { const q = sv.q; if (q === 1 && sv.bar) sv.q = 2; if (sv.q === 3 && have('batterie')) sv.q = 4; if (sv.q === 5 && have('chiave')) sv.q = 6; if (sv.q !== q) { sfx.story(); persist(); } hud(); }
+const LABEL = { box:'Cerca', note:'Leggi', npc:'Parla', bed:'Dormi', radio:'Radio', bench:'Banco', gate:'Apri', term:'Ascolta', sign:'Guarda' };
+function interact() { const o = near; if (mode !== 'play' || !o) return;
+  if (o.k === 'box') { const got = Object.assign({}, o.fixed || {}, o.lt ? LOOT[o.lt]() : {}); sv.looted.push(o.id); o.done = true; const parts = [];
+    for (const k in got) { give(k, got[k]); parts.push('+' + got[k] + ' ' + ITEMS[k].n); } sfx.pick(); toast(parts.join(', '));
+    if (o.bar && !sv.bar) { sv.bar = true; say(S.bar, checkQ); } if (o.gun && !sv.gun) { sv.gun = true; say(S.gun); } checkQ(); }
+  else if (o.k === 'note') { sv.notes.push(o.n); objs = objs.filter(x => x !== o); readNote(o.n); persist(); }
+  else if (o.k === 'npc' && o.who === TU) { if (sv.q === 0) say(S.t0, () => { sv.q = 1; checkQ(); sfx.story(); persist(); }); else if (sv.q === 2) say(S.t2, () => { sv.q = 3; checkQ(); sfx.story(); persist(); }); else say(S.tIdle); }
+  else if (o.k === 'npc') { const f = sv.fl.irene || 0;
+    if (f === 0) say(S.i0, () => { sv.fl.irene = 1; hud(); });
+    else if (f === 1 && have('antibiotici')) say([[IR, 'Li hai trovati. Dimmi che li hai trovati.']], null, [['Dalle gli antibiotici', () => { give('antibiotici', -1); give('benda', 3); sv.fl.irene = 2; persist(); say(S.iYes); }], ['Tienili per te', () => { sv.fl.irene = 3; persist(); say(S.iNo); }]]);
+    else say(f === 1 ? S.i1 : f === 2 ? S.i2 : S.i3); }
+  else if (o.k === 'bed') { if (sv.q < 1) return say(S.sleepNo); sleep(); }
+  else if (o.k === 'radio') { if (sv.q === 4) { give('batterie', -1); say(S.radio, () => { sv.q = 5; checkQ(); sfx.story(); persist(); }); } else say(sv.q > 4 ? S.radioAgain : S.radioNo); }
+  else if (o.k === 'bench') openBag(true);
+  else if (o.k === 'gate') { if (sv.q < 6 || !have('chiave')) return say(S.gateNo); fill(61, 48, 2, 1, PAVE); sv.fl.gate = 1; objs = objs.filter(x => x !== o); if (!sv.fl.boss) boss = addZ('boss', 63 * T, 51 * T); sv.q = 7; say(S.gate, () => { checkQ(); persist(); }); }
+  else if (o.k === 'term') { if (!sv.fl.gate || !sv.fl.boss) return say(S.termNo); if (sv.q >= 8) return say([[MA, '…due della stessa famiglia: non può essere un caso.']]); say(S.term, () => { sv.q = 8; persist(); hud(); sfx.story(); mode = 'menu'; show('end'); }); }
+  else if (o.k === 'sign') say(S.bridge); }
+function sleep() { sv.day++; sv.tod = 6; sv.hun = Math.max(5, sv.hun - 25); sv.thi = Math.max(5, sv.thi - 25); sv.hp = Math.min(100, sv.hp + (sv.up.barricate ? 60 : 40));
+  if (sv.up.cisterna) give('acqua', 2); if (sv.fl.irene === 2) sv.hp = 100; populate(); persist(); hud();
+  toast('Giorno ' + sv.day + (sv.up.cisterna ? ' · la cisterna ha raccolto 2 Acqua' : '') + (sv.fl.irene === 2 ? ' · Irene ti ha medicato' : '')); }
+function die() { mode = 'dead'; joy.on = false; $('deadDay').textContent = sv.day; show('dead'); buzz(300); }
+function wake() { P.x = 9.5 * T; P.y = 28.5 * T; sv.hp = 60; sv.hun = Math.max(sv.hun, 40); sv.thi = Math.max(sv.thi, 40); sv.day++; sv.tod = 6;
+  for (const k of ['rottami', 'colpi']) if (have(k)) give(k, -Math.ceil(have(k) / 2)); populate(); persist(); mode = 'play'; show(null); hud(); }
+
+function update(dt) {
+  sv.tod += dt / 20; if (sv.tod >= 24) sv.tod -= 24;
+  sv.hun = Math.max(0, sv.hun - dt * .13); sv.thi = Math.max(0, sv.thi - dt * .19); if (sv.hun <= 0 || sv.thi <= 0) sv.hp -= dt * 1.2;
+  const [mx, my] = moveVec(), tile = at(Math.floor(P.x / T), Math.floor(P.y / T)), inField = tile === FIELD, sp = inField ? 82 : 118;
+  if (mx || my) { P.r = 10; moveBody(P, mx * sp * dt, my * sp * dt); if (P.atk <= 0) P.a = Math.atan2(my, mx); P.step += dt * 9; }
+  P.cd -= dt; P.gcd -= dt; P.atk -= dt; P.hurt -= dt;
+  // esplorazione
+  const cx = Math.floor(P.x / T / 4), cy = Math.floor(P.y / T / 4); for (let j = -2; j <= 2; j++) for (let i = -2; i <= 2; i++) { const x = cx + i, y = cy + j; if (x >= 0 && y >= 0 && x < 25 && y < 18) seen[y * 25 + x] = 1; }
+  const tx = P.x / T, ty = P.y / T; AREAS.forEach((a, i) => { if (!sv.area.includes(i) && tx >= a.x && ty >= a.y && tx < a.x + a.w && ty < a.y + a.h) { sv.area.push(i); banner(a.n); } });
+  // oggetto vicino
+  near = null; let nd = 46 * 46; for (const o of objs) { if (o.done) continue; const d = (o.x - P.x) ** 2 + (o.y - P.y) ** 2; if (d < nd) { nd = d; near = o; } }
+  const ub = $('useBtn'); ub.hidden = !near; if (near) ub.textContent = LABEL[near.k];
+  // i Muti
+  const night = isNight(), sight = (night ? 125 : 195) * (inField ? .45 : 1);
+  for (let i = 0; i < zs.length; i++) { const z = zs[i], dx = P.x - z.x, dy = P.y - z.y, d = Math.hypot(dx, dy) || 1; if (d > 900) continue;
+    const def = ZT[z.type]; z.cd -= dt; z.fl -= dt; z.los -= dt;
+    if (z.los <= 0) { z.los = .3; const sees = d < sight && los(z.x, z.y, P.x, P.y), hears = d < 34 && (mx || my);
+      if (sees || hears) { if (z.st !== 'chase') { z.st = 'chase'; sfx.tick(); } z.lost = 0; } else if (z.st === 'chase') { z.lost += .3; if (z.lost > 4) { z.st = 'seek'; z.tx = P.x; z.ty = P.y; z.t = 5; } } }
+    let gx = z.tx, gy = z.ty, speed = def.sp * .45;
+    if (z.st === 'chase') { gx = P.x; gy = P.y; speed = def.sp * (night ? 1.4 : 1) * (z.type === 'boss' && z.hp < 35 ? 1.5 : 1); }
+    else if (z.st === 'seek') { speed = def.sp * .8; z.t -= dt; if (z.t <= 0 || (z.x - gx) ** 2 + (z.y - gy) ** 2 < 400) { z.st = 'idle'; z.t = 1; } }
+    else { z.t -= dt; if (z.t <= 0) { z.t = rnd(2, 6); z.tx = z.x + rnd(-70, 70); z.ty = z.y + rnd(-70, 70); } }
+    let vx = gx - z.x, vy = gy - z.y; const vd = Math.hypot(vx, vy);
+    if (vd > 6) { vx /= vd; vy /= vd; if (z.av > 0) { z.av -= dt; vx = z.avx; vy = z.avy; }
+      const want = speed * dt, got = moveBody(z, vx * want + z.kx * dt, vy * want + z.ky * dt);
+      if (got < want * .35 && z.av <= 0) { const s = Math.random() < .5 ? 1 : -1; z.av = .55; z.avx = -vy * s; z.avy = vx * s; }
+      z.a = Math.atan2(vy, vx); } else moveBody(z, z.kx * dt, z.ky * dt);
+    z.kx *= Math.pow(.001, dt); z.ky *= Math.pow(.001, dt);
+    for (let j = i + 1; j < zs.length; j++) { const o = zs[j], sx = o.x - z.x, sy = o.y - z.y, min = z.r + o.r; if (Math.abs(sx) < min && Math.abs(sy) < min) { const sd = Math.hypot(sx, sy) || .01; if (sd < min) { const p = (min - sd) / sd * .5; moveBody(z, -sx * p, -sy * p); moveBody(o, sx * p, sy * p); } } }
+    if (d < z.r + 14 && z.cd <= 0) { z.cd = 1; sv.hp -= def.dmg; P.hurt = .3; sfx.hurt(); buzz(50); fx.push({ k:'p', x:P.x, y:P.y, vx:rnd(-60, 60), vy:rnd(-60, 60), t:.4, c:'#c4352b' }); }
+  }
+  zs = zs.filter(z => !z.dead);
+  // di notte ne arrivano altri
+  spawnT -= dt; if (spawnT <= 0) { spawnT = night ? 5 : 16; if (zs.length < (night ? 70 : 48)) { const a = rnd(0, TAU), d = rnd(520, 700), x = P.x + Math.cos(a) * d, y = P.y + Math.sin(a) * d;
+    const home = sv.up.barricate && Math.hypot(x - 14 * T, y - 28 * T) < 520; if (!home && x > 40 && y > 40 && x < 84 * T && y < MH * T - 40 && !solidAt(x, y) && at(Math.floor(x / T), Math.floor(y / T)) !== FLOOR) { const z = addZ(night && Math.random() < .4 ? 'corridore' : 'muto', x, y); if (night) { z.st = 'seek'; z.tx = P.x; z.ty = P.y; z.t = 12; } } } }
+  for (const f of fx) { f.t -= dt; if (f.k === 'p') { f.x += f.vx * dt; f.y += f.vy * dt; } } fx = fx.filter(f => f.t > 0);
+  saveT += dt; if (saveT > 15) { saveT = 0; persist(); }
+  if (sv.hp <= 0) { sv.hp = 0; die(); }
+}
+
+/* ================= DISEGNO ================= */
+const dcv = document.createElement('canvas'), dctx = dcv.getContext('2d');
+function person(x, y, a, body, head, arms, r, bob) { ctx.save(); ctx.translate(x, y); ctx.rotate(a); const s = r / 10;
+  ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(-1, 2, 9 * s, 12 * s, 0, 0, TAU); ctx.fill();
+  if (arms) { ctx.fillStyle = head; const w = Math.sin(bob) * 2; ctx.beginPath(); ctx.arc(9 * s + w, -8 * s, 3.2 * s, 0, TAU); ctx.arc(9 * s - w, 8 * s, 3.2 * s, 0, TAU); ctx.fill(); }
+  ctx.fillStyle = body; ctx.beginPath(); ctx.ellipse(0, 0, 6.5 * s, 11 * s, 0, 0, TAU); ctx.fill();
+  ctx.fillStyle = head; ctx.beginPath(); ctx.arc(1.5 * s, 0, 5.6 * s, 0, TAU); ctx.fill(); ctx.restore(); }
+function drawTile(t, x, y, px, py) { const h = hash(x, y);
+  if (t === ROAD) { ctx.fillStyle = h < .5 ? '#3b3c3d' : '#383939'; ctx.fillRect(px, py, T, T); if (y === 36 && x % 2 === 0 && x < 84) { ctx.fillStyle = '#8f8c7c'; ctx.fillRect(px + 6, py + 14, 20, 3); } if (h < .08) { ctx.fillStyle = '#2c2d2d'; ctx.fillRect(px + h * 200, py + 8, 9, 5); } }
+  else if (t === FIELD) { ctx.fillStyle = h < .5 ? '#6f5d2c' : '#665427'; ctx.fillRect(px, py, T, T); ctx.strokeStyle = h < .2 ? '#2a2418' : '#8a743a'; ctx.lineWidth = 2; ctx.beginPath(); for (let k = 0; k < 4; k++) { const ox = px + 4 + k * 8 + h * 3; ctx.moveTo(ox, py + T); ctx.lineTo(ox + 2, py + 6 + ((k * 7 + x) % 5) * 3); } ctx.stroke(); }
+  else if (t === WATER) { ctx.fillStyle = '#1c3542'; ctx.fillRect(px, py, T, T); ctx.fillStyle = 'rgba(140,190,200,.12)'; ctx.fillRect(px + ((performance.now() / 60 + h * 60) % T), py + h * 26, 12, 2); }
+  else if (t === WALL) { ctx.fillStyle = '#262320'; ctx.fillRect(px, py, T, T); if (at(x, y + 1) !== WALL) { ctx.fillStyle = '#5b5145'; ctx.fillRect(px, py + T - 10, T, 10); ctx.fillStyle = '#463e35'; ctx.fillRect(px + (x % 2 ? 6 : 18), py + T - 10, 2, 10); } }
+  else if (t === FLOOR) { ctx.fillStyle = '#5a4b3a'; ctx.fillRect(px, py, T, T); ctx.fillStyle = '#4c3f31'; ctx.fillRect(px, py + 15, T, 2); ctx.fillRect(px + (y % 2 ? 9 : 22), py, 2, 15); }
+  else if (t === PAVE) { ctx.fillStyle = h < .5 ? '#55554f' : '#4f4f4a'; ctx.fillRect(px, py, T, T); ctx.fillStyle = '#44443f'; ctx.fillRect(px, py, T, 1); ctx.fillRect(px, py, 1, T); }
+  else if (t === GATE) { ctx.fillStyle = '#55554f'; ctx.fillRect(px, py, T, T); ctx.fillStyle = '#7a2a20'; ctx.fillRect(px, py + 8, T, 16); ctx.fillStyle = '#3a1410'; for (let k = 0; k < 4; k++) ctx.fillRect(px + 3 + k * 8, py + 8, 3, 16); }
+  else if (t === RUB) { ctx.fillStyle = '#3b3c3d'; ctx.fillRect(px, py, T, T); ctx.fillStyle = '#5f5a52'; for (let k = 0; k < 4; k++) ctx.fillRect(px + hash(x + k, y) * 20, py + hash(x, y + k) * 20, 12, 9); }
+  else { ctx.fillStyle = h < .33 ? '#2f3b29' : h < .66 ? '#2c3827' : '#31402b'; ctx.fillRect(px, py, T, T); if (h > .8) { ctx.fillStyle = '#3d4d33'; ctx.fillRect(px + h * 60 % 24, py + h * 90 % 24, 3, 5); } } }
+function drawObj(o, tt) { const x = o.x, y = o.y; ctx.save(); ctx.translate(x, y);
+  if (o.k === 'box') { ctx.globalAlpha = o.done ? .5 : 1;
+    if (o.look === 'car') { ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.fillRect(-27, -11, 58, 28); ctx.fillStyle = o.col; ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(-29, -14, 58, 28, 7); else ctx.rect(-29, -14, 58, 28); ctx.fill(); ctx.fillStyle = '#1b2226'; ctx.fillRect(-12, -11, 9, 22); ctx.fillRect(8, -11, 7, 22); if (o.id === 'amb') { ctx.fillStyle = '#c4352b'; ctx.fillRect(-2, -3, 8, 6); } }
+    else if (o.look === 'crate') { ctx.fillStyle = '#6b5233'; ctx.fillRect(-11, -11, 22, 22); ctx.strokeStyle = '#3d2e1c'; ctx.lineWidth = 2; ctx.strokeRect(-11, -11, 22, 22); ctx.beginPath(); ctx.moveTo(-11, -11); ctx.lineTo(11, 11); ctx.stroke(); }
+    else { ctx.fillStyle = '#7b7566'; ctx.fillRect(-12, -8, 24, 16); ctx.fillStyle = '#4b473d'; ctx.fillRect(-1, -8, 2, 16); } }
+  else if (o.k === 'note') { ctx.rotate(.3); ctx.fillStyle = '#d9d2bb'; ctx.fillRect(-6, -8, 12, 16); ctx.fillStyle = '#8a8474'; ctx.fillRect(-4, -5, 8, 1); ctx.fillRect(-4, -2, 8, 1); ctx.fillRect(-4, 1, 6, 1); }
+  else if (o.k === 'bed') { ctx.fillStyle = '#7a6a55'; ctx.fillRect(-14, -20, 28, 40); ctx.fillStyle = '#b8b09a'; ctx.fillRect(-11, -17, 22, 10); ctx.fillStyle = '#58705a'; ctx.fillRect(-12, -5, 24, 23); }
+  else if (o.k === 'radio') { ctx.fillStyle = '#4a3524'; ctx.fillRect(-11, -7, 22, 14); ctx.fillStyle = sv.q > 4 ? '#de8a32' : '#2a2018'; ctx.beginPath(); ctx.arc(-4, 0, 4, 0, TAU); ctx.fill(); ctx.strokeStyle = '#9a9588'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(8, -7); ctx.lineTo(14, -20); ctx.stroke(); }
+  else if (o.k === 'bench') { ctx.fillStyle = '#6b5233'; ctx.fillRect(-20, -9, 40, 18); ctx.fillStyle = '#9a9588'; ctx.fillRect(-14, -4, 12, 3); ctx.fillRect(4, -2, 9, 5); }
+  else if (o.k === 'term') { ctx.fillStyle = '#2b3338'; ctx.fillRect(-13, -9, 26, 18); ctx.fillStyle = Math.sin(tt * 4) > 0 ? '#86a85e' : '#4d6238'; ctx.fillRect(-9, -5, 12, 9); }
+  else if (o.k === 'sign') { ctx.fillStyle = '#de8a32'; ctx.fillRect(-10, -3, 20, 6); ctx.fillStyle = '#1b1b1b'; ctx.fillRect(-6, -3, 4, 6); ctx.fillRect(3, -3, 4, 6); }
+  ctx.restore();
+  if (o.k === 'npc') { person(x, y, Math.atan2(P.y - y, P.x - x), o.col, '#d2a98a', false, 10, 0); ctx.font = '600 11px Barlow, sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#e8e3d2'; ctx.fillText(o.who, x, y - 18); }
+  if (o === near) { ctx.strokeStyle = 'rgba(232,227,210,' + (.5 + Math.sin(tt * 6) * .3) + ')'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 22 + Math.sin(tt * 6) * 2, 0, TAU); ctx.stroke(); } }
+function draw(now) { const tt = now / 1000; let cx = clamp(P.x, VW / 2, MW * T - VW / 2), cy = clamp(P.y, VH / 2, MH * T - VH / 2);
+  if (VW > MW * T) cx = MW * T / 2; if (P.hurt > 0) { cx += rnd(-4, 4); cy += rnd(-4, 4); }
+  ctx.setTransform(DPR * Z, 0, 0, DPR * Z, 0, 0); ctx.translate(Math.round(VW / 2 - cx), Math.round(VH / 2 - cy));
+  const x0 = Math.floor((cx - VW / 2) / T) - 1, x1 = Math.floor((cx + VW / 2) / T) + 1, y0 = Math.floor((cy - VH / 2) / T) - 1, y1 = Math.floor((cy + VH / 2) / T) + 1;
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) drawTile(at(x, y), x, y, x * T, y * T);
+  for (const f of fx) if (f.k === 'stain') { ctx.fillStyle = 'rgba(70,16,14,' + Math.min(.6, f.t / 10) + ')'; ctx.beginPath(); ctx.ellipse(f.x, f.y, f.r, f.r * .8, 0, 0, TAU); ctx.fill(); }
+  for (const o of objs) if (Math.abs(o.x - cx) < VW / 2 + 60 && Math.abs(o.y - cy) < VH / 2 + 60) drawObj(o, tt);
+  for (const z of zs) { if (Math.abs(z.x - cx) > VW / 2 + 40 || Math.abs(z.y - cy) > VH / 2 + 40) continue; const d = ZT[z.type];
+    person(z.x, z.y, z.a, z.fl > 0 ? '#e8e3d2' : d.col, z.type === 'aldo' ? '#9aa28a' : '#8f9a7c', true, z.r, tt * 7 + z.x);
+    if (z.st === 'chase' && z.type !== 'boss') { ctx.fillStyle = '#c4352b'; ctx.fillRect(z.x - 1.5, z.y - z.r - 12, 3, 7); ctx.fillRect(z.x - 1.5, z.y - z.r - 3.5, 3, 3); }
+    if (z.type === 'boss') { ctx.save(); ctx.translate(z.x, z.y); ctx.rotate(z.a); ctx.fillStyle = '#b9b3a0'; ctx.fillRect(14, -30, 5, 44); ctx.restore(); } }
+  // Elia
+  person(P.x, P.y, P.a, '#c9c2ad', '#d9b08f', false, 10, 0);
+  ctx.save(); ctx.translate(P.x, P.y); ctx.rotate(P.a + (P.atk > 0 ? (P.atk / .18 - .5) * 2.2 : .5));
+  if (sv.bar) { ctx.fillStyle = '#8f8c7c'; ctx.fillRect(6, -1.5, 20, 3); ctx.fillRect(24, -1.5, 3, 7); } else { ctx.fillStyle = '#d9b08f'; ctx.beginPath(); ctx.arc(10, 0, 3, 0, TAU); ctx.fill(); } ctx.restore();
+  if (P.atk > 0) { ctx.strokeStyle = 'rgba(232,227,210,.5)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(P.x, P.y, 34, P.a - 1, P.a + 1); ctx.stroke(); }
+  // chiome degli alberi sopra a tutto
+  for (let y = y0 - 1; y <= y1 + 1; y++) for (let x = x0 - 1; x <= x1 + 1; x++) if (at(x, y) === TREE && x >= 0 && y >= 0 && x < MW && y < MH) { const h = hash(x, y), px = x * T + 16, py = y * T + 14, r = 21 + h * 40 % 7;
+    ctx.fillStyle = '#16221a'; ctx.beginPath(); ctx.arc(px + 3, py + 4, r, 0, TAU); ctx.fill(); ctx.fillStyle = h * 10 % 1 < .5 ? '#24382a' : '#2a3d26'; ctx.beginPath(); ctx.arc(px, py, r, 0, TAU); ctx.fill(); ctx.fillStyle = 'rgba(120,150,90,.14)'; ctx.beginPath(); ctx.arc(px - 5, py - 6, r * .5, 0, TAU); ctx.fill(); }
+  for (const f of fx) { if (f.k === 'p') { ctx.fillStyle = f.c; ctx.fillRect(f.x - 2, f.y - 2, 4, 4); } else if (f.k === 'tr') { ctx.strokeStyle = 'rgba(255,230,160,' + f.t * 8 + ')'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.lineTo(f.x2, f.y2); ctx.stroke(); }
+    else if (f.k === 'ring') { ctx.strokeStyle = 'rgba(222,138,50,' + f.t + ')'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(f.x, f.y, (1 - f.t / .6) * 520, 0, TAU); ctx.stroke(); } }
+  // buio e nebbia
+  const dk = dark(), dw = Math.ceil(W / 2), dh = Math.ceil(H / 2), ds = Z / 2; if (dcv.width !== dw || dcv.height !== dh) { dcv.width = dw; dcv.height = dh; }
+  dctx.globalCompositeOperation = 'source-over'; dctx.clearRect(0, 0, dw, dh); dctx.fillStyle = 'rgba(6,8,12,' + (.18 + dk * .76) + ')'; dctx.fillRect(0, 0, dw, dh);
+  dctx.globalCompositeOperation = 'destination-out'; const lr = (dk > .2 ? 150 : 230) * ds, sx = (P.x - cx) * ds + dw / 2, sy = (P.y - cy) * ds + dh / 2, g = dctx.createRadialGradient(sx, sy, lr * .3, sx, sy, lr);
+  g.addColorStop(0, 'rgba(0,0,0,' + (.55 + dk * .4) + ')'); g.addColorStop(1, 'rgba(0,0,0,0)'); dctx.fillStyle = g; dctx.beginPath(); dctx.arc(sx, sy, lr, 0, TAU); dctx.fill();
+  ctx.drawImage(dcv, cx - VW / 2, cy - VH / 2, VW, VH);
+  if (sv.tod > 17 && sv.tod < 21) { ctx.fillStyle = 'rgba(190,70,30,' + (.12 * (1 - Math.abs(sv.tod - 19) / 2)) + ')'; ctx.fillRect(cx - VW / 2, cy - VH / 2, VW, VH); }
+  // freccia verso l'obiettivo
+  const tg = TARGET[sv.q]; if (tg && mode === 'play') { const dx = tg[0] * T - P.x, dy = tg[1] * T - P.y, d = Math.hypot(dx, dy), er = Math.min(VW, VH) * .36;
+    if (d > er + 40) { const a = Math.atan2(dy, dx); ctx.save(); ctx.translate(P.x + Math.cos(a) * er, P.y + Math.sin(a) * er); ctx.rotate(a); ctx.fillStyle = '#de8a32'; ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(-7, -8); ctx.lineTo(-3, 0); ctx.lineTo(-7, 8); ctx.fill(); ctx.restore(); }
+    else { ctx.strokeStyle = 'rgba(222,138,50,' + (.5 + Math.sin(tt * 4) * .3) + ')'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(tg[0] * T, tg[1] * T, 30, 0, TAU); ctx.stroke(); } }
+  if (P.hurt > 0) { ctx.fillStyle = 'rgba(196,53,43,' + P.hurt + ')'; ctx.fillRect(cx - VW / 2, cy - VH / 2, VW, VH); }
+  if (joy.on && mode === 'play') { ctx.setTransform(DPR, 0, 0, DPR, 0, 0); const r = cv.getBoundingClientRect(), ox = joy.ox - r.left, oy = joy.oy - r.top; let dx = joy.x - joy.ox, dy = joy.y - joy.oy; const m = Math.hypot(dx, dy); if (m > 44) { dx *= 44 / m; dy *= 44 / m; }
+    ctx.strokeStyle = 'rgba(232,227,210,.3)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(ox, oy, 44, 0, TAU); ctx.stroke(); ctx.fillStyle = 'rgba(232,227,210,.35)'; ctx.beginPath(); ctx.arc(ox + dx, oy + dy, 19, 0, TAU); ctx.fill(); }
+}
+
+/* ================= INTERFACCIA ================= */
+function show(id) { for (const s of document.querySelectorAll('.screen')) s.hidden = s.id !== id; $('hud').hidden = !sv || mode === 'title' || !!id; }
+let tT = 0, bT = 0; function toast(m) { const e = $('toast'); e.textContent = m; e.classList.add('on'); clearTimeout(tT); tT = setTimeout(() => e.classList.remove('on'), 2600); }
+function banner(m) { const e = $('loc'); e.textContent = m; e.classList.add('on'); clearTimeout(bT); bT = setTimeout(() => e.classList.remove('on'), 2600); }
+function hud() { if (!sv) return; $('bHp').style.width = clamp(sv.hp, 0, 100) + '%'; $('bHun').style.width = sv.hun + '%'; $('bThi').style.width = sv.thi + '%';
+  const h = Math.floor(sv.tod), m = Math.floor((sv.tod - h) * 6) * 10; $('clock').textContent = 'Giorno ' + sv.day + ' · ' + String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + (isNight() ? ' · notte' : '');
+  $('obj').textContent = OBJ[sv.q]; $('gunBtn').hidden = !sv.gun; $('gunBtn').textContent = 'Spara ' + have('colpi'); $('atkBtn').textContent = sv.bar ? 'Colpisci' : 'Pugno'; }
+let dq = [], dEnd = null, dCh = null;
+function say(lines, onEnd, choices) { dq = lines.slice(); dEnd = onEnd || null; dCh = choices || null; mode = 'dlg'; joy.on = false; $('dlg').hidden = false; $('hud').hidden = true; dlgNext(); }
+function dlgNext() { const box = $('dCh'); if (box.childElementCount) return;
+  if (!dq.length) { $('dlg').hidden = true; mode = 'play'; $('hud').hidden = false; last = performance.now(); const f = dEnd; dEnd = null; if (f) f(); hud(); return; }
+  const [who, txt] = dq.shift(); $('dWho').textContent = who; $('dWho').style.color = who === E ? 'var(--bone)' : who === MA ? 'var(--water)' : 'var(--rust)'; $('dTxt').textContent = txt; sfx.page();
+  if (!dq.length && dCh) { $('dNext').hidden = true; for (const [label, fn] of dCh) { const b = document.createElement('button'); b.className = 'choice'; b.textContent = label; b.onclick = ev => { ev.stopPropagation(); box.textContent = ''; $('dNext').hidden = false; dCh = null; $('dlg').hidden = true; mode = 'play'; fn(); }; box.appendChild(b); } } }
+$('dlg').onclick = dlgNext;
+function row(title, desc, qty, btn, fn) { const d = document.createElement('div'); d.className = 'it'; d.innerHTML = '<span class="qty"></span><div class="n"><b></b><small></small></div>';
+  d.querySelector('.qty').textContent = qty; d.querySelector('b').textContent = title; d.querySelector('small').textContent = desc;
+  if (btn) { const b = document.createElement('button'); b.className = 'btn s'; b.textContent = btn; if (fn) b.onclick = fn; else b.disabled = true; d.appendChild(b); } return d; }
+const USE = { cibo:() => sv.hun = Math.min(100, sv.hun + 35), acqua:() => sv.thi = Math.min(100, sv.thi + 40), benda:() => sv.hp = Math.min(100, sv.hp + 30), antibiotici:() => sv.hp = Math.min(100, sv.hp + 70) };
+const UPG = [['barricate', 'Barricate', 'Di notte i Muti stanno alla larga dalla cascina e il sonno cura di più', { rottami:8 }], ['cisterna', 'Cisterna per la pioggia', '2 Acqua pulita a ogni risveglio', { rottami:6, stoffa:2 }]];
+const costTxt = c => Object.keys(c).map(k => c[k] + ' ' + ITEMS[k].n).join(', '), can = c => Object.keys(c).every(k => have(k) >= c[k]);
+let atBench = false;
+function openBag(bench) { if (mode !== 'play') return; atBench = !!bench; mode = 'menu'; joy.on = false; show('bag'); drawBag(); }
+function drawBag() { const l = $('bagList'); l.textContent = ''; const ks = Object.keys(sv.inv);
+  if (sv.bar) l.appendChild(row('Piede di porco', 'Silenzioso. Danno 3', '—')); if (sv.gun) l.appendChild(row('Doppietta', 'Danno 9. Attira i Muti da lontano', '—'));
+  if (!ks.length && !sv.bar) l.appendChild(row('Vuoto', 'Cerca in case, auto e casse', '0'));
+  for (const k of ks) l.appendChild(row(ITEMS[k].n, ITEMS[k].d, sv.inv[k], USE[k] ? 'Usa' : null, USE[k] ? () => { USE[k](); give(k, -1); sfx.pick(); drawBag(); hud(); } : null));
+  const c = $('craftList'); c.textContent = ''; c.appendChild(row('Benda', 'Costa 2 Stoffa', '+1', 'Fai', have('stoffa') >= 2 ? () => { give('stoffa', -2); give('benda', 1); sfx.pick(); drawBag(); } : null));
+  const b = $('benchList'); b.textContent = ''; $('benchSect').hidden = b.hidden = !atBench;
+  for (const [id, n, d, cost] of UPG) b.appendChild(row(n, d + '. Costa ' + costTxt(cost), sv.up[id] ? '✓' : '', sv.up[id] ? 'Fatto' : 'Costruisci', !sv.up[id] && can(cost) ? () => { for (const k in cost) give(k, -cost[k]); sv.up[id] = 1; sfx.story(); persist(); drawBag(); } : null)); }
+function openJournal() { if (mode !== 'play') return; mode = 'menu'; joy.on = false; show('journal'); $('jObj').textContent = OBJ[sv.q];
+  const f = sv.fl.irene || 0; $('jSide').textContent = f === 1 ? 'Irene, in farmacia, ha bisogno di antibiotici per Pico.' : f === 2 ? 'Hai aiutato Irene e Pico.' : f === 3 ? 'Hai tenuto gli antibiotici per te.' : 'Giorno ' + sv.day + ' nella pianura.';
+  const nl = $('noteList'); nl.textContent = ''; if (!sv.notes.length) nl.appendChild(row('Nessun documento', 'I fogli sparsi raccontano cosa è successo', '0'));
+  for (const n of sv.notes) nl.appendChild(row(NOTES[n][0], '', '✎', 'Leggi', () => readNote(n, true)));
+  const m = $('mapCv'), c = m.getContext('2d'), s = 4; c.fillStyle = '#050605'; c.fillRect(0, 0, 400, 288);
+  const col = ['#2f3b29', '#6a6a66', '#7a6630', '#28536a', '#c9c2ad', '#8a7458', '#1d2b20', '#7a2a20', '#555', '#77776f'];
+  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) if (seen[Math.floor(y / 4) * 25 + Math.floor(x / 4)]) { c.fillStyle = col[at(x, y)]; c.fillRect(x * s, y * s, s, s); }
+  c.font = '700 11px Oswald, sans-serif'; c.textAlign = 'center'; c.fillStyle = '#e8e3d2'; for (const i of sv.area) { if (i === 3) continue; const a = AREAS[i]; c.fillText(a.n.toUpperCase(), (a.x + a.w / 2) * s, (a.y - .6) * s); }
+  const tg = TARGET[sv.q]; if (tg) { c.strokeStyle = '#de8a32'; c.lineWidth = 2; c.beginPath(); c.arc(tg[0] * s, tg[1] * s, 7, 0, TAU); c.stroke(); }
+  c.fillStyle = '#c4352b'; c.beginPath(); c.arc(P.x / T * s, P.y / T * s, 4, 0, TAU); c.fill(); }
+let readBack = false;
+function readNote(n, fromJournal) { readBack = !!fromJournal; mode = 'menu'; joy.on = false; $('rTitle').textContent = NOTES[n][0]; $('rTxt').textContent = NOTES[n][1]; show('reader'); sfx.page(); }
+const back = () => { mode = 'play'; show(null); last = performance.now(); hud(); };
+$('rClose').onclick = () => { if (readBack) { mode = 'play'; openJournal(); } else back(); };
+for (const b of document.querySelectorAll('[data-close]')) b.onclick = back;
+$('bagBtn').onclick = () => openBag(false); $('jouBtn').onclick = openJournal; $('atkBtn').onclick = attack; $('gunBtn').onclick = shoot; $('useBtn').onclick = interact;
+$('wakeBtn').onclick = wake; $('endBtn').onclick = back;
+$('quitBtn').onclick = () => { persist(); mode = 'title'; show('title'); titleUI(); };
+function titleUI() { const s = load(); $('contBtn').hidden = !s; $('newWarn').hidden = !s; }
+function begin(state) { sv = state; buildMap(); if (sv.fl.gate) fill(61, 48, 2, 1, PAVE); P.x = sv.x; P.y = sv.y; P.a = 0; seen.fill(0); for (let i = 0; i < sv.seen.length; i++) seen[i] = +sv.seen[i];
+  objs = makeObjects().filter(o => !(o.k === 'gate' && sv.fl.gate)); for (const o of objs) if (sv.looted.includes(o.id)) o.done = true; fx = []; populate(); mode = 'play'; show(null); hud(); last = performance.now(); }
+let cI = 0;
+$('newBtn').onclick = () => { cI = 0; $('crawlTxt').textContent = PROLOGUE[0]; mode = 'menu'; show('crawl'); $('hud').hidden = true; tone(1, .01); sfx.story(); };
+$('crawlBtn').onclick = () => { cI++; if (cI < PROLOGUE.length) { $('crawlTxt').textContent = PROLOGUE[cI]; sfx.page(); } else { begin(fresh()); persist(); } };
+$('contBtn').onclick = () => { begin(load()); tone(1, .01); };
+document.addEventListener('visibilitychange', () => { if (document.hidden) persist(); });
+
+let last = performance.now(), hudT = 0;
+function frame(now) { const dt = Math.min(.04, (now - last) / 1000); last = now;
+  if (sv) { if (mode === 'play') { update(dt); hudT += dt; if (hudT > .25) { hudT = 0; hud(); } } draw(now); }
+  requestAnimationFrame(frame); }
+buildMap(); titleUI(); show('title'); requestAnimationFrame(frame);
+window.__tm = { get s() { return { mode, sv, P, zs, near }; }, keys, tp(x, y) { P.x = x * T; P.y = y * T; }, interact, attack, shoot, dlgNext, kill(t) { for (const z of zs) if (!t || z.type === t) hitZ(z, 999, 0, 0); } };
+})();
+</script>
+
+</body>
+</html>
