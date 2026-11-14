@@ -1,38 +1,53 @@
 # Terra Muta
 
-Survival narrativo in 2D visto dall'alto, per Android e iOS. Pianura Padana, ottobre: un fungo nell'acqua dei canali
-ha tolto la voce alla gente. I **Muti** non vedono quasi nulla ma sentono tutto.
-
-## Capitolo 1, «Il silenzio»
-
-Elia Ferri, autista d'ambulanza, si risveglia nella cascina del vecchio Tullio e cerca la sorella Marta, ricercatrice
-al Consorzio Agrario. La storia passa dal distributore, dalla radio sul canale 7, dalla chiesa di Don Aldo e dal
-cortile del Consorzio, e si chiude con una rivelazione che apre il capitolo 2 («La chiusa»).
+Survival open world in 2D visto dall'alto, per Android, iOS e PC. Pianura Padana, ottobre: un fungo nell'acqua dei
+canali ha tolto la voce alla gente. I **Muti** vedono poco ma sentono tutto.
 
 ## Cosa c'è nel gioco
 
-- **Mappa esplorabile** (cascina, provinciale, distributore, borgo, chiesa, farmacia, Consorzio, argine del Po) che si
-  svela sul diario man mano che si cammina.
-- **Rumore e vista**: il piede di porco è silenzioso, la doppietta richiama i Muti da lontano, il grano alto nasconde.
-- **Sopravvivenza**: salute, fame, sete, giorno e notte (di notte i Muti corrono e ne arrivano altri).
-- **Cascina**: letto per dormire e salvare, banco da lavoro con due migliorie.
-- **Scelte**: gli antibiotici si possono dare a Irene per il bambino o tenere.
-- **Documenti** sparsi che raccontano cosa è successo.
+- **Mondo aperto** di 256×256 caselle: pianura, boschi, campi di grano, colline di roccia, il Po. Minimappa in basso a
+  sinistra e mappa grande nel menu, che si svelano esplorando.
+- **Raccolta e costruzione libera**: si abbattono alberi e rocce, si fabbricano pezzi (muri, porte, pavimenti, casse,
+  letti, trappole, torce, balestre a scatto) e si piazzano dove si vuole.
+- **Zaino a caselle**: barra rapida di 8 caselle sempre visibile più 24 nello zaino, pile da 64. Armi e attrezzi non
+  occupano caselle. Altre caselle con lo Zaino di pelle, la mercante e le missioni.
+- **Fabbricazione a stazioni**: a mani nude, Banco da lavoro, Forgia, Focolare (cucina). Alcune ricette si sbloccano
+  solo con le missioni.
+- **Tempo**: un giorno dura 15 minuti, metà luce e metà buio. **Ogni terza notte un'orda** attacca il Focolare, cuore
+  della base; se cade si perde il 30% delle monete e va ricostruito.
+- **Nemici**: Muti, Corridori, Gonfi, Larve. Boss: Gigante, Sirena, Spighe Madri (piante che sputano larve), Mietitore.
+- **Animali**: lepri e cinghiali da cacciare (la carne va cotta), galline da addomesticare col grano (uova), cani da
+  addomesticare con carne cotta (seguono e combattono).
+- **Livelli e traguardi**: ogni livello e ogni traguardo danno un punto attributo e monete.
+- **Rocca di San Lazzaro**: mercante, pozzo, tre sopravvissuti reclutabili (guardia, raccoglitrice, infermiera).
+- **Basi abbandonate** da ripulire e saccheggiare.
+- **Campagna** in 10 missioni principali e 6 secondarie, con documenti da trovare.
+
+## Comandi
+
+| Azione | Tocco | Tastiera e mouse | Controller |
+| --- | --- | --- | --- |
+| Muoversi | Trascina il dito | W A S D | Levetta sinistra |
+| Mirare | Direzione di marcia | Mouse | Levetta destra |
+| Colpire, raccogliere, piazzare | Tasto rosso | Clic sinistro, Spazio | A |
+| Tirare con l'arma | Tasto arma | F | RT |
+| Usare, parlare, aprire | Tasto bianco | E | X |
+| Mangiare o bere | Tocca due volte la casella | Q | Y |
+| Smontare un pezzo | Smonta | Clic destro, R | LT |
+| Scegliere la casella | Tocca la barra | 1–8, rotella | LB e RB |
+| Menu | Menu | Tab, I, C, K, J, M | Start, B |
 
 ## File
 
 | File | A cosa serve |
 | --- | --- |
-| `src/game.html` | Tutto il gioco: mappa, storia, dialoghi, logica |
+| `src/game.html` | Tutto il gioco |
 | `build.js` | Crea `www/index.html`, la pagina impacchettata nell'app |
 | `capacitor.config.json` | Nome e identificativo dell'app (`com.terramuta.game`) |
 
-Per provarlo nel browser: `npm run build` e apri `www/index.html`. L'APK Android di prova si compila da solo su GitHub
-(scheda Actions, "Terra Muta - APK Android di prova").
+Nel browser: `npm run build` e apri `www/index.html`. L'APK Android di prova si compila da solo su GitHub (Actions,
+"Terra Muta - APK Android di prova").
 
-## Prossimi passi
+## Non ancora presenti
 
-1. Capitolo 2 e nuove zone oltre il Po.
-2. Acquisti in app (non ancora presenti in questo gioco).
-3. Server e alleanze: richiedono un backend con account, da progettare a parte.
-4. Grafica e audio definitivi, traduzione inglese.
+Acquisti in app, server e alleanze, capitolo 2, traduzione inglese, grafica e audio definitivi.
