@@ -18,6 +18,18 @@ Elia si sveglia nella piazza di Pomponesco. I sopravvissuti sono dentro le mura 
 radio sono a Viadana; la chiave del Consorzio è nella chiesa di Dosolo; il Consorzio Agrario è a Guastalla, oltre il
 Po, con i ponti saltati. Cinque documenti sparsi nei paesi e otto missioni secondarie.
 
+## Sparatutto, bottino e mezzi
+
+- **Grafica**: texture disegnate a codice su ogni blocco, ombre negli angoli, armi visibili in mano con rinculo,
+  fiammata, mirino e mira (col cannocchiale sul fucile di precisione). Non è la grafica di uno sparatutto
+  commerciale: resta un mondo a blocchi.
+- **Armi da fuoco**: pistola, mitraglietta, fucile d'assalto, fucile a pompa, fucile di precisione, arco. Quattro
+  rarità (Comune, Raro, Epico, Leggendario), caricatore, ricarica, colpi alla testa doppi. Se ne portano due.
+- **Bottino nei paesi**: armi, munizioni, piastre, kit medici, cibo e benzina a terra nelle case. Ogni paese si
+  rifornisce ogni due giorni. Gli oggetti si raccolgono passandoci sopra; le armi col tasto Usa.
+- **Corazza**: le piastre balistiche assorbono il 60% dei colpi.
+- **Mezzi**: auto parcheggiate nei paesi (benzina, più veloci su strada, investono i Muti) e barche sulle rive del Po.
+
 ## Cosa si può fare
 
 - **Tutto il mondo è fatto di blocchi che si rompono e si rimettono**: si scava fino alla roccia madre, si impila in
