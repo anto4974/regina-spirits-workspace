@@ -25,5 +25,5 @@ fs.writeFileSync(path.join(__dirname, 'www', 'index.html'), html);
 fs.copyFileSync(path.join(__dirname, 'node_modules', 'three', 'build', 'three.min.js'), path.join(__dirname, 'www', 'three.min.js'));
 for (const [f, d] of [['loaders/GLTFLoader.js', 'GLTFLoader.js'], ['utils/SkeletonUtils.js', 'SkeletonUtils.js']]) fs.copyFileSync(path.join(__dirname, 'node_modules', 'three', 'examples', 'js', f), path.join(__dirname, 'www', d));
 fs.mkdirSync(path.join(__dirname, 'www', 'assets'), { recursive: true });
-for (const f of fs.readdirSync(path.join(__dirname, 'assets'))) if (f.endsWith('.gltf')) fs.copyFileSync(path.join(__dirname, 'assets', f), path.join(__dirname, 'www', 'assets', f));
+for (const f of fs.readdirSync(path.join(__dirname, 'assets'))) if (f.endsWith('.gltf')) fs.copyFileSync(path.join(__dirname, 'assets', f), path.join(__dirname, 'www', 'assets', f.replace('.gltf', '.json'))); // il glTF è JSON: servito con questa estensione
 console.log('montato: src/game.html (' + Math.round(page.length / 1024) + ' KB) e www/');
