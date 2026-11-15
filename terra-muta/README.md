@@ -1,80 +1,44 @@
 # Terra Muta
 
-Survival a blocchi in 3D per Android, iOS e PC. Un mondo dopo il silenzio: i **Muti** non parlano, ma ogni terza notte
-arrivano in massa.
+Survival sparatutto in 3D per Android, iOS e PC, ambientato nella bassa reale intorno a Pomponesco. Un fungo
+nell'acqua dei canali ha tolto la voce alla gente: i **Muti** sentono tutto, e ogni terza notte arrivano in massa.
 
-## La mappa
+## Cosa c'è
 
-Il mondo è la **bassa reale intorno a Pomponesco**: circa 30 km di lato (da 10,38°E a 10,77°E e da 44,855°N a
-45,13°N), 512×512 blocchi, con il corso del Po, gli argini, i pioppeti della golena e 17 paesi nelle loro posizioni:
-Pomponesco, Viadana, Dosolo, Guastalla, Boretto, Brescello, Gualtieri, Luzzara, Sabbioneta (con le mura),
-Casalmaggiore, Suzzara, Commessaggio, Gazzuolo, Bozzolo, Rivarolo Mantovano, Marcaria, Mezzani. Posizioni e fiume sono
-approssimati a mano; case e strade interne sono generate, non rilevate. Le altre zone (Mantova per prima) si
-aggiungono come mappe successive.
+- **Mondo realistico, non a blocchi**: terreno liscio con il Po e gli argini, 17 paesi veri della zona con case in
+  cui si entra, tetti a falde, piazze e chiese; alberi, massi, ombre del sole, torcia di notte.
+- **Modelli 3D già fatti e animati** per persone, Muti e cane (Zombie Apocalypse Kit di Quaternius, licenza CC0).
+  Lo stile è da cartone animato, non fotorealistico. Auto, barche, case e armi sono ancora forme costruite a codice.
+- **Antonio o Lisa**: si sceglie il protagonista; l'altro è il compagno che segue, spara e vive la storia.
+- **Campagna** in 12 missioni tra Pomponesco, Viadana, Sabbioneta, Boretto, Dosolo e Guastalla, più 8 secondarie e
+  5 documenti da trovare. Sopravvissuti da reclutare.
+- **Sparatutto**: sei armi con quattro rarità, caricatore, ricarica, mira, colpi alla testa. Bottino a terra nelle
+  case, che torna ogni due giorni. Piastre di corazza, kit medici.
+- **Base**: muri, barricate, cancelli, letti, casse, trappole, lampioni, balestre a scatto, piazzati dove si vuole.
+  Legno dagli alberi, pietra e ferro dai massi.
+- **Mezzi**: auto con benzina e barche sul Po.
+- **Sopravvivenza**: fame, sete, giorno di 15 minuti, orda ogni terza notte contro il Focolare.
+- **5 difficoltà** (con Hardcore a vita singola), livelli, attributi, traguardi, mercante.
+- **Comandi** per tocco, tastiera e mouse, controller, tutti personalizzabili. Qualità grafica regolabile.
 
-## La storia (capitolo 1)
+## Com'è organizzato il codice
 
-Elia si sveglia nella piazza di Pomponesco. I sopravvissuti sono dentro le mura di Sabbioneta; le batterie per la
-radio sono a Viadana; la chiave del Consorzio è nella chiesa di Dosolo; il Consorzio Agrario è a Guastalla, oltre il
-Po, con i ponti saltati. Cinque documenti sparsi nei paesi e otto missioni secondarie.
-
-## Sparatutto, bottino e mezzi
-
-- **Grafica**: texture disegnate a codice su ogni blocco, ombre negli angoli, armi visibili in mano con rinculo,
-  fiammata, mirino e mira (col cannocchiale sul fucile di precisione). Non è la grafica di uno sparatutto
-  commerciale: resta un mondo a blocchi.
-- **Armi da fuoco**: pistola, mitraglietta, fucile d'assalto, fucile a pompa, fucile di precisione, arco. Quattro
-  rarità (Comune, Raro, Epico, Leggendario), caricatore, ricarica, colpi alla testa doppi. Se ne portano due.
-- **Bottino nei paesi**: armi, munizioni, piastre, kit medici, cibo e benzina a terra nelle case. Ogni paese si
-  rifornisce ogni due giorni. Gli oggetti si raccolgono passandoci sopra; le armi col tasto Usa.
-- **Corazza**: le piastre balistiche assorbono il 60% dei colpi.
-- **Mezzi**: auto parcheggiate nei paesi (benzina, più veloci su strada, investono i Muti) e barche sulle rive del Po.
-
-## Cosa si può fare
-
-- **Tutto il mondo è fatto di blocchi che si rompono e si rimettono**: si scava fino alla roccia madre, si impila in
-  altezza, si costruisce dove si vuole. Anche le case dei paesi si smontano mattone per mattone.
-- **Prima o terza persona**, cambiabile in ogni momento.
-- **Zaino a caselle**: barra rapida di 8 caselle più 24 nello zaino, pile da 64. Armi e attrezzi non occupano caselle.
-- **Fabbricazione a stazioni**: mani nude, Banco da lavoro, Forgia, Focolare (cucina). Ferro e carbone si trovano
-  scavando sotto la pietra.
-- **Tempo**: un giorno dura 15 minuti, metà luce e metà buio. **Ogni terza notte un'orda** attacca il Focolare, cuore
-  della base. I Muti rompono solo ciò che è stato costruito dal giocatore.
-- **5 difficoltà**: Semplice, Normale, Difficile, Impossibile e **Hardcore** (una vita sola: alla morte il salvataggio
-  viene cancellato).
-- **Nemici**: Muti, Corridori, Gonfi, Larve; boss Gigante e Spiga Madre (pianta che sputa larve).
-- **Animali**: lepri e cinghiali da cacciare (la carne va cotta), galline e cani da addomesticare.
-- **Livelli, attributi, traguardi e monete**; mercante e sopravvissuti da reclutare alla Rocca; basi abbandonate con
-  casse da aprire.
-- **Tasti personalizzabili** per tastiera e controller, sensibilità dello sguardo e inversione dell'asse.
-- **Zaino** con trascinamento, doppio tocco per spostare, riordino e l'elenco di ciò che si può fabbricare subito.
-
-## Comandi
-
-| Azione | Tocco | Tastiera e mouse | Controller |
-| --- | --- | --- | --- |
-| Muoversi | Trascina a sinistra | W A S D | Levetta sinistra |
-| Guardarsi intorno | Trascina a destra | Mouse | Levetta destra |
-| Saltare, nuotare | Salta | Spazio | A |
-| Rompere e colpire (tenere premuto) | Rompi | Clic sinistro | RT |
-| Piazzare, usare, parlare, mangiare | Tasto bianco | Clic destro, E | LT, X |
-| Tirare con l'arma | Tira | F | Y |
-| Scegliere la casella | Tocca la barra | 1–8, rotella | LB e RB |
-| Prima o terza persona | Vista | V | Premi la levetta destra |
-| Menu | Menu | Tab, I, C, K, J, M | Start |
-
-## File
-
-| File | A cosa serve |
+| Percorso | A cosa serve |
 | --- | --- |
-| `src/game.html` | Tutto il gioco 3D |
-| `src/game-2d.html` | La versione 2D precedente, tenuta da parte |
-| `build.js` | Crea `www/` con la pagina e la libreria 3D dentro l'app |
-| `capacitor.config.json` | Nome e identificativo dell'app (`com.terramuta.game`) |
+| `src/shell.html` | Stile e struttura della pagina |
+| `src/js/10-world.js` | Terreno, fiume, strade, paesi, ostacoli |
+| `src/js/20-data.js` | Oggetti, armi, ricette, storia, salvataggio |
+| `src/js/40-input.js`, `45-audio.js` | Comandi e suoni |
+| `src/js/50-game.js` | Fisica, combattimento, compagno, mezzi, orde |
+| `src/js/60-render.js` | Grafica 3D e modelli |
+| `src/js/80-ui.js`, `90-main.js` | Menu, zaino, avvio |
+| `assets/` | Modelli 3D (vedi `assets/LICENZA.md`) |
+| `build.js` | Monta tutto in `src/game.html` e in `www/` per l'app |
+| `src/game-voxel.html`, `src/game-2d.html` | Le versioni precedenti, tenute da parte |
 
-Nel browser: `npm install`, `npm run build` e apri `www/index.html`. L'APK Android di prova si compila da solo su
-GitHub (Actions, "Terra Muta - APK Android di prova").
+Per provarlo: `npm install`, `npm run build`, poi servire la cartella `www` con un server locale
+(i modelli non si caricano aprendo il file direttamente).
 
 ## Non ancora presenti
 
-Altre mappe oltre la bassa, capitolo 2, acquisti in app, server e alleanze, inglese, grafica e audio definitivi.
+Modelli veri per auto, case e armi; suoni registrati; capitolo 2 (Mantova); acquisti in app; server e alleanze.

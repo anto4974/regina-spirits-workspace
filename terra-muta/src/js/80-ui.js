@@ -133,4 +133,4 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) persi
 let last = performance.now(), hudT = 0;
 function frame(now) { const dt = Math.min(.12, (now - last) / 1000); last = now; padPoll();
   if (sv && R3) { if (mode === 'play') { for (let rem = dt; rem > 0 && mode === 'play'; rem -= .034) update(Math.min(.034, rem)); hudT += dt; if (hudT > .2 || invDirty) { hudT = 0; hud(); } } if (sv) draw3(now); } requestAnimationFrame(frame); }
-init3d(); titleUI(); show('title'); requestAnimationFrame(frame);
+init3d(); loadModels(); titleUI(); show('title'); requestAnimationFrame(frame);

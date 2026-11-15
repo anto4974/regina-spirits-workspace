@@ -49,7 +49,7 @@ function wakeSpots() { for (const t of TOWNS) { const id = 't' + t.i, d = Math.h
 function noise(R) { for (const z of zs) if (z.st === 'idle' && z.type !== 'pianta' && Math.hypot(z.x - P.x, z.z - P.z) < R) z.st = 'chase'; }
 function dust(x, y, z, c, n) { for (let i = 0; i < (n || 5); i++) fx.push({ k:'p', x, y, z, vx:rnd(-2, 2), vy:rnd(1, 4), vz:rnd(-2, 2), t:.5, c }); }
 function hitZ(z, dmg, ax, az, byPal) { if (z.dead) return; z.hp -= dmg; z.fl = .12; if (z.type !== 'pianta') { z.kx += ax * 5 / ZT[z.type].s; z.kz += az * 5 / ZT[z.type].s; } if (z.st === 'idle') z.st = 'chase'; dust(z.x, z.y + z.h * .6, z.z, z.type === 'pianta' || z.type === 'larva' ? '#6a8a2a' : '#6a1512');
-  if (z.hp > 0) return; z.dead = true; const d = ZT[z.type]; xp(d.xp); adv('kills'); if (!byPal && Math.random() < .12) bark('kill');
+  if (z.hp > 0) return; z.dead = true; const d = ZT[z.type]; xp(d.xp); adv('kills'); if (z.type !== 'pianta') fx.push({ k:'corpse', e:z, t:5 }); if (!byPal && Math.random() < .12) bark('kill');
   if (z.type === 'aldo') { sv.fl.aldo = 1; add('chiave', 1); say(S.key()); } else if (z.type === 'boss') { sv.fl.boss = 1; adv('boss'); gain({ ferro:8, monete:80 }); banner('Il Mietitore è a terra'); buzz(200); }
   else if (d.boss) { adv('boss'); sv.fl['k_' + z.type] = 1; gain({ monete:z.type === 'pianta' ? 40 : 90, ferro:4 }); banner(z.type === 'gigante' ? 'Gigante abbattuto' : 'Spiga Madre estirpata'); }
   else if (Math.random() < .24) gain(Math.random() < .3 ? { fibra:1 } : Math.random() < .5 ? { monete:ri(1, 4) } : { leggere:ri(3, 7) }); }
