@@ -120,7 +120,7 @@ function begin(state) { sv = state; HN = sv.hero === 'antonio' ? 'Antonio' : 'Li
   pieces = []; for (const b of sv.built) addPiece(b.k, b.x, b.z, b.r, b.id); piecesDirty = true;
   if (sv.fresh) { sv.fresh = 0; P.x = START[0]; P.z = START[1]; P.a = -Math.PI / 2; } else { P.x = sv.x; P.z = sv.z; } P.y = hAt(P.x, P.z); P.vy = 0; P.fallY = P.y; P.p = -.05; seen.fill(0); for (let i = 0; i < sv.seen.length; i++) seen[i] = +sv.seen[i];
   zs = []; an = []; fx = []; raid = null; spotsOn = {}; turCd = {}; work.o = null; for (const p of sv.pets) addA(p.type, p.x, p.z, { tame:1, hx:p.x, hz:p.z, egg:p.egg || 0, hp:p.hp || AT[p.type].hp }); makeNpcs(); if (!sv.veh) sv.veh = genVehicles(); veh = sv.veh; for (const v of veh) v.y = undefined; drops = sv.drops; for (const o of drops) o.y = undefined; P.veh = null; aim = false; sv.eq = Math.min(sv.eq, sv.guns.length);
-  const ch = TW('Pomponesco').church; if (sv.pal) { newPal(sv.pal.x, sv.pal.z); pal.hp = sv.pal.hp; pal.wait = sv.pal.wait; } else newPal(ch[0], ch[2] + 2); invDirty = true; mode = 'play'; show(null); hud(); last = performance.now(); }
+  const ch = TW('Pomponesco').church; if (sv.pal) { newPal(sv.pal.x, sv.pal.z); pal.hp = sv.pal.hp; pal.wait = sv.pal.wait; } else newPal(ch[0], ch[2] + 2); tp = true; invDirty = true; mode = 'play'; show(null); hud(); last = performance.now(); }
 let cI = 0, pendDiff = 'normale', pendHero = 'antonio';
 $('newBtn').onclick = () => { mode = 'menu'; show('diff'); $('hud').hidden = true; tone(1, .01); };
 $('diffBack').onclick = () => { mode = 'title'; show('title'); };

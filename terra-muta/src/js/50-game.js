@@ -181,11 +181,26 @@ function update(dt) {
   const cx = Math.floor(P.x / 8), cz = Math.floor(P.z / 8); for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) { const x = cx + i, y = cz + j; if (x >= 0 && y >= 0 && x < SG && y < SG) seen[y * SG + x] = 1; }
   const ptx = Math.floor(P.x / TILE), ptz = Math.floor(P.z / TILE); for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) if (ptx + i >= 0 && ptz + j >= 0 && ptx + i < WX / TILE && ptz + j < WZ / TILE) loadTile(ptx + i, ptz + j); for (const key of [...tilesOn.keys()]) if (Math.abs(Math.floor(key / 64) - ptx) > 1 || Math.abs(key % 64 - ptz) > 1) unloadTile(key);
   wakeSpots(); raidTick(dt); for (const t of TOWNS) if (!sv.area.includes(t.i) && Math.hypot(t.x - P.x, t.z - P.z) < t.r + 4) { sv.area.push(t.i); banner(t.n); xp(10); if (t.n !== 'Sabbioneta' && t.n !== 'Pomponesco') bark('loot'); }
-  // il compagno: segue, spara, si rialza
-  if (pal) { pal.cd -= dt; if (pal.down > 0) { pal.down -= dt; if (pal.down <= 0) pal.hp = 50; } else if (P.veh && sv.fl.pal) { pal.x = P.x; pal.z = P.z; pal.y = P.y; } else if (sv.fl.pal) { const dx = P.x - pal.x, dz = P.z - pal.z, d = Math.hypot(dx, dz) || 1;
-      if (!pal.wait) { if (d > 46 || pal.stuck > 4) { pal.x = P.x - Math.cos(P.a) * 1.6; pal.z = P.z - Math.sin(P.a) * 1.6; pal.stuck = 0; moveXZ(pal, 0, 0, false); } else if (d > 2.6) { const s = d > 9 ? 6.2 : 4.4, ox = pal.x, oz = pal.z; moveXZ(pal, dx / d * s * dt, dz / d * s * dt, false); pal.walk += dt * 9; pal.a = Math.atan2(dz, dx); if (Math.hypot(pal.x - ox, pal.z - oz) < s * dt * .3) { pal.stuck += dt; moveXZ(pal, -dz / d * s * dt, dx / d * s * dt, false); } else pal.stuck = Math.max(0, pal.stuck - dt * 2); } }
-      stepY(pal, dt); let best = null, bd = 17; for (const z of zs) { const q = Math.hypot(z.x - pal.x, z.z - pal.z); if (q < bd && !z.dead && z.type !== 'pianta' && (z.st !== 'idle' || q < 9)) { bd = q; best = z; } }
-      if (best && pal.cd <= 0 && los(pal, best)) { pal.cd = .6; pal.a = Math.atan2(best.z - pal.z, best.x - pal.x); hitZ(best, 3, (best.x - pal.x) / bd, (best.z - pal.z) / bd, true); fx.push({ k:'tr', x:pal.x, y:pal.y + 1.4, z:pal.z, x2:best.x, y2:best.y + best.h * .7, z2:best.z, t:.06 }); tone(520, .06, 'sawtooth', .03, 0, 80); } } }
+  // il compagno: ti resta vicino ma decide da sé dove andare. Esplora davanti a te, raccoglie, tiene le distanze dai Muti, si guarda intorno
+  if (pal) { pal.cd -= dt; pal.gt = (pal.gt || 0) - dt; if (pal.down > 0) { pal.down -= dt; if (pal.down <= 0) pal.hp = 50; } else if (P.veh && sv.fl.pal) { pal.x = P.x; pal.z = P.z; pal.y = P.y; pal.goal = null; }
+    else if (sv.fl.pal) { const dx = P.x - pal.x, dz = P.z - pal.z, d = Math.hypot(dx, dz) || 1; let foe = null, fd = 16; for (const z of zs) { const q = Math.hypot(z.x - pal.x, z.z - pal.z); if (q < fd && !z.dead && z.type !== 'pianta' && (z.st !== 'idle' || q < 9)) { fd = q; foe = z; } }
+      if (!pal.wait && (pal.gt <= 0 || (pal.goal && Math.hypot(pal.goal[0] - pal.x, pal.goal[1] - pal.z) < .7))) { const mv = Math.hypot(P.mvx || 0, P.mvz || 0) > .1, side = pal.side = pal.side || (Math.random() < .5 ? 1 : -1); pal.run = false; let g = null;
+        if (d > 13) { g = [P.x - Math.sin(P.a) * side * 2, P.z + Math.cos(P.a) * side * 2]; pal.run = true; pal.gt = 1.2; pal.what = 'raggiunge'; }
+        else if (foe) { const ax = (pal.x - foe.x) / fd, az = (pal.z - foe.z) / fd, want = fd < 5 ? 4.5 : fd > 10 ? -3 : 0, s = Math.random() < .5 ? 1 : -1; g = [pal.x + ax * want - az * s * 3, pal.z + az * want + ax * s * 3]; pal.run = fd < 6; pal.gt = rnd(.7, 1.5); pal.what = 'combatte'; }
+        else { let lt = null; if (Math.random() < .6) for (const o of drops) if (!o.gun && Math.hypot(o.x - pal.x, o.z - pal.z) < 13 && Math.hypot(o.x - P.x, o.z - P.z) < 18) { lt = o; break; }
+          if (lt) { g = [lt.x, lt.z]; pal.loot = lt; pal.gt = 6; pal.what = 'raccoglie'; }
+          else if (mv) { const ca = Math.cos(P.a), sa = Math.sin(P.a), f = rnd(3, 8), l = side * rnd(1.5, 4.5); g = [P.x + ca * f - sa * l, P.z + sa * f + ca * l]; pal.run = d > 7; pal.gt = rnd(1, 2.2); pal.what = 'esplora'; if (Math.random() < .2) pal.side = -side; }
+          else if (Math.random() < .4) { pal.gt = rnd(1.5, 4); pal.what = 'guarda'; pal.la = rnd(0, TAU); }
+          else { const a = rnd(0, TAU), r = rnd(2, 6.5); g = [P.x + Math.cos(a) * r, P.z + Math.sin(a) * r]; pal.gt = rnd(2, 4.5); pal.what = 'gironzola'; } }
+        pal.goal = g && dry(g[0], g[1]) ? g : null; }
+      if (pal.wait) pal.goal = null; let want = pal.a;
+      if (d > 46 || pal.stuck > 1.6) { pal.x = P.x - Math.cos(P.a) * 1.8; pal.z = P.z - Math.sin(P.a) * 1.8; pal.stuck = 0; pal.goal = null; moveXZ(pal, 0, 0, false); }
+      else if (pal.goal) { const gx = pal.goal[0] - pal.x, gz = pal.goal[1] - pal.z, gd = Math.hypot(gx, gz) || 1, s = pal.run ? 6.2 : 3, ox = pal.x, oz = pal.z; moveXZ(pal, gx / gd * s * dt, gz / gd * s * dt, false); want = Math.atan2(gz, gx);
+        if (Math.hypot(pal.x - ox, pal.z - oz) < s * dt * .3) { pal.stuck += dt; if (pal.stuck > .7) { pal.goal = null; pal.gt = 0; } } else pal.stuck = Math.max(0, pal.stuck - dt * 2); }
+      else if (pal.what === 'guarda') want = pal.la;
+      if (foe) want = Math.atan2(foe.z - pal.z, foe.x - pal.x); const da = Math.atan2(Math.sin(want - pal.a), Math.cos(want - pal.a)); pal.a += da * Math.min(1, 8 * dt); stepY(pal, dt);
+      if (pal.loot) { const o = pal.loot, i = drops.indexOf(o); if (i < 0) pal.loot = null; else if (Math.hypot(o.x - pal.x, o.z - pal.z) < 1.1) { drops.splice(i, 1); pal.loot = null; if (o.k === 'monete') sv.coins += o.n; else add(o.k, o.n); toast(PN + ' ha trovato ' + o.n + ' ' + (o.k === 'monete' ? 'monete' : IT[o.k].n)); sfx.pick(); } }
+      if (foe && pal.cd <= 0 && los(pal, foe)) { pal.cd = .6; hitZ(foe, 3, (foe.x - pal.x) / fd, (foe.z - pal.z) / fd, true); fx.push({ k:'tr', x:pal.x, y:pal.y + 1.4, z:pal.z, x2:foe.x, y2:foe.y + foe.h * .7, z2:foe.z, t:.06 }); tone(520, .06, 'sawtooth', .03, 0, 80); } } }
   // i Muti
   const night = isNight(), sight = night ? 14 : 20, c0 = core();
   for (const z of zs) { if (z.dead) continue; const dx = P.x - z.x, dz = P.z - z.z, d = Math.hypot(dx, dz) || 1; if (d > 110 && !z.sid && !z.raid) { z.dead = true; continue; } if (d > 75 && !z.raid) continue; const def = ZT[z.type]; z.cd -= dt; z.fl -= dt; z.sk -= dt;
