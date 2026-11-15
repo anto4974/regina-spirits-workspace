@@ -1,11 +1,11 @@
-// Genera www/index.html (la pagina che Capacitor impacchetta nell'app) a partire da src/game.html.
-// La libreria 3D viene copiata dentro l'app, così il gioco funziona anche senza rete.
-const fs = require('fs');
-const path = require('path');
+// Monta il gioco: guscio HTML + i pezzi di codice in ordine -> src/game.html (pagina unica) e www/ (per l'app).
+const fs = require('fs'), path = require('path');
 const CDN = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
-let src = fs.readFileSync(path.join(__dirname, 'src', 'game.html'), 'utf8');
-if (!src.includes(CDN)) throw new Error('riferimento alla libreria 3D non trovato');
-src = src.replace(CDN, 'three.min.js');
+const dir = path.join(__dirname, 'src', 'js');
+const js = fs.readdirSync(dir).filter(f => f.endsWith('.js')).sort().map(f => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n');
+const shell = fs.readFileSync(path.join(__dirname, 'src', 'shell.html'), 'utf8');
+const page = shell + '<script src="' + CDN + '"></script>\n<script>\n(() => {\n\'use strict\';\n' + js + '\n})();\n</script>\n';
+fs.writeFileSync(path.join(__dirname, 'src', 'game.html'), page);
 const html = `<!doctype html>
 <html lang="it">
 <head>
@@ -15,11 +15,11 @@ const html = `<!doctype html>
 <style>[hidden]{display:none!important}</style>
 </head>
 <body>
-${src}
+${page.replace(CDN, 'three.min.js')}
 </body>
 </html>
 `;
 fs.mkdirSync(path.join(__dirname, 'www'), { recursive: true });
 fs.writeFileSync(path.join(__dirname, 'www', 'index.html'), html);
 fs.copyFileSync(path.join(__dirname, 'node_modules', 'three', 'build', 'three.min.js'), path.join(__dirname, 'www', 'three.min.js'));
-console.log('www/index.html generato');
+console.log('montato: src/game.html (' + Math.round(page.length / 1024) + ' KB) e www/');

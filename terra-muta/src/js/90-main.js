@@ -1,0 +1,3 @@
+// aggancio per le prove automatiche
+window.__tm = { get s() { return { mode, sv, P, zs, an, npcs, raid, pal, pieces, ok3d:!!R3 }; }, keys, hold, tp(x, z) { P.x = x; P.z = z; P.y = hAt(x, z); P.vy = 0; P.fallY = P.y; }, look(a, p) { P.a = a; P.p = p; }, doHit, useAct, dlgNext, add, hAt, gt, craft(o) { return craft(REC.find(x => x.o === o || x.tool === o)); }, sel:selSlot, openMenu, START, ROCCA, TOWNS, CONS, opt, giveGun, swapGun, reload,
+  get veh() { return veh; }, get drops() { return drops; }, get props() { return props; }, get nat() { return nat; }, setAim(v) { aim = v; }, addZ, addT(s) { sv.t += s; }, kill(t) { for (const z of zs.slice()) if (!t || z.type === t) hitZ(z, 999, 0, 0); }, toggleView, context, placeNow };
