@@ -54,7 +54,8 @@ function hitZ(z, dmg, ax, az, byPal) { if (z.dead) return; z.hp -= dmg; z.fl = .
   else if (d.boss) { adv('boss'); sv.fl['k_' + z.type] = 1; gain({ monete:z.type === 'pianta' ? 40 : 90, ferro:4 }); banner(z.type === 'gigante' ? 'Gigante abbattuto' : 'Spiga Madre estirpata'); }
   else if (Math.random() < .24) gain(Math.random() < .3 ? { fibra:1 } : Math.random() < .5 ? { monete:ri(1, 4) } : { leggere:ri(3, 7) }); }
 function hitA(a, dmg, ax, az) { if (a.dead) return; a.hp -= dmg; a.fl = .12; a.kx += ax * 5; a.kz += az * 5; a.mad = 6; dust(a.x, a.y + .4, a.z, '#7a1a16'); if (a.hp > 0) return; a.dead = true; gain(AT[a.type].drop); xp(3); adv('hunt'); }
-function hurtP(d) { d *= sv.tools.giubbotto ? .75 : 1; if (P.veh) d *= .5; if (sv.arm > 0) { const a = Math.min(sv.arm, d * .6); sv.arm -= a; d -= a; } sv.hp -= d; P.hurt = .3; sfx.hurt(); buzz(50); }
+function dodge() { if (mode !== 'play' || P.veh || P.dcd > 0 || !P.ground) return; const m = Math.hypot(P.vx, P.vz); P.ddx = m > .5 ? P.vx / m : -Math.cos(P.a); P.ddz = m > .5 ? P.vz / m : -Math.sin(P.a); P.dash = .3; P.dcd = 1.1; P.inv = .42; tone(260, .12, 'triangle', .04, 0, 520); }
+function hurtP(d) { if (P.inv > 0) return; d *= sv.tools.giubbotto ? .75 : 1; if (P.veh) d *= .5; if (sv.arm > 0) { const a = Math.min(sv.arm, d * .6); sv.arm -= a; d -= a; } sv.hp -= d; P.hurt = .3; sfx.hurt(); buzz(50); }
 function newPal(x, z) { pal = { x, y:hAt(x, z), z, vy:0, r:.32, h:1.8, hp:100, a:0, cd:0, wait:false, down:0, walk:0, stuck:0, col:sv.hero === 'antonio' ? '#b0413a' : '#2f5f8a' }; }
 
 /* ================= AZIONI ================= */
@@ -171,10 +172,13 @@ function update(dt) {
   const dBefore = dayN(); sv.t += dt; if (dayN() !== dBefore) { adv('nights'); persist(); } barkT -= dt;
   const hk = (1 - .1 * (sv.at.sto || 0)) * DF().need; sv.hun = Math.max(0, sv.hun - dt * .085 * hk); sv.thi = Math.max(0, sv.thi - dt * .12 * hk); if (sv.hun <= 0 || sv.thi <= 0) sv.hp -= dt * 1.2; else if (sv.hun > 60 && sv.thi > 60) sv.hp = Math.min(maxHp(), sv.hp + dt * .25);
   turn(pad.ax * 2.6 + ((keys.arrowright ? 1 : 0) - (keys.arrowleft ? 1 : 0)) * 2.2, pad.ay * 1.8 + ((keys.arrowdown ? 1 : 0) - (keys.arrowup ? 1 : 0)) * 1.5, dt);
-  const drv = !!P.veh, [mx, mz] = drv ? [0, 0] : moveVec(), sp = (P.swim ? 2.4 : aim ? 2.8 : 4.6) * (1 + .05 * (sv.at.pas || 0)), jump = keys[opt.kb.jump] || pad.jump || hold.j, kHit = opt.kb.hit && keys[opt.kb.hit]; P.mvx = mx; P.mvz = mz;
+  const drv = !!P.veh, [mx, mz] = drv ? [0, 0] : moveVec(), mag = Math.hypot(mx, mz), run = !aim && !P.swim && mag > .1 && (keys[opt.kb.sprint] || pad.sprint || (joy.on && mag > .93)), sp = (P.swim ? 2.4 : aim ? 2.6 : run ? 6.5 : 3.9) * (1 + .05 * (sv.at.pas || 0)) * (run ? 1 : Math.min(1, mag / .9) / (mag || 1)), jump = keys[opt.kb.jump] || pad.jump || hold.j, kHit = opt.kb.hit && keys[opt.kb.hit]; P.mvx = mx; P.mvz = mz;
   if (P.rel > 0) { P.rel -= dt; if (P.rel <= 0) { const g = gunNow(); if (g) { const gd = GUNS[g.id], n = Math.min(gd.mag - g.mag, have(gd.am)); take(gd.am, n); g.mag += n; } } } P.flash -= dt; P.mark -= dt;
-  if (!drv) { if (jump && P.ground) { P.vy = 7.4; P.ground = false; } const wasG = P.ground; moveXZ(P, mx * sp * dt, mz * sp * dt, false); stepY(P, dt); if (P.ground) { if (!wasG && P.fallY - P.y > 4) { sv.hp -= (P.fallY - P.y - 3) * 7; P.hurt = .3; sfx.hurt(); } P.fallY = P.y; } else if (P.vy > 0 || P.swim) P.fallY = Math.max(P.swim ? P.y : P.fallY, P.y); }
-  if (mx || mz) P.walk += dt * 9; P.cd -= dt; P.gcd -= dt; P.hurt -= dt; P.swing -= dt;
+  P.dash -= dt; P.dcd -= dt; P.inv -= dt; P.run = run; if (run) sv.hun = Math.max(0, sv.hun - dt * .05);
+  if (!drv) { if (jump && P.ground) { P.vy = 7.4; P.ground = false; } const wasG = P.ground, k = Math.min(1, (P.ground || P.swim ? 12 : 3.5) * dt); // la velocità cambia per gradi: niente scatti
+    if (P.dash > 0) { P.vx = P.ddx * 11; P.vz = P.ddz * 11; } else { P.vx += (mx * sp - P.vx) * k; P.vz += (mz * sp - P.vz) * k; } P.spd = Math.hypot(P.vx, P.vz); moveXZ(P, P.vx * dt, P.vz * dt, false); stepY(P, dt);
+    const face = P.spd > .4 && !gunNow() && P.swing <= 0 ? Math.atan2(P.vz, P.vx) : P.a, df = Math.atan2(Math.sin(face - P.ma), Math.cos(face - P.ma)); P.ma += df * Math.min(1, 12 * dt); if (P.ground) { if (!wasG && P.fallY - P.y > 4) { sv.hp -= (P.fallY - P.y - 3) * 7; P.hurt = .3; sfx.hurt(); } P.fallY = P.y; } else if (P.vy > 0 || P.swim) P.fallY = Math.max(P.swim ? P.y : P.fallY, P.y); }
+  P.walk += dt * (P.spd || 0) * 2.1; P.cd -= dt; P.gcd -= dt; P.hurt -= dt; P.swing -= dt;
   const fire = hold.a || pad.hit || kHit, gN = gunNow(); if (!fire) { P.trig = false; if (P.cd < -.7) work.o = null; } if (fire && (gN ? P.gcd <= 0 && (GUNS[gN.id].auto || !P.trig) : P.cd <= 0)) doHit();
   updVehicles(dt); if (P.veh && P.veh.type === 'auto' && P.veh.t0 != null) { const ti = TOWNS.findIndex(t => Math.hypot(t.x - P.x, t.z - P.z) < t.r); if (ti >= 0 && ti !== P.veh.t0) { adv('driveTown'); P.veh.t0 = ti; } }
   for (let i = drops.length - 1; i >= 0; i--) { const o = drops[i]; if (!o.gun && Math.hypot(o.x - P.x, o.z - P.z) < 1.1) takeDrop(o); }

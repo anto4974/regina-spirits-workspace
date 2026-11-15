@@ -114,7 +114,7 @@ let W = 1, H = 1, DPR = 1;
 function resize() { const r = $('app').getBoundingClientRect(); W = Math.max(1, r.width); H = Math.max(1, r.height); DPR = Math.min(2, window.devicePixelRatio || 1); cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); }
 window.addEventListener('resize', resize); resize();
 let mode = 'title';
-const P = { x:0, y:0, z:0, vy:0, r:.34, h:1.8, a:0, p:-.05, cd:0, gcd:0, hurt:0, walk:0, swing:0, ground:true, fallY:0, rel:0, flash:0, mark:0, ads:0, veh:null, trig:false, kickV:0 };
+const P = { x:0, y:0, z:0, vy:0, r:.34, h:1.8, a:0, p:-.05, cd:0, gcd:0, hurt:0, walk:0, swing:0, ground:true, fallY:0, rel:0, flash:0, mark:0, ads:0, veh:null, trig:false, kickV:0, vx:0, vz:0, spd:0, ma:0, dash:0, dcd:0, inv:0, run:false, spf:0 };
 let zs = [], an = [], npcs = [], fx = [], pieces = [], drops = [], veh = [], pal = null, aim = false, tp = false, spawnT = 0, aniT = 0, saveT = 0, chkT = 0, raid = null, spotsOn = {}, turCd = {}, invDirty = true, ray = null, ctxAct = null, work = { o:null, p:0 }, pid = 1, barkT = 0;
 const seen = new Uint8Array(SG * SG), hold = { a:false };
 const st = k => sv.st[k] || 0;
