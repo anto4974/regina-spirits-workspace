@@ -17,12 +17,140 @@ var CATALOG = {
     "title": "Regali Aziendali",
     "heroImage": "regali-box-chiuso.jpg",
     "tagline": "Un regalo con un'identità, non un cesto che si dimentica",
-    "intro": "Una bottiglia con un'identità propria resta in vista, viene riutilizzata e ricordata — a differenza di un cesto gastronomico o di un gadget promozionale, che spesso finiscono dimenticati. Per le festività e le occasioni aziendali, Regina Spirits propone gin, liquori e amari in confezioni regalo personalizzabili, pensate per raccontare il territorio e, su richiesta, il marchio della tua azienda.",
-    "points": [
-      "Produzione diretta nel nostro laboratorio di Pomponesco (MN), senza intermediari",
-      "Lo skyline di Mantova e l'identità del territorio protagonisti sulle bottiglie",
-      "Etichette personalizzate con il nome della tua azienda, a partire da 25 box"
-    ],
+    "links": {
+      "shop": "https://www.reginaspirits.com/regali-aziendali-eventi-e-privati/",
+      "quote": "https://www.reginaspirits.com/regali-aziendali-personalizzati/",
+      "catalog": "https://www.reginaspirits.com/shop-regina-spirits/",
+      "site": "https://www.reginaspirits.com/"
+    },
+    "hero": {
+      "bg": "regali-scatola-selezione.jpg",
+      "eyebrow": "Natale Aziendale 2026",
+      "headline": [
+        "Mantova",
+        "da regalare."
+      ],
+      "lead": "Gin, liquori e amari artigianali in confezioni regalo personalizzate. Un omaggio che racconta il territorio — e il tuo brand.",
+      "claim": "La singola confezione si acquista online da **49,90 €** · per i regali aziendali sconti quantità oltre 10 confezioni",
+      "badges": [
+        "Risposta in 24h",
+        "Produttore diretto",
+        "Etichette personalizzate"
+      ],
+      "note": "Foto reali delle nostre confezioni. La composizione finale è personalizzabile: scegli tu le referenze dal catalogo Regina Spirits."
+    },
+    "concept": {
+      "eyebrow": "Il concetto",
+      "title": "Non il solito omaggio natalizio.",
+      "lead": "Pensaci: il cesto gastronomico finisce dimenticato, il gadget finisce nel cassetto. Una bottiglia con un'identità, invece, finisce in bacheca — e ogni volta che il tuo cliente la guarda, pensa a te.",
+      "points": [
+        {
+          "title": "Un produttore vero",
+          "text": "Produciamo tutto nel nostro laboratorio di Pomponesco (MN)."
+        },
+        {
+          "title": "Un territorio sulla bottiglia",
+          "text": "Skyline di Mantova e identità locale riconoscibile."
+        },
+        {
+          "title": "La tua azienda sull'etichetta",
+          "text": "Etichette personalizzate con logo e dedica, da 10 confezioni."
+        }
+      ]
+    },
+    "configurations": {
+      "eyebrow": "Le configurazioni",
+      "title": "Quattro modi di regalare.",
+      "lead": "Tutte le confezioni includono bottiglie da 50 o da 70 cl a scelta dal catalogo Regina Spirits.",
+      "cards": [
+        {
+          "num": "01",
+          "name": "Regalo Essenziale",
+          "price": "da 69,90 €",
+          "img": "regali-conf-essenziale.jpg",
+          "items": [
+            "1 bottiglie da 50 cl e 1 bottiglia da 70 cl a scelta dal catalogo",
+            "Confezione regalo coordinata",
+            "Biglietto d'auguri a carico del cliente"
+          ],
+          "note": "Immagine a scopo illustrativo. Il prezzo indicato è riferito a una composizione di partenza. Il costo finale varia in base alle bottiglie selezionate.",
+          "cta": {
+            "label": "Acquista",
+            "href": "https://www.reginaspirits.com/regali-aziendali-eventi-e-privati/"
+          },
+          "mini": "Sei un'azienda? Sconti da 10 confezioni →"
+        },
+        {
+          "num": "02",
+          "name": "Selezione Mantova",
+          "price": "da 89,90 €",
+          "img": "regali-conf-2-bottiglie.jpg",
+          "items": [
+            "2 bottiglie da 50 cl a scelta dal catalogo",
+            "Confezione premium",
+            "Prodotti gastronomici selezionati su richiesta"
+          ],
+          "note": "Immagine a scopo illustrativo. Il prezzo indicato è riferito a una composizione di partenza. Il costo finale varia in base alle bottiglie selezionate.",
+          "cta": {
+            "label": "Acquista",
+            "href": "https://www.reginaspirits.com/regali-aziendali-eventi-e-privati/"
+          },
+          "mini": "Sei un'azienda? Sconti da 10 confezioni →"
+        },
+        {
+          "num": "03",
+          "name": "Selezione Mantova",
+          "price": "da 119,90 €",
+          "img": "regali-conf-3-bottiglie.jpg",
+          "items": [
+            "3 bottiglie da 50 cl a scelta dal catalogo",
+            "Confezione premium",
+            "Prodotti gastronomici selezionati su richiesta"
+          ],
+          "note": "Immagine a scopo illustrativo. Il prezzo indicato è riferito a una composizione di partenza. Il costo finale varia in base alle bottiglie selezionate.",
+          "cta": {
+            "label": "Acquista",
+            "href": "https://www.reginaspirits.com/regali-aziendali-eventi-e-privati/"
+          },
+          "mini": "Sei un'azienda? Sconti da 10 confezioni →"
+        },
+        {
+          "num": "04",
+          "name": "Selezione Mantova",
+          "price": "da 49,90 €",
+          "img": "regali-conf-1-bottiglia.jpg",
+          "items": [
+            "1 bottiglie da 50 cl a scelta dal catalogo",
+            "Confezione premium",
+            "Prodotti gastronomici selezionati su richiesta"
+          ],
+          "note": "Immagine a scopo illustrativo. Il prezzo indicato è riferito a una composizione di partenza. Il costo finale varia in base alle bottiglie selezionate.",
+          "cta": {
+            "label": "Acquista",
+            "href": "https://www.reginaspirits.com/regali-aziendali-eventi-e-privati/"
+          },
+          "mini": "Sei un'azienda? Sconti da 10 confezioni →"
+        },
+        {
+          "num": "05",
+          "name": "Corporate su misura",
+          "price": "su preventivo",
+          "img": "regali-scatola-selezione.jpg",
+          "items": [
+            "Etichette personalizzate con logo aziendale e dedica",
+            "Confezione da 1, 2 o da 3 bottiglie",
+            "Sconti quantità da 10 confezioni"
+          ],
+          "note": "Immagine a scopo illustrativo. Il prezzo indicato è riferito a una composizione di partenza. Il costo finale varia in base alle bottiglie selezionate.",
+          "cta": {
+            "label": "Richiedi preventivo",
+            "href": "https://www.reginaspirits.com/regali-aziendali-personalizzati/",
+            "ghost": true
+          }
+        }
+      ],
+      "footnote": "Foto reali delle confezioni: la composizione finale è scelta dal cliente. Sconti quantità dedicati per ordini oltre 25 confezioni."
+    },
     "gallery": [
       "regali-box-46100-mincio.jpg",
       "regali-box-tris.jpg",
@@ -35,86 +163,174 @@ var CATALOG = {
       "regali-imbottigliamento-3.jpg",
       "regali-imbottigliamento-4.jpg"
     ],
-    "packages": [
-      {
-        "name": "Essential Gift",
-        "price": "da 49,90 €",
-        "items": [
-          "2 bottiglie da 50 cl a scelta dal catalogo",
-          "Box coordinata Regina Spirits",
-          "Biglietto di auguri (grafica fornita dal cliente)"
-        ]
-      },
-      {
-        "name": "Mantua Selection",
-        "price": "da 69,90 €",
-        "items": [
-          "3 bottiglie a scelta dal catalogo",
-          "Box premium",
-          "Prodotti gourmet su richiesta"
-        ]
-      },
-      {
-        "name": "Custom Corporate",
-        "price": "su preventivo",
-        "items": [
-          "Etichette personalizzate con nome e logo aziendale",
-          "2 o 3 bottiglie a scelta",
-          "Disponibile a partire da 25 box"
-        ]
-      }
-    ],
-    "personalization": [
-      {
-        "title": "Etichette personalizzate",
-        "text": "Nome e logo della tua azienda inseriti nel design delle etichette, a partire da 25 box."
-      },
-      {
-        "title": "Composizione libera",
-        "text": "Scegli tu quali 2 o 3 bottiglie inserire, tra tutto il catalogo."
-      },
-      {
-        "title": "Biglietto di auguri",
-        "text": "Lo stampi con la tua grafica: il laboratorio lo inserisce nella confezione."
-      },
-      {
-        "title": "Controllo grafico",
-        "text": "Ogni etichetta personalizzata viene verificata — leggibilità, coerenza e correttezza — prima di andare in produzione."
-      }
-    ],
-    "process": [
-      "Invia una richiesta con i dettagli del progetto",
-      "Ricevi una proposta entro 24 ore lavorative",
-      "Approva la grafica definitiva",
-      "Produzione e spedizione assicurata in tutta Italia"
-    ],
-    "faq": [
-      {
-        "q": "Qual è la quantità minima?",
-        "a": "Le box si possono ordinare anche in piccole quantità; etichette personalizzate e sconti quantità partono da 25 pezzi."
-      },
-      {
-        "q": "Quali sono i tempi di consegna?",
-        "a": "Dipendono dall'ordine e dall'approvazione della grafica: i tempi vengono concordati nel preventivo. Per Natale conviene richiedere il preventivo con anticipo."
-      },
-      {
-        "q": "Posso scegliere liberamente le bottiglie?",
-        "a": "Sì, tra tutti i prodotti del catalogo: gin, liquori, amari, creme e aperitivi, tutti in formato 50 cl."
-      },
-      {
-        "q": "Quanto costa la personalizzazione con il logo?",
-        "a": "Dipende dalla quantità e dalla configurazione scelta: viene dettagliata nel preventivo."
-      },
-      {
-        "q": "Come avviene la spedizione?",
-        "a": "In tutta Italia con corriere assicurato; nella zona di Mantova è possibile anche la consegna diretta."
-      },
-      {
-        "q": "Come viene fatturato l'ordine?",
-        "a": "Fattura elettronica per aziende e professionisti, oppure scontrino fiscale."
-      }
-    ],
-    "contact": "Per un preventivo scrivici a info@reginaspirits.com o vieni a trovarci in Via Sant'Antonio 16, Pomponesco (MN) — reginaspirits.com"
+    "galleryTitle": "Galleria",
+    "single": {
+      "eyebrow": "Acquisto singolo",
+      "title": [
+        "Una sola confezione?",
+        "La compri subito online."
+      ],
+      "lead": "La confezione regalo Regina Spirits — anche nella versione da 1 bottiglia — è disponibile all'acquisto diretto sul nostro shop: scegli le referenze dal catalogo, alla confezione pensiamo noi.",
+      "cta": "Acquista la confezione",
+      "note": "Per i regali aziendali da 10 confezioni in su conviene il preventivo: applichiamo una scontistica dedicata, con etichetta personalizzata, logo aziendale e dedica.",
+      "images": [
+        {
+          "src": "regali-singola-1.jpg",
+          "alt": "Confezione regalo 1 bottiglia Regina Spirits"
+        },
+        {
+          "src": "regali-singola-2.jpg",
+          "alt": "Confezione regalo 1 bottiglia con gin Regina Spirits"
+        }
+      ]
+    },
+    "catalogSection": {
+      "eyebrow": "Il catalogo",
+      "title": [
+        "Tutti i nostri prodotti.",
+        "La composizione la scegli tu."
+      ],
+      "lead": "Scegli liberamente tra **tutte le referenze del nostro catalogo**: gin, liquori, amari e creme liquorose artigianali — dalla liquirizia al nocino, dal limoncello al melone, e molte altre. Tutte le bottiglie sono da 50 cl.",
+      "chips": [
+        "Gin",
+        "Liquori",
+        "Amari",
+        "Creme liquorose",
+        "Aperitivi",
+        "Edizioni stagionali"
+      ],
+      "cta": "Scopri tutte le referenze sul sito",
+      "ctaLocal": "Sfoglia il catalogo",
+      "note": "Gradazioni riportate sulle singole etichette. Disponibilità soggetta a conferma."
+    },
+    "personalization": {
+      "eyebrow": "La personalizzazione",
+      "title": [
+        "Il territorio sulla bottiglia.",
+        "La tua azienda sull'etichetta."
+      ],
+      "lead": "Da 10 confezioni realizziamo etichette personalizzate con il nome della tua azienda, su confezioni da 1, 2 o da 3 bottiglie — mantenendo riconoscibile l'identità Regina Spirits.",
+      "items": [
+        {
+          "title": "Etichette a tuo nome",
+          "text": "Nome e logo della tua azienda integrati nel progetto grafico dell'etichetta. Disponibile da 10 confezioni."
+        },
+        {
+          "title": "Dedica e biglietto d'auguri",
+          "text": "Aggiungi una dedica o il tuo biglietto d'auguri: lo stampi con il tipografo di tua fiducia e noi lo inseriamo in ogni confezione."
+        },
+        {
+          "title": "Composizione libera",
+          "text": "Scegli tu numero di bottiglie (1, 2 o 3) e referenze: gin, liquori, amari e creme liquorose a piacere."
+        },
+        {
+          "title": "Verifica grafica",
+          "text": "Ogni progetto viene verificato prima della produzione per garantire leggibilità, coerenza grafica e conformità delle informazioni."
+        }
+      ],
+      "cta": "Personalizza la tua confezione"
+    },
+    "lab": {
+      "eyebrow": "Il laboratorio",
+      "title": [
+        "Dietro il regalo,",
+        "c'è un prodotto reale."
+      ],
+      "lead": "Regina Spirits produce i propri gin, liquori e amari nel laboratorio di Pomponesco (Mantova), su piccole produzioni e progetti personalizzati. Per il tuo Natale aziendale significa un interlocutore diretto: dal gusto alla grafica fino alla confezione finale. Nessun intermediario, nessun catalogo standard.",
+      "motto": "REGINA SPIRITS · Pomponesco (MN) — Mantova da gustare.",
+      "images": [
+        {
+          "src": "regali-lab-1.jpg",
+          "alt": "Riempimento bottiglie 46100 Premium Gin nel laboratorio Regina Spirits"
+        },
+        {
+          "src": "regali-lab-2.jpg",
+          "alt": "Chiusura manuale dei tappi in laboratorio"
+        },
+        {
+          "src": "regali-lab-3.jpg",
+          "alt": "Applicazione etichette gin nel laboratorio"
+        },
+        {
+          "src": "regali-lab-4.jpg",
+          "alt": "Riempimento crema di melone nel laboratorio"
+        },
+        {
+          "src": "regali-lab-5.jpg",
+          "alt": "Etichettatura limoncello nel laboratorio"
+        }
+      ]
+    },
+    "steps": {
+      "eyebrow": "Il percorso",
+      "title": "Dal preventivo alla consegna.",
+      "items": [
+        {
+          "title": "Raccontaci il progetto",
+          "text": "Compila il modulo: quantità, referenze preferite, livello di personalizzazione."
+        },
+        {
+          "title": "Ricevi la proposta",
+          "text": "Ti rispondiamo dal laboratorio entro 24 ore lavorative con composizione, prezzi e tempi."
+        },
+        {
+          "title": "Definiamo la grafica",
+          "text": "Logo ed etichette personalizzate vengono verificati prima della produzione."
+        },
+        {
+          "title": "Produciamo e spediamo",
+          "text": "Il tuo regalo arriva pronto da donare, con spedizione assicurata in tutta Italia."
+        }
+      ],
+      "deadline": "Le capacità produttive del laboratorio sono limitate: **i progetti personalizzati si prenotano in ordine di arrivo**. Per garantire la consegna natalizia, ti consigliamo di richiedere il preventivo per tempo."
+    },
+    "quote": {
+      "eyebrow": "Preventivo aziendale",
+      "title": "Richiedi la tua proposta aziendale",
+      "lead": "Per i regali aziendali da 10 confezioni in su applichiamo una scontistica dedicata: compila il modulo con quantità, referenze e personalizzazione (logo, dedica, biglietto d'auguri) e ti risponderemo direttamente dal laboratorio.",
+      "cta": "Richiedi il preventivo",
+      "note": "Risposta dal laboratorio entro 24 ore lavorative."
+    },
+    "faq": {
+      "eyebrow": "Domande frequenti",
+      "title": "Tutto quello che chiedono in fase d'ordine.",
+      "items": [
+        {
+          "q": "Posso acquistare una sola confezione?",
+          "a": "Sì: la singola confezione regalo si acquista direttamente sullo [shop online](https://www.reginaspirits.com/shop-regina-spirits/), anche nella versione da 1 bottiglia. Per i regali aziendali da 25 confezioni in su richiedi il preventivo: applichiamo sconti quantità dedicati."
+        },
+        {
+          "q": "Qual è la quantità minima d'ordine?",
+          "a": "Le confezioni si ordinano anche in piccole quantità. Le etichette personalizzate con il nome dell'azienda sono disponibili da 25 confezioni, in versione da 2 o da 3 bottiglie. Gli sconti quantità dedicati partono da 25 confezioni."
+        },
+        {
+          "q": "Quanto tempo serve per la consegna?",
+          "a": "Dalla conferma dell'ordine e della grafica, prepariamo la produzione del laboratorio. Per i progetti con etichette personalizzate valutiamo insieme i tempi in fase di preventivo. Spediamo in tutta Italia con corriere assicurato."
+        },
+        {
+          "q": "Posso scegliere liberamente le bottiglie?",
+          "a": "Sì. Le foto mostrano alcune composizioni reali: scegli tu le referenze tra tutti i prodotti del catalogo Regina Spirits. Tutte le bottiglie sono da 50 cl."
+        },
+        {
+          "q": "La personalizzazione con logo ha un costo aggiuntivo?",
+          "a": "Dipende da quantità e configurazione: la definizione grafica delle etichette a nome aziendale è disponibile da 25 confezioni. Trovi sempre tutto indicato nel preventivo, senza sorprese."
+        },
+        {
+          "q": "Spedite in tutta Italia?",
+          "a": "Sì, con corriere assicurato su tutto il territorio nazionale. Per ordini aziendali sul territorio mantovano valutiamo anche la consegna diretta."
+        },
+        {
+          "q": "Emettete fattura?",
+          "a": "Sì: fattura elettronica per aziende e professionisti, oppure scontrino fiscale."
+        }
+      ]
+    },
+    "footer": {
+      "motto": "Mantova da gustare.",
+      "address": "REGINA SPIRITS · Via Sant'Antonio 16, 46030 Pomponesco (MN)",
+      "email": "info@reginaspirits.com",
+      "copy": "© 2026 Regina Spirits — Gin, liquori e amari artigianali di Mantova"
+    }
   },
   "awards": [
     {

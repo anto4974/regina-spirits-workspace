@@ -240,6 +240,27 @@
     bindBack();
   }
 
+  // Testo con **grassetto** e [etichetta](https://link) — sempre escapato prima.
+  function richText(s){
+    return escapeHtml(s)
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  }
+
+  function extLink(href, label, cls){
+    return '<a class="' + cls + '" href="' + escapeHtml(href) + '" target="_blank" rel="noopener">' + escapeHtml(label) + '</a>';
+  }
+
+  function giftsHead(eyebrow, title, lead){
+    var html = '<div class="gifts-eyebrow">' + escapeHtml(eyebrow) + '</div>';
+    if (title){
+      var t = Array.isArray(title) ? title.map(escapeHtml).join('<br>') : escapeHtml(title);
+      html += '<h2 class="gifts-title">' + t + '</h2>';
+    }
+    if (lead) html += '<p class="gifts-lead">' + richText(lead) + '</p>';
+    return html;
+  }
+
   function renderRegaliAziendali(){
     var cg = CATALOG.corporateGifts;
     if (!cg){
@@ -248,90 +269,145 @@
       bindBack();
       return;
     }
+    var L = cg.links;
     var html = '';
     html += '<button type="button" class="breadcrumb" data-back>&larr; Torna al catalogo</button>';
 
-    html += '<div class="gifts-hero"><img src="img/' + cg.heroImage + '" alt="' + escapeHtml(cg.title) + '">';
-    html += '<div class="gifts-hero-content">';
-    html += '<h1>' + escapeHtml(cg.title) + '</h1>';
-    html += '<p>' + escapeHtml(cg.tagline) + '</p>';
-    html += '</div></div>';
+    // Hero
+    var h = cg.hero;
+    html += '<div class="gifts-landing-hero" style="background-image:linear-gradient(180deg,rgba(10,9,8,.72),rgba(10,9,8,.94)),url(img/' + h.bg + ')">';
+    html += '<div class="gifts-eyebrow">' + escapeHtml(h.eyebrow) + '</div>';
+    html += '<h1>' + h.headline.map(escapeHtml).join('<br>') + '</h1>';
+    html += '<p class="gifts-lead">' + richText(h.lead) + '</p>';
+    html += '<p class="gifts-claim">' + richText(h.claim) + '</p>';
+    html += '<div class="gifts-btn-row">' + extLink(L.shop, 'Acquista la confezione', 'btn-solid') +
+      '<a class="btn-gold" href="#preventivo" data-scroll="preventivo">Preventivo aziendale</a></div>';
+    html += '<div class="gifts-badges">' + h.badges.map(function(b){ return '<span>' + escapeHtml(b) + '</span>'; }).join('') + '</div>';
+    html += '<p class="gifts-small">' + escapeHtml(h.note) + '</p>';
+    html += '</div>';
 
-    html += '<p class="gifts-intro">' + escapeHtml(cg.intro) + '</p>';
+    // Concetto
+    var c = cg.concept;
+    html += '<section class="gifts-section">' + giftsHead(c.eyebrow, c.title, c.lead);
+    html += '<ul class="gifts-checklist">';
+    c.points.forEach(function(pt, i){
+      html += '<li style="' + staggerStyle(i, 70) + '"><strong>' + escapeHtml(pt.title) + '</strong><span>' + escapeHtml(pt.text) + '</span></li>';
+    });
+    html += '</ul></section>';
 
-    if (cg.points && cg.points.length){
-      html += '<div class="gifts-points">';
-      cg.points.forEach(function(pt, i){
-        html += '<div class="gifts-point" style="' + staggerStyle(i, 70) + '">' + escapeHtml(pt) + '</div>';
-      });
-      html += '</div>';
-    }
+    // Configurazioni
+    var cf = cg.configurations;
+    html += '<section class="gifts-section">' + giftsHead(cf.eyebrow, cf.title, cf.lead);
+    html += '<div class="gifts-cards">';
+    cf.cards.forEach(function(k, i){
+      html += '<article class="gift-card" style="' + staggerStyle(i, 80) + '">';
+      html += '<div class="gift-card-img"><img src="img/' + k.img + '" alt="' + escapeHtml(k.name) + '" loading="lazy"></div>';
+      html += '<div class="gift-card-body">';
+      html += '<div class="gift-card-num">' + escapeHtml(k.num) + '</div>';
+      html += '<h3>' + escapeHtml(k.name) + '</h3>';
+      html += '<div class="gift-card-price">' + escapeHtml(k.price) + '</div>';
+      html += '<ul>' + k.items.map(function(it){ return '<li>' + escapeHtml(it) + '</li>'; }).join('') + '</ul>';
+      if (k.note) html += '<p class="gift-card-note">' + escapeHtml(k.note) + '</p>';
+      html += extLink(k.cta.href, k.cta.label, k.cta.ghost ? 'btn-gold gift-card-cta' : 'btn-solid gift-card-cta');
+      if (k.mini) html += '<a class="gift-card-mini" href="#preventivo" data-scroll="preventivo">' + escapeHtml(k.mini) + '</a>';
+      html += '</div></article>';
+    });
+    html += '</div>';
+    if (cf.footnote) html += '<p class="gifts-small">' + escapeHtml(cf.footnote) + '</p>';
+    html += '</section>';
 
-    if (cg.packages && cg.packages.length){
-      html += '<h2 class="section-heading">Le confezioni</h2>';
-      html += '<div class="gifts-packages">';
-      cg.packages.forEach(function(pack, i){
-        html += '<div class="gift-package" style="' + staggerStyle(i, 80) + '">';
-        html += '<h3>' + escapeHtml(pack.name) + '</h3>';
-        html += '<div class="gift-package-price">' + escapeHtml(pack.price) + '</div>';
-        html += '<ul>';
-        pack.items.forEach(function(item){ html += '<li>' + escapeHtml(item) + '</li>'; });
-        html += '</ul>';
-        html += '</div>';
-      });
-      html += '</div>';
-    }
-
+    // Galleria (apribile a schermo intero)
     var galleryProducts = [];
     if (cg.gallery && cg.gallery.length){
       galleryProducts = cg.gallery.map(function(img){ return { name: cg.title, grade: null, img: img }; });
-      html += '<h2 class="section-heading">Dal nostro laboratorio</h2>';
+      html += '<section class="gifts-section"><h2 class="gifts-title">' + escapeHtml(cg.galleryTitle || 'Galleria') + '</h2>';
       html += '<div class="gifts-gallery">';
       cg.gallery.forEach(function(img, i){
         html += '<div class="gifts-gallery-item" style="' + staggerStyle(i, 50) + '">';
         html += '<button type="button" class="product-photo-btn" data-index="' + i + '">';
         html += '<img src="img/' + img + '" alt="" loading="lazy">';
-        html += '</button>';
-        html += '</div>';
+        html += '</button></div>';
       });
-      html += '</div>';
+      html += '</div></section>';
     }
 
-    if (cg.personalization && cg.personalization.length){
-      html += '<h2 class="section-heading">Personalizzazione</h2>';
-      html += '<div class="gifts-personalization">';
-      cg.personalization.forEach(function(p, i){
-        html += '<div class="gifts-pers-item" style="' + staggerStyle(i, 70) + '">';
-        html += '<h4>' + escapeHtml(p.title) + '</h4>';
-        html += '<p>' + escapeHtml(p.text) + '</p>';
-        html += '</div>';
-      });
-      html += '</div>';
-    }
+    // Acquisto singolo
+    var sg = cg.single;
+    html += '<section class="gifts-section gifts-split">';
+    html += '<div>' + giftsHead(sg.eyebrow, sg.title, sg.lead);
+    html += '<div class="gifts-btn-row">' + extLink(L.shop, sg.cta, 'btn-solid') + '</div>';
+    html += '<p class="gifts-small">' + escapeHtml(sg.note) + '</p></div>';
+    html += '<div class="gifts-duo">' + sg.images.map(function(im){
+      return '<img src="img/' + im.src + '" alt="' + escapeHtml(im.alt) + '" loading="lazy">';
+    }).join('') + '</div></section>';
 
-    if (cg.process && cg.process.length){
-      html += '<h2 class="section-heading">Come funziona</h2>';
-      html += '<ol class="gifts-process">';
-      cg.process.forEach(function(step){ html += '<li>' + escapeHtml(step) + '</li>'; });
-      html += '</ol>';
-    }
+    // Catalogo
+    var ct = cg.catalogSection;
+    html += '<section class="gifts-section">' + giftsHead(ct.eyebrow, ct.title, ct.lead);
+    html += '<div class="gifts-chips">' + ct.chips.map(function(x){ return '<span>' + escapeHtml(x) + '</span>'; }).join('') + '</div>';
+    html += '<div class="gifts-btn-row">' + extLink(L.catalog, ct.cta, 'btn-gold') +
+      '<a class="btn-gold" href="#/">' + escapeHtml(ct.ctaLocal) + '</a></div>';
+    html += '<p class="gifts-small">' + escapeHtml(ct.note) + '</p></section>';
 
-    if (cg.faq && cg.faq.length){
-      html += '<h2 class="section-heading">Domande frequenti</h2>';
-      html += '<div class="gifts-faq">';
-      cg.faq.forEach(function(f){
-        html += '<div class="gifts-faq-item"><h4>' + escapeHtml(f.q) + '</h4><p>' + escapeHtml(f.a) + '</p></div>';
-      });
-      html += '</div>';
-    }
+    // Personalizzazione
+    var ps = cg.personalization;
+    html += '<section class="gifts-section">' + giftsHead(ps.eyebrow, ps.title, ps.lead);
+    html += '<div class="gifts-personalization">';
+    ps.items.forEach(function(p, i){
+      html += '<div class="gifts-pers-item" style="' + staggerStyle(i, 70) + '"><h4>' + escapeHtml(p.title) + '</h4><p>' + escapeHtml(p.text) + '</p></div>';
+    });
+    html += '</div><div class="gifts-btn-row">' + extLink(L.shop, ps.cta, 'btn-solid') + '</div></section>';
 
-    if (cg.contact){
-      html += '<div class="gifts-contact">' + escapeHtml(cg.contact) + '</div>';
-    }
+    // Laboratorio
+    var lb = cg.lab;
+    html += '<section class="gifts-section gifts-split gifts-split-lab">';
+    html += '<div class="gifts-lab-gallery">' + lb.images.map(function(im){
+      return '<img src="img/' + im.src + '" alt="' + escapeHtml(im.alt) + '" loading="lazy">';
+    }).join('') + '</div>';
+    html += '<div>' + giftsHead(lb.eyebrow, lb.title, lb.lead) + '<p class="gifts-motto">' + escapeHtml(lb.motto) + '</p></div></section>';
+
+    // Percorso
+    var st = cg.steps;
+    html += '<section class="gifts-section">' + giftsHead(st.eyebrow, st.title);
+    html += '<div class="gifts-steps">';
+    st.items.forEach(function(it, i){
+      html += '<div class="gifts-step" style="' + staggerStyle(i, 70) + '"><div class="gifts-step-n">' + (i + 1) + '</div><h3>' + escapeHtml(it.title) + '</h3><p>' + escapeHtml(it.text) + '</p></div>';
+    });
+    html += '</div><div class="gifts-deadline">' + richText(st.deadline) + '</div></section>';
+
+    // Preventivo
+    var q = cg.quote;
+    html += '<section class="gifts-section gifts-quote" id="preventivo">' + giftsHead(q.eyebrow, q.title, q.lead);
+    html += '<div class="gifts-btn-row">' + extLink(L.quote, q.cta, 'btn-solid') + '</div>';
+    html += '<p class="gifts-small">' + escapeHtml(q.note) + '</p></section>';
+
+    // FAQ
+    var fq = cg.faq;
+    html += '<section class="gifts-section">' + giftsHead(fq.eyebrow, fq.title);
+    html += '<div class="gifts-faq">';
+    fq.items.forEach(function(f){
+      html += '<details><summary>' + escapeHtml(f.q) + '</summary><p>' + richText(f.a) + '</p></details>';
+    });
+    html += '</div></section>';
+
+    // Chiusura
+    var ft = cg.footer;
+    html += '<div class="gifts-contact"><p class="gifts-motto">' + escapeHtml(ft.motto) + '</p>';
+    html += '<p>' + escapeHtml(ft.address) + ' · <a href="mailto:' + escapeHtml(ft.email) + '">' + escapeHtml(ft.email) + '</a> · ' +
+      '<a href="' + escapeHtml(L.site) + '" target="_blank" rel="noopener">reginaspirits.com</a></p>';
+    html += '<p class="gifts-small">' + escapeHtml(ft.copy) + '</p></div>';
 
     viewEl.innerHTML = html;
     bindBack();
     bindProductPhotos(galleryProducts);
+    // #preventivo non può essere un vero anchor: l'hash è usato dal router
+    Array.prototype.forEach.call(viewEl.querySelectorAll('[data-scroll]'), function(a){
+      a.addEventListener('click', function(e){
+        e.preventDefault();
+        var target = document.getElementById(a.getAttribute('data-scroll'));
+        if (target) target.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+      });
+    });
   }
 
   function bindBack(){
