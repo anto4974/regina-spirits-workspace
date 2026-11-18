@@ -316,22 +316,7 @@
     if (cf.footnote) html += '<p class="gifts-small">' + escapeHtml(cf.footnote) + '</p>';
     html += '</section>';
 
-    // Galleria (apribile a schermo intero)
     var galleryProducts = [];
-    if (cg.gallery && cg.gallery.length){
-      galleryProducts = cg.gallery.map(function(g){ return { name: g.caption || cg.title, grade: null, img: g.src }; });
-      html += '<section class="gifts-section"><h2 class="gifts-title">' + escapeHtml(cg.galleryTitle || 'Galleria') + '</h2>';
-      html += '<div class="gifts-gallery">';
-      cg.gallery.forEach(function(g, i){
-        html += '<div class="gifts-gallery-item" style="' + staggerStyle(i, 50) + '">';
-        html += '<button type="button" class="product-photo-btn" data-index="' + i + '">';
-        html += '<img src="img/' + g.src + '" alt="' + escapeHtml(g.caption || '') + '" loading="lazy">';
-        html += '</button>';
-        if (g.caption) html += '<p class="gifts-gallery-caption">' + escapeHtml(g.caption) + '</p>';
-        html += '</div>';
-      });
-      html += '</div></section>';
-    }
 
     // Acquisto singolo
     var sg = cg.single;

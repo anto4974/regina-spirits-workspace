@@ -652,21 +652,6 @@ a.btn-gold{ text-decoration:none; text-align:center; }
 }
 .gift-card-mini:hover{ color:#fff; }
 
-.gifts-gallery{
-  display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.1rem;
-}
-.gifts-gallery-item{
-  border-radius: 8px; overflow:hidden; border: 1px solid var(--card-border);
-  opacity:0; transform: translateY(14px); animation: cardIn var(--dur) var(--ease) forwards;
-}
-.gifts-gallery-item .product-photo-btn{ aspect-ratio: 4/5; }
-.gifts-gallery-caption{
-  margin: .45rem 0 0;
-  font-size: .74rem;
-  line-height: 1.35;
-  color: var(--text-dim);
-  text-align: center;
-}
 
 .gifts-split{ display:grid; grid-template-columns: 1fr 1fr; gap: 2.4rem; align-items:center; }
 .gifts-duo{ display:grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
@@ -750,7 +735,7 @@ a.btn-gold{ text-decoration:none; text-align:center; }
   .cat-card:hover, .product-card:hover{ transform:none; }
   .cat-card:hover img, .product-photo-btn:hover img{ transform:none; }
   .lightbox, .lightbox img{ transition: none; }
-  .gifts-checklist li, .gift-card, .gifts-gallery-item, .gifts-pers-item, .gifts-step{ animation: none; opacity:1; transform:none; }
+  .gifts-checklist li, .gift-card, .gifts-pers-item, .gifts-step{ animation: none; opacity:1; transform:none; }
   .gifts-banner:hover, .gift-card:hover{ transform:none; }
 }
 
