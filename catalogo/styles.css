@@ -171,6 +171,7 @@ main{ max-width: 1200px; margin: 0 auto; padding: 1.5rem 1.25rem 4rem; }
   color: var(--gold-bright);
   margin: 0 0 1.1rem;
   letter-spacing:.02em;
+  clear: both;
 }
 
 .cat-grid{
@@ -659,6 +660,13 @@ a.btn-gold{ text-decoration:none; text-align:center; }
   opacity:0; transform: translateY(14px); animation: cardIn var(--dur) var(--ease) forwards;
 }
 .gifts-gallery-item .product-photo-btn{ aspect-ratio: 4/5; }
+.gifts-gallery-caption{
+  margin: .45rem 0 0;
+  font-size: .74rem;
+  line-height: 1.35;
+  color: var(--text-dim);
+  text-align: center;
+}
 
 .gifts-split{ display:grid; grid-template-columns: 1fr 1fr; gap: 2.4rem; align-items:center; }
 .gifts-duo{ display:grid; grid-template-columns: 1fr 1fr; gap: .8rem; }

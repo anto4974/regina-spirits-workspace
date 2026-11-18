@@ -319,14 +319,16 @@
     // Galleria (apribile a schermo intero)
     var galleryProducts = [];
     if (cg.gallery && cg.gallery.length){
-      galleryProducts = cg.gallery.map(function(img){ return { name: cg.title, grade: null, img: img }; });
+      galleryProducts = cg.gallery.map(function(g){ return { name: g.caption || cg.title, grade: null, img: g.src }; });
       html += '<section class="gifts-section"><h2 class="gifts-title">' + escapeHtml(cg.galleryTitle || 'Galleria') + '</h2>';
       html += '<div class="gifts-gallery">';
-      cg.gallery.forEach(function(img, i){
+      cg.gallery.forEach(function(g, i){
         html += '<div class="gifts-gallery-item" style="' + staggerStyle(i, 50) + '">';
         html += '<button type="button" class="product-photo-btn" data-index="' + i + '">';
-        html += '<img src="img/' + img + '" alt="" loading="lazy">';
-        html += '</button></div>';
+        html += '<img src="img/' + g.src + '" alt="' + escapeHtml(g.caption || '') + '" loading="lazy">';
+        html += '</button>';
+        if (g.caption) html += '<p class="gifts-gallery-caption">' + escapeHtml(g.caption) + '</p>';
+        html += '</div>';
       });
       html += '</div></section>';
     }
@@ -467,29 +469,30 @@
   var SLIDE_DIST = 36;
   var sliding = false;
 
-  function slideToProduct(direction, newIndex){
+  function slideToProduct(direction, newIndex, axis){
     if (sliding) return;
     if (prefersReducedMotion()){
       openLightbox(newIndex, 0);
       return;
     }
     sliding = true;
+    var move = axis === 'y' ? 'translateY' : 'translateX';
     var outX = direction === 'next' ? -SLIDE_DIST : SLIDE_DIST;
     var inX = direction === 'next' ? SLIDE_DIST : -SLIDE_DIST;
 
     lightboxImg.style.transition = 'transform ' + SLIDE_MS + 'ms ease, opacity ' + SLIDE_MS + 'ms ease';
-    lightboxImg.style.transform = 'translateX(' + outX + 'px)';
+    lightboxImg.style.transform = move + '(' + outX + 'px)';
     lightboxImg.style.opacity = '0';
 
     setTimeout(function(){
       openLightbox(newIndex, 0);
       lightboxImg.style.transition = 'none';
-      lightboxImg.style.transform = 'translateX(' + inX + 'px)';
+      lightboxImg.style.transform = move + '(' + inX + 'px)';
       lightboxImg.style.opacity = '0';
       // force reflow so the next transition actually animates
       void lightboxImg.offsetWidth;
       lightboxImg.style.transition = 'transform ' + SLIDE_MS + 'ms ease, opacity ' + SLIDE_MS + 'ms ease';
-      lightboxImg.style.transform = 'translateX(0)';
+      lightboxImg.style.transform = move + '(0)';
       lightboxImg.style.opacity = '1';
       setTimeout(function(){
         sliding = false;
@@ -500,8 +503,8 @@
     }, SLIDE_MS);
   }
 
-  function showNextProduct(){ slideToProduct('next', galleryProductIndex + 1); }
-  function showPrevProduct(){ slideToProduct('prev', galleryProductIndex - 1); }
+  function showNextProduct(axis){ slideToProduct('next', galleryProductIndex + 1, axis); }
+  function showPrevProduct(axis){ slideToProduct('prev', galleryProductIndex - 1, axis); }
 
   function closeLightbox(){
     lightbox.classList.remove('is-open');
@@ -518,26 +521,46 @@
     if (e.target === lightboxClose || e.target === lightbox) { closeLightbox(); }
   });
   lightboxClose.addEventListener('click', closeLightbox);
-  lightboxPrev.addEventListener('click', function(e){ e.stopPropagation(); showPrevProduct(); });
-  lightboxNext.addEventListener('click', function(e){ e.stopPropagation(); showNextProduct(); });
+  lightboxPrev.addEventListener('click', function(e){ e.stopPropagation(); showPrevProduct('x'); });
+  lightboxNext.addEventListener('click', function(e){ e.stopPropagation(); showNextProduct('x'); });
   document.addEventListener('keydown', function(e){
     if (!lightbox.classList.contains('is-open')) return;
     if (e.key === 'Escape') closeLightbox();
-    else if (e.key === 'ArrowRight') showNextProduct();
-    else if (e.key === 'ArrowLeft') showPrevProduct();
+    else if (e.key === 'ArrowRight') showNextProduct('x');
+    else if (e.key === 'ArrowLeft') showPrevProduct('x');
+    else if (e.key === 'ArrowDown'){ e.preventDefault(); showNextProduct('y'); }
+    else if (e.key === 'ArrowUp'){ e.preventDefault(); showPrevProduct('y'); }
   });
 
-  var touchStartX = null;
+  // Swipe: da destra a sinistra / dal basso in alto = avanti, il contrario = indietro
+  var touchStartX = null, touchStartY = null;
   lightbox.addEventListener('touchstart', function(e){
     touchStartX = e.changedTouches[0].clientX;
+    touchStartY = e.changedTouches[0].clientY;
   }, { passive: true });
   lightbox.addEventListener('touchend', function(e){
     if (touchStartX === null) return;
     var dx = e.changedTouches[0].clientX - touchStartX;
-    touchStartX = null;
-    if (Math.abs(dx) < 40) return;
+    var dy = e.changedTouches[0].clientY - touchStartY;
+    touchStartX = touchStartY = null;
+    var horizontal = Math.abs(dx) >= Math.abs(dy);
+    var d = horizontal ? dx : dy;
+    if (Math.abs(d) < 40) return;
     e.preventDefault();
-    if (dx < 0) showNextProduct(); else showPrevProduct();
+    var axis = horizontal ? 'x' : 'y';
+    if (d < 0) showNextProduct(axis); else showPrevProduct(axis);
+  }, { passive: false });
+  // il lightbox è fisso a schermo intero: niente scroll/pull-to-refresh della pagina sotto
+  lightbox.addEventListener('touchmove', function(e){ e.preventDefault(); }, { passive: false });
+
+  // Rotellina / trackpad sul computer
+  var wheelLockUntil = 0;
+  lightbox.addEventListener('wheel', function(e){
+    e.preventDefault();
+    var now = Date.now();
+    if (now < wheelLockUntil || Math.abs(e.deltaY) < 20) return;
+    wheelLockUntil = now + 450;
+    if (e.deltaY > 0) showNextProduct('y'); else showPrevProduct('y');
   }, { passive: false });
 
   // ---------- Router ----------

@@ -1,18 +1,38 @@
 {
-  "hosting": {
-    "public": "catalogo",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
-    "headers": [
-      {
-        "source": "**/*.@(jpg|jpeg|png|svg|webp)",
-        "headers": [
-          { "key": "Cache-Control", "value": "public, max-age=604800, immutable" }
-        ]
-      }
-    ]
-  }
+  "hosting": [
+    {
+      "site": "regina-caramelle-592f7",
+      "public": "catalogo",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "headers": [
+        {
+          "source": "**/*.@(jpg|jpeg|png|svg|webp)",
+          "headers": [
+            { "key": "Cache-Control", "value": "public, max-age=604800, immutable" }
+          ]
+        }
+      ]
+    },
+    {
+      "target": "catalogo",
+      "public": "catalogo",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "headers": [
+        {
+          "source": "**/*.@(jpg|jpeg|png|svg|webp)",
+          "headers": [
+            { "key": "Cache-Control", "value": "public, max-age=604800, immutable" }
+          ]
+        }
+      ]
+    }
+  ]
 }
