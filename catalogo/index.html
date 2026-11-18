@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Catalogo Regina Spirits</title>
+<meta name="description" content="Catalogo prodotti Regina Spirits — liquorificio artigianale di Mantova. Aperitivi, amari, digestivi, creme liquorose e gin artigianali.">
+<link rel="icon" href="icons/catalogo-32.png">
+<link rel="apple-touch-icon" href="icons/catalogo-180.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#000000">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Catalogo">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Cormorant+Garamond:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner" id="homeLink" role="link" tabindex="0" aria-label="Torna alla home">
+    <img class="logo" id="headerLogo" src="img/logo.png" alt="Regina Spirits">
+    <div class="header-text">
+      <span class="brand-name">Regina Spirits</span>
+      <span class="brand-tag" id="headerTag"></span>
+    </div>
+  </div>
+</header>
+
+<main id="view"></main>
+
+<footer class="site-footer">
+  Regina Spirits &middot; Liquorificio artigianale &middot; Mantova
+</footer>
+
+<div class="lightbox" id="lightbox" aria-hidden="true">
+  <button type="button" class="lightbox-close" id="lightboxClose" aria-label="Chiudi">&times;</button>
+  <button type="button" class="lightbox-nav lightbox-prev" id="lightboxPrev" aria-label="Prodotto precedente">&lsaquo;</button>
+  <button type="button" class="lightbox-nav lightbox-next" id="lightboxNext" aria-label="Prodotto successivo">&rsaquo;</button>
+  <img id="lightboxImg" src="" alt="">
+  <div class="lightbox-caption" id="lightboxCaption"></div>
+  <div class="lightbox-sizes" id="lightboxSizes"></div>
+</div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
