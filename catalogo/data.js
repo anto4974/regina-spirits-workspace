@@ -60,7 +60,7 @@ var CATALOG = {
     },
     "configurations": {
       "eyebrow": "Le configurazioni",
-      "title": "Quattro modi di regalare.",
+      "title": "Cinque modi di regalare.",
       "lead": "Tutte le confezioni includono bottiglie da 50 o da 70 cl a scelta dal catalogo Regina Spirits.",
       "cards": [
         {
@@ -69,7 +69,7 @@ var CATALOG = {
           "price": "da 69,90 €",
           "img": "regali-conf-essenziale.jpg",
           "items": [
-            "1 bottiglie da 50 cl e 1 bottiglia da 70 cl a scelta dal catalogo",
+            "1 bottiglia da 50 cl e 1 bottiglia da 70 cl a scelta dal catalogo",
             "Confezione regalo coordinata",
             "Biglietto d'auguri a carico del cliente"
           ],
@@ -120,7 +120,7 @@ var CATALOG = {
           "price": "da 49,90 €",
           "img": "regali-conf-1-bottiglia.jpg",
           "items": [
-            "1 bottiglie da 50 cl a scelta dal catalogo",
+            "1 bottiglia da 50 cl a scelta dal catalogo",
             "Confezione premium",
             "Prodotti gastronomici selezionati su richiesta"
           ],
@@ -141,7 +141,6 @@ var CATALOG = {
             "Confezione da 1, 2 o da 3 bottiglie",
             "Sconti quantità da 10 confezioni"
           ],
-          "note": "Immagine a scopo illustrativo. Il prezzo indicato è riferito a una composizione di partenza. Il costo finale varia in base alle bottiglie selezionate.",
           "cta": {
             "label": "Richiedi preventivo",
             "href": "https://www.reginaspirits.com/regali-aziendali-personalizzati/",
@@ -149,7 +148,7 @@ var CATALOG = {
           }
         }
       ],
-      "footnote": "Foto reali delle confezioni: la composizione finale è scelta dal cliente. Sconti quantità dedicati per ordini oltre 25 confezioni."
+      "footnote": "Foto reali delle confezioni: la composizione finale è scelta dal cliente. Sconti quantità dedicati per ordini oltre 10 confezioni."
     },
     "gallery": [
       { "src": "regali-box-46100-mincio.jpg", "caption": "46100 Premium e Mincio Gin in confezione regalo" },
@@ -191,7 +190,7 @@ var CATALOG = {
         "Tutti i nostri prodotti.",
         "La composizione la scegli tu."
       ],
-      "lead": "Scegli liberamente tra **tutte le referenze del nostro catalogo**: gin, liquori, amari e creme liquorose artigianali — dalla liquirizia al nocino, dal limoncello al melone, e molte altre. Tutte le bottiglie sono da 50 cl.",
+      "lead": "Scegli liberamente tra **tutte le referenze del nostro catalogo**: gin, liquori, amari e creme liquorose artigianali — dalla liquirizia al nocino, dal limoncello al melone, e molte altre. Le bottiglie sono da 50 cl; nel Regalo Essenziale puoi abbinarne una da 50 cl e una da 70 cl.",
       "chips": [
         "Gin",
         "Liquori",
@@ -298,11 +297,11 @@ var CATALOG = {
       "items": [
         {
           "q": "Posso acquistare una sola confezione?",
-          "a": "Sì: la singola confezione regalo si acquista direttamente sullo [shop online](https://www.reginaspirits.com/shop-regina-spirits/), anche nella versione da 1 bottiglia. Per i regali aziendali da 25 confezioni in su richiedi il preventivo: applichiamo sconti quantità dedicati."
+          "a": "Sì: la singola confezione regalo si acquista direttamente sullo [shop online](https://www.reginaspirits.com/shop-regina-spirits/), anche nella versione da 1 bottiglia. Per i regali aziendali da 10 confezioni in su richiedi il preventivo: applichiamo sconti quantità dedicati."
         },
         {
           "q": "Qual è la quantità minima d'ordine?",
-          "a": "Le confezioni si ordinano anche in piccole quantità. Le etichette personalizzate con il nome dell'azienda sono disponibili da 25 confezioni, in versione da 2 o da 3 bottiglie. Gli sconti quantità dedicati partono da 25 confezioni."
+          "a": "Le confezioni si ordinano anche in piccole quantità. Le etichette personalizzate con il nome dell'azienda sono disponibili da 10 confezioni, in versione da 2 o da 3 bottiglie. Gli sconti quantità dedicati partono da 10 confezioni."
         },
         {
           "q": "Quanto tempo serve per la consegna?",
@@ -310,11 +309,11 @@ var CATALOG = {
         },
         {
           "q": "Posso scegliere liberamente le bottiglie?",
-          "a": "Sì. Le foto mostrano alcune composizioni reali: scegli tu le referenze tra tutti i prodotti del catalogo Regina Spirits. Tutte le bottiglie sono da 50 cl."
+          "a": "Sì. Le foto mostrano alcune composizioni reali: scegli tu le referenze tra tutti i prodotti del catalogo Regina Spirits. Le bottiglie sono da 50 cl; nel Regalo Essenziale puoi abbinarne una da 50 cl e una da 70 cl."
         },
         {
           "q": "La personalizzazione con logo ha un costo aggiuntivo?",
-          "a": "Dipende da quantità e configurazione: la definizione grafica delle etichette a nome aziendale è disponibile da 25 confezioni. Trovi sempre tutto indicato nel preventivo, senza sorprese."
+          "a": "Dipende da quantità e configurazione: la definizione grafica delle etichette a nome aziendale è disponibile da 10 confezioni. Trovi sempre tutto indicato nel preventivo, senza sorprese."
         },
         {
           "q": "Spedite in tutta Italia?",
